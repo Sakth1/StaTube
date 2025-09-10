@@ -1,0 +1,6 @@
+requests == 2.32.5
+scrapetube == 2.5.1
+youtube-transcript-api == 1.2.2
+pandas == 2.3.2
+numpy == 2.3.3
+PySide6 == 6.9.2
