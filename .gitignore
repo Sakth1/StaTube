@@ -1,2 +1,4 @@
 .vscode/
 venv/
+UI/__pycache__
+Backend/__pycache__
