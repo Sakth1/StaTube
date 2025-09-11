@@ -6,11 +6,13 @@ class Search():
 
     def search_channel(self, name=None):
         if name is not None:
-            self.channels = []
+            self.channels = {}
+            channel_name = []
             self.search = scrapetube.get_search(name, results_type='channel', limit=6)
             for vid in self.search:
                 title = vid.get('title', {}).get('simpleText')
-                self.channels.append(title)
+                channelid = vid.get('channelId')
+                self.channels[channelid] = title
 
             return self.channels
 

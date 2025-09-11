@@ -6,8 +6,8 @@ import threading
 import time
 import traceback
 
-from Backend.scrapeall import Search
-
+from Backend.ScrapeChannel import Search
+from Backend.ScrapeVideo import Videos
 
 
 class MainWindow(QMainWindow):
@@ -23,6 +23,8 @@ class MainWindow(QMainWindow):
         self.search_timer = QtCore.QTimer()
         self.stop_event = threading.Event()
         self.search_thread_instance = None
+        self.channels = None
+        self.search_button = QPushButton("Search")
 
         self.search_timer.setSingleShot(True)
         self.search_timer.timeout.connect(self.search_keyword)
@@ -33,6 +35,7 @@ class MainWindow(QMainWindow):
         self.searchbar.setEditable(True)
         self.searchbar.setPlaceholderText("Search")
         self.searchbar.currentTextChanged.connect(self.reset_search_timer)
+        self.searchbar.currentIndexChanged.connect(self.scrape_videos)
         self.results_ready.connect(self.update_results)
 
         self.setupUi()
@@ -63,8 +66,11 @@ class MainWindow(QMainWindow):
 
     def search_thread(self, query):
         search = Search()
-        channels = search.search_channel(query)
-        self.results_ready.emit(channels) 
+        self.channels = search.search_channel(query)
+        self.channel_name = []
+        for key, item in self.channels.items():
+            self.channel_name.append(item)
+        self.results_ready.emit(self.channel_name) 
 
     def update_results(self, channels):
         self.searchbar.clear()
@@ -86,3 +92,12 @@ class MainWindow(QMainWindow):
         except Exception as e:
             traceback.print_exc()
             print(e)
+
+    def scrape_videos(self):
+        channel_name = self.searchbar.currentText()
+        for id, name in self.channels.items():
+            if name == channel_name:
+                print(name, id)
+                break
+        videos = Videos()
+        print("videe", videos.search_video(id))
