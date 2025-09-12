@@ -36,7 +36,7 @@ class MainWindow(QMainWindow):
         
         self.searchbar.setEditable(True)
         self.searchbar.setPlaceholderText("Search")
-        self.searchbar.currentTextChanged.connect(self.reset_search_timer)
+        self.searchbar.lineEdit().textEdited.connect(self.reset_search_timer)
         self.scrap_video_button.clicked.connect(self.scrape_videos)
         self.scrape_transcription_button.clicked.connect(self.scrape_transcription)
         self.results_ready.connect(self.update_results)
@@ -76,7 +76,7 @@ class MainWindow(QMainWindow):
         self.channel_name = []
         for key, item in self.channels.items():
             self.channel_name.append(item)
-        self.results_ready.emit(self.channel_name) 
+        self.results_ready.emit(self.channel_name)
 
     def update_results(self, channels):
         text = self.searchbar.currentText()
@@ -85,7 +85,7 @@ class MainWindow(QMainWindow):
         self.searchbar.setCurrentText(text)
         self.searchbar.addItems(channels)
         self.searchbar.showPopup()
-        time.sleep(0.1)
+        
         self.searchbar.blockSignals(False)
 
     def search_keyword(self):
