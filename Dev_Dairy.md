@@ -1,4 +1,4 @@
-KNOWN ISSUES:
+KNOWN ISSUE:
 
 Traceback (most recent call last):
   File "D:\Personal\Personal_Projects\youtube_transcription_analysis\UI\MainWindow.py", line 157, in scrape_transcription
