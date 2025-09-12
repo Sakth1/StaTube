@@ -8,6 +8,7 @@ import traceback
 
 from Backend.ScrapeChannel import Search
 from Backend.ScrapeVideo import Videos
+from Backend.ScrapeTranscription import Transcription
 
 
 class MainWindow(QMainWindow):
@@ -24,7 +25,8 @@ class MainWindow(QMainWindow):
         self.stop_event = threading.Event()
         self.search_thread_instance = None
         self.channels = None
-        self.search_button = QPushButton("Search")
+        self.scrap_video_button = QPushButton("Scrape Video")
+        self.scrape_transcription_button = QPushButton("screpe transcription")
 
         self.search_timer.setSingleShot(True)
         self.search_timer.timeout.connect(self.search_keyword)
@@ -35,7 +37,8 @@ class MainWindow(QMainWindow):
         self.searchbar.setEditable(True)
         self.searchbar.setPlaceholderText("Search")
         self.searchbar.currentTextChanged.connect(self.reset_search_timer)
-        self.searchbar.currentIndexChanged.connect(self.scrape_videos)
+        self.scrap_video_button.clicked.connect(self.scrape_videos)
+        self.scrape_transcription_button.clicked.connect(self.scrape_transcription)
         self.results_ready.connect(self.update_results)
 
         self.setupUi()
@@ -53,6 +56,8 @@ class MainWindow(QMainWindow):
     def setuptop(self):
         self.top_layout = QVBoxLayout()
         self.top_layout.addWidget(self.searchbar)
+        self.top_layout.addWidget(self.scrap_video_button)
+        self.top_layout.addWidget(self.scrape_transcription_button)
         self.top_panel.setLayout(self.top_layout)
         self.top_panel.show()
     
@@ -65,6 +70,7 @@ class MainWindow(QMainWindow):
         self.search_timer.start(400)
 
     def search_thread(self, query):
+        print("search channel thread triggered")
         search = Search()
         self.channels = search.search_channel(query)
         self.channel_name = []
@@ -73,9 +79,14 @@ class MainWindow(QMainWindow):
         self.results_ready.emit(self.channel_name) 
 
     def update_results(self, channels):
+        text = self.searchbar.currentText()
+        self.searchbar.blockSignals(True)
         self.searchbar.clear()
+        self.searchbar.setCurrentText(text)
         self.searchbar.addItems(channels)
         self.searchbar.showPopup()
+        time.sleep(0.1)
+        self.searchbar.blockSignals(False)
 
     def search_keyword(self):
         try:
@@ -94,10 +105,21 @@ class MainWindow(QMainWindow):
             print(e)
 
     def scrape_videos(self):
+        print("search video trigggered")
         channel_name = self.searchbar.currentText()
         for id, name in self.channels.items():
             if name == channel_name:
                 print(name, id)
                 break
         videos = Videos()
-        print("videe", videos.search_video(id))
+        self.video_ids = videos.search_video(id)
+        print(self.video_ids)
+
+    def scrape_transcription(self):
+        print("transcription triggered")
+        transcription = Transcription()
+        self.transcriptions = {}
+        for id in self.video_ids:
+            transcripts = transcription.get_transcript(id)
+            self.transcriptions[id] = transcripts
+        print(self.transcriptions)
