@@ -1,13 +1,15 @@
 from PySide6 import QtCore, QtGui
 from PySide6.QtWidgets import (QApplication, QMainWindow, QStackedWidget, QWidget, 
-                               QLineEdit, QComboBox, QVBoxLayout, QHBoxLayout, QLabel,
-                               QPushButton)
+                               QLineEdit, QListWidget, QVBoxLayout, QHBoxLayout, QLabel,
+                               QPushButton, QListWidgetItem)
+from PySide6.QtCore import Qt
 import threading
 import time
 import traceback
 
-from Backend.scrapeall import Search
-
+from Backend.ScrapeChannel import Search
+from Backend.ScrapeVideo import Videos
+from Backend.ScrapeTranscription import Transcription
 
 
 class MainWindow(QMainWindow):
@@ -19,10 +21,17 @@ class MainWindow(QMainWindow):
         self.bottom_panel = QWidget()
         self.central_layout = QVBoxLayout()
         self.central_widget = QStackedWidget()
-        self.searchbar = QComboBox()
+        
+        # Replace ComboBox with LineEdit and ListWidget
+        self.searchbar = QLineEdit()
+        self.dropdown_list = QListWidget()
+        
         self.search_timer = QtCore.QTimer()
         self.stop_event = threading.Event()
         self.search_thread_instance = None
+        self.channels = None
+        self.scrap_video_button = QPushButton("Scrape Video")
+        self.scrape_transcription_button = QPushButton("screpe transcription")
 
         self.search_timer.setSingleShot(True)
         self.search_timer.timeout.connect(self.search_keyword)
@@ -30,9 +39,17 @@ class MainWindow(QMainWindow):
         self.central_widget.addWidget(self.top_panel)
         self.central_widget.addWidget(self.bottom_panel)
         
-        self.searchbar.setEditable(True)
+        # Setup search components
         self.searchbar.setPlaceholderText("Search")
-        self.searchbar.currentTextChanged.connect(self.reset_search_timer)
+        self.searchbar.textChanged.connect(self.reset_search_timer)
+        self.dropdown_list.hide()  # Initially hidden
+        self.dropdown_list.itemClicked.connect(self.on_item_selected)
+        
+        # Override key press to handle navigation
+        #self.searchbar.keyPressEvent = self.handle_key_press
+        
+        self.scrap_video_button.clicked.connect(self.scrape_videos)
+        self.scrape_transcription_button.clicked.connect(self.scrape_transcription)
         self.results_ready.connect(self.update_results)
 
         self.setupUi()
@@ -50,6 +67,9 @@ class MainWindow(QMainWindow):
     def setuptop(self):
         self.top_layout = QVBoxLayout()
         self.top_layout.addWidget(self.searchbar)
+        self.top_layout.addWidget(self.dropdown_list)  # Add dropdown list
+        self.top_layout.addWidget(self.scrap_video_button)
+        self.top_layout.addWidget(self.scrape_transcription_button)
         self.top_panel.setLayout(self.top_layout)
         self.top_panel.show()
     
@@ -59,18 +79,46 @@ class MainWindow(QMainWindow):
         self.bottom_panel.show()
 
     def reset_search_timer(self):
-        self.search_timer.start(400)
+        self.search_timer.start(100)
+
+    def on_item_selected(self, item):
+        """Handle item selection from dropdown"""
+        if item:
+            selected_text = item.text()
+            self.searchbar.setText(selected_text)
+            self.dropdown_list.hide()
+            # Return focus to input after selection
+            QtCore.QTimer.singleShot(10, lambda: self.searchbar.setFocus())
 
     def search_thread(self, query):
-        search = Search()
-        channels = search.search_channel(query)
-        self.results_ready.emit(channels) 
+        print("search channel thread triggered")
+        if query != '':
+            search = Search()
+            self.channels = search.search_channel(query)
+            self.channel_name = []
+            for key, item in self.channels.items():
+                self.channel_name.append(item)
+            self.results_ready.emit(self.channel_name)
 
     def update_results(self, channels):
-        self.searchbar.clear()
-        self.searchbar.addItems(channels)
-        self.searchbar.showPopup()
-
+        """Update dropdown list with search results"""
+        text = self.searchbar.text()
+        
+        # Clear and populate dropdown list
+        self.dropdown_list.clear()
+        
+        if channels:
+            for channel in channels:
+                item = QListWidgetItem(channel)
+                self.dropdown_list.addItem(item)
+            
+            self.dropdown_list.show()
+        else:
+            self.dropdown_list.hide()
+        
+        # Keep focus on search input
+        self.searchbar.setFocus()
+        
     def search_keyword(self):
         try:
             if self.search_thread_instance and self.search_thread_instance.is_alive():
@@ -79,10 +127,33 @@ class MainWindow(QMainWindow):
 
             self.stop_event.clear()
 
-            query = self.searchbar.currentText()
-            self.search_thread_instance = threading.Thread(target=self.search_thread, daemon=True, args=(query,))
-            self.search_thread_instance.start()
+            query = self.searchbar.text()
+            if query:
+                self.search_thread_instance = threading.Thread(target=self.search_thread, daemon=True, args=(query,))
+                self.search_thread_instance.start()
+            else:
+                self.dropdown_list.hide()
         
         except Exception as e:
             traceback.print_exc()
             print(e)
+
+    def scrape_videos(self):
+        print("search video trigggered")
+        channel_name = self.searchbar.text()
+        for id, name in self.channels.items():
+            if name == channel_name:
+                print(name, id)
+                break
+        videos = Videos()
+        self.video_ids = videos.search_video(id)
+        print(self.video_ids)
+
+    def scrape_transcription(self):
+        print("transcription triggered")
+        transcription = Transcription()
+        self.transcriptions = {}
+        for id in self.video_ids:
+            transcripts = transcription.get_transcript(id)
+            self.transcriptions[id] = transcripts
+        print(self.transcriptions)
