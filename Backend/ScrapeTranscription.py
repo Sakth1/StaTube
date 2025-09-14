@@ -1,7 +1,7 @@
 from youtube_transcript_api import YouTubeTranscriptApi
 
 
-class Transcription:
+class Transcription():
     def __init__(self):
         self.transcript = None
 

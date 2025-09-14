@@ -10,10 +10,17 @@ import traceback
 from Backend.ScrapeChannel import Search
 from Backend.ScrapeVideo import Videos
 from Backend.ScrapeTranscription import Transcription
+from Backend.ScrapeAudio import Audio
 
 
 class MainWindow(QMainWindow):
     results_ready = QtCore.Signal(list)
+    videos = {}
+    video_url = [] #temp
+    live = {}
+    shorts = {}
+    content = {}
+
     def __init__(self):
         super(MainWindow, self).__init__()
 
@@ -84,11 +91,13 @@ class MainWindow(QMainWindow):
     def on_item_selected(self, item):
         """Handle item selection from dropdown"""
         if item:
+            self.searchbar.blockSignals(True)
             selected_text = item.text()
             self.searchbar.setText(selected_text)
-            self.dropdown_list.hide()
+            #self.dropdown_list.hide()
             # Return focus to input after selection
             QtCore.QTimer.singleShot(10, lambda: self.searchbar.setFocus())
+            self.searchbar.blockSignals(False)
 
     def search_thread(self, query):
         print("search channel thread triggered")
@@ -97,7 +106,7 @@ class MainWindow(QMainWindow):
             self.channels = search.search_channel(query)
             self.channel_name = []
             for key, item in self.channels.items():
-                self.channel_name.append(item)
+                self.channel_name.append(item.get('title'))
             self.results_ready.emit(self.channel_name)
 
     def update_results(self, channels):
@@ -141,19 +150,25 @@ class MainWindow(QMainWindow):
     def scrape_videos(self):
         print("search video trigggered")
         channel_name = self.searchbar.text()
-        for id, name in self.channels.items():
-            if name == channel_name:
-                print(name, id)
+        for id, val in self.channels.items():
+            if val['title'] == channel_name:
+                print(val['title'], id)
+                channel_url = val['url']
                 break
         videos = Videos()
-        self.video_ids = videos.search_video(id)
-        print(self.video_ids)
+        self.content = videos.fetch_video_urls(channel_url)
+
+        if 'video_url' in self.content:
+            self.video_url = self.content.get('video_url')
 
     def scrape_transcription(self):
-        print("transcription triggered")
-        transcription = Transcription()
+
+        audio = Audio(self.video_url[0])
+        audio.download_audio()
+        
+        """transcription = Transcription()
         self.transcriptions = {}
         for id in self.video_ids:
             transcripts = transcription.get_transcript(id)
             self.transcriptions[id] = transcripts
-        print(type(self.transcriptions))
+        print(type(self.transcriptions))"""

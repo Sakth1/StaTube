@@ -3,3 +3,4 @@ venv/
 UI/__pycache__
 Backend/__pycache__
 trial.py
+audio/
