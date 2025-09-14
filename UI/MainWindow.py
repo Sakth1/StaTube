@@ -91,11 +91,13 @@ class MainWindow(QMainWindow):
     def on_item_selected(self, item):
         """Handle item selection from dropdown"""
         if item:
+            self.searchbar.blockSignals(True)
             selected_text = item.text()
             self.searchbar.setText(selected_text)
-            self.dropdown_list.hide()
+            #self.dropdown_list.hide()
             # Return focus to input after selection
             QtCore.QTimer.singleShot(10, lambda: self.searchbar.setFocus())
+            self.searchbar.blockSignals(False)
 
     def search_thread(self, query):
         print("search channel thread triggered")
@@ -160,8 +162,6 @@ class MainWindow(QMainWindow):
             self.video_url = self.content.get('video_url')
 
     def scrape_transcription(self):
-        #print("DEBUG:", self.video_url)  # should be list of URLs
-        #print([type(v) for v in self.video_url])
 
         audio = Audio(self.video_url[0])
         audio.download_audio()
