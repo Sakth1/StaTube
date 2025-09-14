@@ -157,19 +157,14 @@ class MainWindow(QMainWindow):
         self.content = videos.fetch_video_urls(channel_url)
 
         if 'video_url' in self.content:
-            self.video_url = self.content['video_url']
-            print(self.video_url)
+            self.video_url = self.content.get('video_url')
 
     def scrape_transcription(self):
-        print("DEBUG:", self.video_url)  # should be list of URLs
-        print([type(v) for v in self.video_url])
+        #print("DEBUG:", self.video_url)  # should be list of URLs
+        #print([type(v) for v in self.video_url])
 
-        audio = Audio()
-        if isinstance(self.video_url[0], str):
-            audio.download_audio(self.video_url[0])
-        else:
-            raise TypeError(f"Expected str, got {type(self.video_url[0])}")
-
+        audio = Audio(self.video_url[0])
+        audio.download_audio()
         
         """transcription = Transcription()
         self.transcriptions = {}

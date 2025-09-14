@@ -9,7 +9,12 @@ class Videos:
         self.shorts = {}
         self.video_url = []
 
+    def save_json(self, info):
+        with open('terminal.json', 'w') as f:
+            json.dump(info, f)
+
     def fetch_video_urls(self, channel_url):
+        #for debug
         ydl_opts = {
             'extract_flat': True,
             'skip_download': True,
@@ -18,14 +23,18 @@ class Videos:
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(channel_url, download=False)
+
+            #self.save_json(info)
+
             if 'entries' in info:
                 channel_name = info.get('title')
                 entries = info.get('entries')
                 for entry in entries:
                     entry_name = entry.get('title')
 
-                    if entry_name == f'{channel_name} - Playlist':
+                    if entry_name == f'{channel_name} - Videos':
                         video_entries = entry.get('entries')
+
                         for i,video_entry in enumerate(video_entries):
                             title = video_entry.get('title')
                             url = video_entry.get('url')
@@ -76,6 +85,4 @@ class Videos:
                     "video_url": self.video_url #temp
                 }
 
-                print(self.videos)
-
-        return self.videos
+        return self.content
