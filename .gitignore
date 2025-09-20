@@ -4,3 +4,6 @@ UI/__pycache__
 Backend/__pycache__
 trial.py
 audio/
+output/
+try/
+Data/__pycache__
