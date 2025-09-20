@@ -193,7 +193,7 @@ class MainWindow(QMainWindow):
             transcript_data = transcription.get_transcripts(video_url, self.channel_id, lang="en")
 
             if transcript_data:
-                print(f"Transcript fetched and saved: {transcript_data['video_id']}_transcript.json")
+                print(f"Transcript fetched and saved")
             else:
                 print("Failed to fetch transcript.")
 
