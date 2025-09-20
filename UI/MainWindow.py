@@ -11,7 +11,7 @@ from Backend.ScrapeChannel import Search
 from Backend.ScrapeVideo import Videos
 from Backend.ScrapeTranscription import Transcription
 from Backend.ScrapeAudio import Audio
-
+from Data.CacheManager import CacheManager
 
 class MainWindow(QMainWindow):
     results_ready = QtCore.Signal(list)
@@ -28,6 +28,7 @@ class MainWindow(QMainWindow):
         self.bottom_panel = QWidget()
         self.central_layout = QVBoxLayout()
         self.central_widget = QStackedWidget()
+        self.cache = CacheManager()
         
         # Replace ComboBox with LineEdit and ListWidget
         self.searchbar = QLineEdit()
@@ -101,13 +102,18 @@ class MainWindow(QMainWindow):
 
     def search_thread(self, query):
         print("search channel thread triggered")
-        if query != '':
+        cached_channels = self.cache.load("channels_cache")
+        if query in cached_channels:
+            print("Using cached channel results")
+            self.channels = cached_channels[query]
+        else:
             search = Search()
             self.channels = search.search_channel(query)
-            self.channel_name = []
-            for key, item in self.channels.items():
-                self.channel_name.append(item.get('title'))
-            self.results_ready.emit(self.channel_name)
+            cached_channels[query] = self.channels
+            self.cache.save("channels_cache", cached_channels)
+
+        self.channel_name = [item.get('title') for key, item in self.channels.items()]
+        self.results_ready.emit(self.channel_name)
 
     def update_results(self, channels):
         """Update dropdown list with search results"""
@@ -148,27 +154,55 @@ class MainWindow(QMainWindow):
             print(e)
 
     def scrape_videos(self):
-        print("search video trigggered")
+        print("search video triggered")
         channel_name = self.searchbar.text()
         for id, val in self.channels.items():
             if val['title'] == channel_name:
-                print(val['title'], id)
                 channel_url = val['url']
+                channel_id = id
                 break
-        videos = Videos()
-        self.content = videos.fetch_video_urls(channel_url)
+
+        cached_videos = self.cache.load("videos_cache")
+        if channel_id in cached_videos:
+            print("Using cached videos")
+            self.channel_id = channel_id
+            self.content = cached_videos[channel_id]
+        else:
+            videos = Videos()
+            self.content = videos.fetch_video_urls(channel_url)
+            cached_videos[channel_id] = self.content
+            self.cache.save("videos_cache", cached_videos)
 
         if 'video_url' in self.content:
             self.video_url = self.content.get('video_url')
 
     def scrape_transcription(self):
+        """
+        Scrape transcription for the first video in self.video_url
+        and store it as JSON in Data/.
+        """
+        if not self.video_url:
+            print("No video URL available. Please scrape videos first.")
+            return
 
-        audio = Audio(self.video_url[0])
-        audio.download_audio()
-        
-        """transcription = Transcription()
-        self.transcriptions = {}
-        for id in self.video_ids:
-            transcripts = transcription.get_transcript(id)
-            self.transcriptions[id] = transcripts
-        print(type(self.transcriptions))"""
+        try:
+            video_url = self.video_url[:10]  # Take the first video for now
+            print(f"Fetching transcript for: {video_url}")
+
+            transcription = Transcription()
+            transcript_data = transcription.get_transcripts(video_url, self.channel_id, lang="en")
+
+            if transcript_data:
+                print(f"Transcript fetched and saved: {transcript_data['video_id']}_transcript.json")
+            else:
+                print("Failed to fetch transcript.")
+
+        except Exception as e:
+            traceback.print_exc()
+            print(f"Error while scraping transcription: {e}")
+
+if __name__ == "__main__":
+    app = QApplication()
+    window = MainWindow()
+    window.show()
+    app.exec()
