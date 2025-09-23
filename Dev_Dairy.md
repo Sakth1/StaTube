@@ -1,5 +1,3 @@
-Transcription is empty which came from the whisper model
-download short audio file and test the model with it
+work on loading and selecting and handling proxies
 
-or retrive transcripts using yt_dpl
 Work on the database thing
