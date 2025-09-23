@@ -10,7 +10,7 @@ import traceback
 from Backend.ScrapeChannel import Search
 from Backend.ScrapeVideo import Videos
 from Backend.ScrapeTranscription import Transcription
-from Backend.ScrapeAudio import Audio
+from Backend.ScrapeProxy import proxy
 from Data.CacheManager import CacheManager
 
 class MainWindow(QMainWindow):
@@ -38,6 +38,7 @@ class MainWindow(QMainWindow):
         self.stop_event = threading.Event()
         self.search_thread_instance = None
         self.channels = None
+        self.proxies = None
         self.scrap_video_button = QPushButton("Scrape Video")
         self.scrape_transcription_button = QPushButton("screpe transcription")
 
@@ -61,6 +62,7 @@ class MainWindow(QMainWindow):
         self.results_ready.connect(self.update_results)
 
         self.setupUi()
+        self.fetch_proxy()
 
         self.setCentralWidget(self.central_widget)
     
@@ -168,7 +170,7 @@ class MainWindow(QMainWindow):
             self.channel_id = channel_id
             self.content = cached_videos[channel_id]
         else:
-            videos = Videos()
+            videos = Videos(proxies=self.proxies)
             self.content = videos.fetch_video_urls(channel_url)
             cached_videos[channel_id] = self.content
             self.cache.save("videos_cache", cached_videos)
@@ -200,6 +202,9 @@ class MainWindow(QMainWindow):
         except Exception as e:
             traceback.print_exc()
             print(f"Error while scraping transcription: {e}")
+
+    def fetch_proxy(self):
+        self.proxies = proxy().fetch_proxies()
 
 if __name__ == "__main__":
     app = QApplication()

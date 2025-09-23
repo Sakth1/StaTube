@@ -1,30 +1,51 @@
 import yt_dlp
 import json
+import random
+import itertools
 
 class Videos:
-    def __init__(self):
+    def __init__(self, proxies=None, rotate="random"):
         self.content = {}
         self.videos = {}
         self.live = {}
         self.shorts = {}
         self.video_url = []
 
+        # Handle proxies
+        self.proxies = proxies or []
+        self.rotate = rotate  # "random" or "sequential"
+        if rotate == "sequential":
+            self.proxy_cycle = itertools.cycle(self.proxies)
+
     def save_json(self, info):
         with open('terminal.json', 'w') as f:
-            json.dump(info, f)
+            json.dump(info, f, indent=4)
+
+    def _get_proxy(self):
+        if not self.proxies:
+            return None
+        if self.rotate == "random":
+            return random.choice(self.proxies)
+        elif self.rotate == "sequential":
+            return next(self.proxy_cycle)
+        return None
 
     def fetch_video_urls(self, channel_url):
-        #for debug
+        # yt_dlp options
         ydl_opts = {
             'extract_flat': True,
             'skip_download': True,
             'quiet': True,
         }
 
+        # Choose proxy
+        proxy = self._get_proxy()
+        if proxy:
+            ydl_opts['proxy'] = proxy
+            print(f"[INFO] Using proxy: {proxy}")
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(channel_url, download=False)
-
-            #self.save_json(info)
 
             if 'entries' in info:
                 channel_name = info.get('title')
@@ -35,7 +56,7 @@ class Videos:
                     if entry_name == f'{channel_name} - Videos':
                         video_entries = entry.get('entries')
 
-                        for i,video_entry in enumerate(video_entries):
+                        for i, video_entry in enumerate(video_entries):
                             title = video_entry.get('title')
                             url = video_entry.get('url')
                             views = video_entry.get('view_count')
@@ -46,12 +67,11 @@ class Videos:
                                 "views": views,
                                 "duration": duration
                             }
-
                             self.video_url.append(url)
                     
                     elif entry_name == f'{channel_name} - Live':
                         live_entries = entry.get('entries')
-                        for i,live_entry in enumerate(live_entries):
+                        for i, live_entry in enumerate(live_entries):
                             title = live_entry.get('title')
                             url = live_entry.get('url')
                             views = live_entry.get('view_count')
@@ -65,7 +85,7 @@ class Videos:
 
                     elif entry_name == f'{channel_name} - Shorts':
                         shorts_entries = entry.get('entries')
-                        for i,shorts_entry in enumerate(shorts_entries):
+                        for i, shorts_entry in enumerate(shorts_entries):
                             title = shorts_entry.get('title')
                             url = shorts_entry.get('url')
                             views = shorts_entry.get('view_count')
@@ -77,12 +97,11 @@ class Videos:
                                 "duration": duration
                             }
 
-
                 self.content = {
                     "live": self.live,
                     "shorts": self.shorts,
                     "videos": self.videos,
-                    "video_url": self.video_url #temp
+                    "video_url": self.video_url  # temp
                 }
 
         return self.content

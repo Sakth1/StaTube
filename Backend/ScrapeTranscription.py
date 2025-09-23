@@ -39,7 +39,7 @@ class Transcription:
                         video_id = info_dict.get("id")
                         title = info_dict.get("title", "Unknown Title")
 
-                        # ✅ Find VTT file
+                        # Find VTT file
                         vtt_filename = None
                         for file in os.listdir():
                             if file.endswith(".vtt") and video_id in file:
@@ -49,7 +49,7 @@ class Transcription:
                             print(f"⚠️ No VTT subtitle found for {url}")
                             continue
 
-                        # ✅ Parse transcript
+                        # Parse transcript
                         video_transcript = {
                             "video_id": video_id,
                             "title": title,
@@ -66,17 +66,17 @@ class Transcription:
 
                         all_transcripts["videos"].append(video_transcript)
 
-                        # ✅ Clean up .vtt
+                        # Clean up .vtt
                         os.remove(vtt_filename)
 
-                        print(f"✅ Transcript processed: {title} ({video_id})")
+                        print(f"Transcript processed: {title} ({video_id})")
 
                     except Exception as ve:
                         import traceback
                         traceback.print_exc()
                         print(f"❌ Failed to fetch transcript for {url}: {ve}")
 
-            # ✅ Save all transcripts in one file
+            # Save all transcripts in one file
             output_file = self.data_folder / f"{channel_id}_transcripts.json"
             with open(output_file, "w", encoding="utf-8") as f:
                 json.dump(all_transcripts, f, indent=2, ensure_ascii=False)
