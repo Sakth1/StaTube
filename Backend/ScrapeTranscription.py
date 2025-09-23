@@ -2,13 +2,21 @@ import yt_dlp
 import webvtt
 import os
 import json
+import random
 from pathlib import Path
 
 class Transcription:
-    def __init__(self, data_folder="Data"):
+    def __init__(self, data_folder="Data", proxies=None):
         self.data_folder = Path(data_folder)
+        self.proxies = proxies or []
         self.data_folder.mkdir(exist_ok=True)
-
+    
+    def _get_proxy(self):
+        if not self.proxies:
+            return None
+        
+        return random.choice(self.proxies)
+    
     def get_transcripts(self, urls: list[str], channel_id: str, lang: str = "en") -> dict:
         """
         Downloads transcripts for a list of YouTube video URLs,
@@ -31,6 +39,11 @@ class Transcription:
             "quiet": True,
         }
 
+        proxy = self._get_proxy()
+
+        if proxy:
+            ydl_opts["proxy"] = proxy
+            print(f"[INFO] Using proxy for transcriptions: {proxy}")
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 for url in urls:

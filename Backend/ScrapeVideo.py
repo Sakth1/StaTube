@@ -4,7 +4,7 @@ import random
 import itertools
 
 class Videos:
-    def __init__(self, proxies=None, rotate="random"):
+    def __init__(self, proxy=None):
         self.content = {}
         self.videos = {}
         self.live = {}
@@ -12,10 +12,7 @@ class Videos:
         self.video_url = []
 
         # Handle proxies
-        self.proxies = proxies or []
-        self.rotate = rotate  # "random" or "sequential"
-        if rotate == "sequential":
-            self.proxy_cycle = itertools.cycle(self.proxies)
+        self.proxy = proxy or None
 
     def save_json(self, info):
         with open('terminal.json', 'w') as f:
@@ -24,11 +21,8 @@ class Videos:
     def _get_proxy(self):
         if not self.proxies:
             return None
-        if self.rotate == "random":
-            return random.choice(self.proxies)
-        elif self.rotate == "sequential":
-            return next(self.proxy_cycle)
-        return None
+        
+        return random.choice(self.proxies)222/
 
     def fetch_video_urls(self, channel_url):
         # yt_dlp options
@@ -42,7 +36,7 @@ class Videos:
         proxy = self._get_proxy()
         if proxy:
             ydl_opts['proxy'] = proxy
-            print(f"[INFO] Using proxy: {proxy}")
+            print(f"[INFO] Using proxy for videos: {proxy}")
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(channel_url, download=False)
