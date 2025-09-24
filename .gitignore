@@ -7,3 +7,4 @@ audio/
 output/
 try/
 Data/__pycache__
+utils/__pycache__

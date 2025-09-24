@@ -4,18 +4,15 @@ import os
 import json
 import random
 from pathlib import Path
+import swiftshadow
 
 class Transcription:
-    def __init__(self, data_folder="Data", proxies=None):
+    def __init__(self, data_folder="Data"):
         self.data_folder = Path(data_folder)
-        self.proxies = proxies or []
         self.data_folder.mkdir(exist_ok=True)
     
     def _get_proxy(self):
-        if not self.proxies:
-            return None
-        
-        return random.choice(self.proxies)
+        return swiftshadow.QuickProxy()[0]
     
     def get_transcripts(self, urls: list[str], channel_id: str, lang: str = "en") -> dict:
         """

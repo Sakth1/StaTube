@@ -1,3 +1,3 @@
-work on loading and selecting and handling proxies
+check viable proxies using swiftshadow
 
 Work on the database thing

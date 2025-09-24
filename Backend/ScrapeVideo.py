@@ -1,6 +1,7 @@
 import yt_dlp
 import json
 import random
+import swiftshadow
 import itertools
 
 class Videos:
@@ -19,10 +20,7 @@ class Videos:
             json.dump(info, f, indent=4)
 
     def _get_proxy(self):
-        if not self.proxies:
-            return None
-        
-        return random.choice(self.proxies)222/
+        return swiftshadow.QuickProxy()[0]
 
     def fetch_video_urls(self, channel_url):
         # yt_dlp options
