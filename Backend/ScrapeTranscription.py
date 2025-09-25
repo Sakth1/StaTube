@@ -2,17 +2,13 @@ import yt_dlp
 import webvtt
 import os
 import json
-import random
 from pathlib import Path
-import swiftshadow
+from utils.Proxy import Proxy
 
 class Transcription:
     def __init__(self, data_folder="Data"):
         self.data_folder = Path(data_folder)
         self.data_folder.mkdir(exist_ok=True)
-    
-    def _get_proxy(self):
-        return swiftshadow.QuickProxy()[0]
     
     def get_transcripts(self, urls: list[str], channel_id: str, lang: str = "en") -> dict:
         """
@@ -36,7 +32,7 @@ class Transcription:
             "quiet": True,
         }
 
-        proxy = self._get_proxy()
+        proxy = Proxy().get_proxy()
 
         if proxy:
             ydl_opts["proxy"] = proxy
@@ -56,7 +52,7 @@ class Transcription:
                                 vtt_filename = file
                                 break
                         if not vtt_filename:
-                            print(f"⚠️ No VTT subtitle found for {url}")
+                            print(f"No VTT subtitle found for {url}")
                             continue
 
                         # Parse transcript
@@ -83,19 +79,19 @@ class Transcription:
 
                     except Exception as ve:
                         import traceback
-                        traceback.print_exc()
-                        print(f"❌ Failed to fetch transcript for {url}: {ve}")
+                        #traceback.print_exc()
+                        #print(f"Failed to fetch transcript: {ve}")
 
             # Save all transcripts in one file
             output_file = self.data_folder / f"{channel_id}_transcripts.json"
             with open(output_file, "w", encoding="utf-8") as f:
                 json.dump(all_transcripts, f, indent=2, ensure_ascii=False)
 
-            print(f"📂 All transcripts saved to: {output_file}")
+            print(f"All transcripts saved to: {output_file}")
             return all_transcripts
 
         except Exception as e:
             import traceback
             traceback.print_exc()
-            print(f"❌ Error while processing transcripts: {e}")
+            print(f"Error while processing transcripts: {e}")
             return {}

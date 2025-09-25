@@ -1,8 +1,6 @@
 from UI.MainWindow import MainWindow
-from PySide6.QtWidgets import QApplication
-import sys
 from PySide6.QtWidgets import QApplication, QMessageBox
-from UI.MainWindow import MainWindow
+import sys
 from utils.CheckInternet import Internet
 
 try:
