@@ -10,8 +10,8 @@ import traceback
 from Backend.ScrapeChannel import Search
 from Backend.ScrapeVideo import Videos
 from Backend.ScrapeTranscription import Transcription
-from Backend.ScrapeAudio import Audio
 from Data.CacheManager import CacheManager
+from utils.Proxy import Proxy
 
 class MainWindow(QMainWindow):
     results_ready = QtCore.Signal(list)
@@ -61,7 +61,7 @@ class MainWindow(QMainWindow):
         self.results_ready.connect(self.update_results)
 
         self.setupUi()
-
+        
         self.setCentralWidget(self.central_widget)
     
     def setupUi(self):
@@ -80,6 +80,7 @@ class MainWindow(QMainWindow):
         self.top_layout.addWidget(self.scrape_transcription_button)
         self.top_panel.setLayout(self.top_layout)
         self.top_panel.show()
+        Proxy()
     
     def setupbottom(self):
         self.bottom_layout = QVBoxLayout()
@@ -168,10 +169,14 @@ class MainWindow(QMainWindow):
             self.channel_id = channel_id
             self.content = cached_videos[channel_id]
         else:
+            #fetch proxy from pool
             videos = Videos()
             self.content = videos.fetch_video_urls(channel_url)
             cached_videos[channel_id] = self.content
+            self.channel_id = channel_id
             self.cache.save("videos_cache", cached_videos)
+
+        print("Videos Fetched")
 
         if 'video_url' in self.content:
             self.video_url = self.content.get('video_url')
@@ -186,10 +191,11 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            video_url = self.video_url[:10]  # Take the first video for now
+            video_url = self.video_url[:1]  # Take the first video for now
             print(f"Fetching transcript for: {video_url}")
 
             transcription = Transcription()
+            print(self.channel_id)
             transcript_data = transcription.get_transcripts(video_url, self.channel_id, lang="en")
 
             if transcript_data:

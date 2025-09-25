@@ -1,5 +1,3 @@
-Transcription is empty which came from the whisper model
-download short audio file and test the model with it
+Change it so that the transcriptions is download for any language
 
-or retrive transcripts using yt_dpl
 Work on the database thing

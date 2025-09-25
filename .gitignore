@@ -1,5 +1,5 @@
 .vscode/
-venv/
+.venv/
 UI/__pycache__
 Backend/__pycache__
 trial.py
@@ -7,3 +7,4 @@ audio/
 output/
 try/
 Data/__pycache__
+utils/__pycache__
