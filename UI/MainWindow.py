@@ -10,7 +10,7 @@ import traceback
 from Backend.ScrapeChannel import Search
 from Backend.ScrapeVideo import Videos
 from Backend.ScrapeTranscription import Transcription
-from Data.CacheManager import CacheManager
+from Data.DatabaseManager import DatabaseManager
 from utils.Proxy import Proxy
 
 class MainWindow(QMainWindow):
@@ -28,7 +28,7 @@ class MainWindow(QMainWindow):
         self.bottom_panel = QWidget()
         self.central_layout = QVBoxLayout()
         self.central_widget = QStackedWidget()
-        self.cache = CacheManager()
+        self.db = DatabaseManager()
         
         # Replace ComboBox with LineEdit and ListWidget
         self.searchbar = QLineEdit()
@@ -103,15 +103,9 @@ class MainWindow(QMainWindow):
 
     def search_thread(self, query):
         print("search channel thread triggered")
-        cached_channels = self.cache.load("channels_cache")
-        if query in cached_channels:
-            print("Using cached channel results")
-            self.channels = cached_channels[query]
-        else:
-            search = Search()
-            self.channels = search.search_channel(query)
-            cached_channels[query] = self.channels
-            self.cache.save("channels_cache", cached_channels)
+        
+        search = Search(self.db)  # Pass db instance
+        self.channels = search.search_channel(query)
 
         self.channel_name = [item.get('title') for key, item in self.channels.items()]
         self.results_ready.emit(self.channel_name)
@@ -163,18 +157,10 @@ class MainWindow(QMainWindow):
                 channel_id = id
                 break
 
-        cached_videos = self.cache.load("videos_cache")
-        if channel_id in cached_videos:
-            print("Using cached videos")
-            self.channel_id = channel_id
-            self.content = cached_videos[channel_id]
-        else:
-            #fetch proxy from pool
-            videos = Videos()
-            self.content = videos.fetch_video_urls(channel_url)
-            cached_videos[channel_id] = self.content
-            self.channel_id = channel_id
-            self.cache.save("videos_cache", cached_videos)
+        # Remove cache logic and use database directly
+        videos = Videos(self.db)  # Pass db instance
+        self.content = videos.fetch_video_urls(channel_id, channel_url)
+        self.channel_id = channel_id
 
         print("Videos Fetched")
 
@@ -194,7 +180,7 @@ class MainWindow(QMainWindow):
             video_url = self.video_url[:1]  # Take the first video for now
             print(f"Fetching transcript for: {video_url}")
 
-            transcription = Transcription()
+            transcription = Transcription(self.db)  # Already uses DatabaseManager internally
             print(self.channel_id)
             transcript_data = transcription.get_transcripts(video_url, self.channel_id, lang="en")
 
