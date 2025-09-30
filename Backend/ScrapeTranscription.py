@@ -4,17 +4,25 @@ import os
 import json
 from pathlib import Path
 from utils.Proxy import Proxy
+from Data.DatabaseManager import DatabaseManager  # new DB reference
+
 
 class Transcription:
-    def __init__(self, data_folder="Data"):
-        self.data_folder = Path(data_folder)
-        self.data_folder.mkdir(exist_ok=True)
-    
+    def __init__(self, db: DatabaseManager, base_dir=None):
+        """
+        Handles downloading, parsing, and saving YouTube video transcripts.
+        Stores transcript files in the AppData directory.
+        """
+        self.db = db
+
+        self.base_dir = self.db.base_dir
+        self.transcripts_dir = self.db.transcript_dir
+
     def get_transcripts(self, urls: list[str], channel_id: str, lang: str = "en") -> dict:
         """
         Downloads transcripts for a list of YouTube video URLs,
-        stores them in a single JSON file under Data/<channel_id>_transcripts.json,
-        and returns the transcript dict.
+        saves them into JSON files under Transcripts/,
+        and inserts file references into the database.
         """
         all_transcripts = {
             "channel_id": channel_id,
@@ -33,10 +41,10 @@ class Transcription:
         }
 
         proxy = Proxy().get_proxy()
-
         if proxy:
             ydl_opts["proxy"] = proxy
             print(f"[INFO] Using proxy for transcriptions: {proxy}")
+
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 for url in urls:
@@ -45,14 +53,13 @@ class Transcription:
                         video_id = info_dict.get("id")
                         title = info_dict.get("title", "Unknown Title")
 
-                        # Find VTT file
-                        vtt_filename = None
-                        for file in os.listdir():
-                            if file.endswith(".vtt") and video_id in file:
-                                vtt_filename = file
-                                break
+                        # Find VTT file in working dir
+                        vtt_filename = next(
+                            (f for f in os.listdir() if f.endswith(".vtt") and video_id in f),
+                            None
+                        )
                         if not vtt_filename:
-                            print(f"No VTT subtitle found for {url}")
+                            print(f"[WARN] No VTT subtitle found for {url}")
                             continue
 
                         # Parse transcript
@@ -72,26 +79,34 @@ class Transcription:
 
                         all_transcripts["videos"].append(video_transcript)
 
+                        # Save per-video transcript JSON
+                        video_file = self.transcripts_dir / f"{video_id}_transcript.json"
+                        with open(video_file, "w", encoding="utf-8") as vf:
+                            json.dump(video_transcript, vf, indent=2, ensure_ascii=False)
+
+                        # Insert reference in DB
+                        self.db.insert_transcript_reference(
+                            channel_id=channel_id,
+                            video_id=video_id,
+                            transcript_path=str(video_file)
+                        )
+
                         # Clean up .vtt
                         os.remove(vtt_filename)
 
-                        print(f"Transcript processed: {title} ({video_id})")
+                        print(f"[INFO] Transcript saved: {video_file}")
 
                     except Exception as ve:
-                        import traceback
-                        #traceback.print_exc()
-                        #print(f"Failed to fetch transcript: {ve}")
+                        print(f"[ERROR] Failed to fetch transcript for {url}: {ve}")
 
-            # Save all transcripts in one file
-            output_file = self.data_folder / f"{channel_id}_transcripts.json"
-            with open(output_file, "w", encoding="utf-8") as f:
+            # Save combined transcripts (optional)
+            combined_file = self.transcripts_dir / f"{channel_id}_all_transcripts.json"
+            with open(combined_file, "w", encoding="utf-8") as f:
                 json.dump(all_transcripts, f, indent=2, ensure_ascii=False)
 
-            print(f"All transcripts saved to: {output_file}")
+            print(f"[INFO] All transcripts saved to: {combined_file}")
             return all_transcripts
 
         except Exception as e:
-            import traceback
-            traceback.print_exc()
-            print(f"Error while processing transcripts: {e}")
+            print(f"[ERROR] Transcription process failed: {e}")
             return {}
