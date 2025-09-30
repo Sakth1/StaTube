@@ -11,14 +11,12 @@ class Transcription:
     def __init__(self, db: DatabaseManager, base_dir=None):
         """
         Handles downloading, parsing, and saving YouTube video transcripts.
-        Stores transcript files under ~/Documents/YTAnalysis/Transcripts/
-        and saves references in the SQLite DB.
+        Stores transcript files in the AppData directory.
         """
         self.db = db
 
         self.base_dir = self.db.base_dir
-        self.transcripts_dir = self.base_dir / "Transcripts"
-        self.transcripts_dir.mkdir(parents=True, exist_ok=True)
+        self.transcripts_dir = self.db.transcript_dir
 
     def get_transcripts(self, urls: list[str], channel_id: str, lang: str = "en") -> dict:
         """

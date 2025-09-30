@@ -28,7 +28,6 @@ class MainWindow(QMainWindow):
         self.bottom_panel = QWidget()
         self.central_layout = QVBoxLayout()
         self.central_widget = QStackedWidget()
-        self.db = DatabaseManager()
         
         # Replace ComboBox with LineEdit and ListWidget
         self.searchbar = QLineEdit()
@@ -61,6 +60,7 @@ class MainWindow(QMainWindow):
         self.results_ready.connect(self.update_results)
 
         self.setupUi()
+        self.initiatemodule()
         
         self.setCentralWidget(self.central_widget)
     
@@ -71,6 +71,9 @@ class MainWindow(QMainWindow):
         self.setGeometry(500, 200, 500, 300)
         self.setuptop()
         self.setupbottom()
+
+    def initiatemodule(self):
+        self.db = DatabaseManager()
 
     def setuptop(self):
         self.top_layout = QVBoxLayout()
@@ -106,6 +109,7 @@ class MainWindow(QMainWindow):
         
         search = Search(self.db)  # Pass db instance
         self.channels = search.search_channel(query)
+        print(self.channels)
 
         self.channel_name = [item.get('title') for key, item in self.channels.items()]
         self.results_ready.emit(self.channel_name)

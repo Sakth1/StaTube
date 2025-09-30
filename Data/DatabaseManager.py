@@ -2,12 +2,24 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Optional
 import json
-
+import platform
+import os
+import threading
 
 class DatabaseManager:
     def __init__(self, base_dir: Optional[str] = None, db_name: str = "data.db"):
-        # Default location: ~/Documents/YTAnalysis/
-        self.base_dir = Path(base_dir or Path.home() / "Documents" / "YTAnalysis")
+        # Determine OS and set appropriate AppData directory
+        system = platform.system()
+        
+        if system == "Windows":
+            app_data_dir = Path(os.environ.get('APPDATA', Path.home() / "AppData" / "Roaming"))
+        elif system == "Darwin":  # macOS
+            app_data_dir = Path.home() / "Library" / "Application Support"
+        else:  # Linux and other Unix-like systems
+            app_data_dir = Path.home() / ".local" / "share"
+        
+        # Set base directory to AppData/YTAnalysis
+        self.base_dir = Path(base_dir or app_data_dir / "YTAnalysis")
         self.db_dir = self.base_dir / "DB"
         self.channel_dir = self.base_dir / "Channels"
         self.transcript_dir = self.base_dir / "Transcripts"
@@ -16,18 +28,25 @@ class DatabaseManager:
         self.video_dir = self.base_dir / "Videos"
 
         # Ensure directories exist
-        for folder in [self.db_dir, self.transcript_dir, self.comment_dir, self.proxy_dir, self.video_dir]:
+        for folder in [self.db_dir, self.channel_dir, self.transcript_dir, self.comment_dir, self.proxy_dir, self.video_dir]:
             folder.mkdir(parents=True, exist_ok=True)
             print(f"Created directory: {folder}")
 
-        # Database connection
+        # Thread-local storage for database connections
+        self._local = threading.local()
         self.db_path = self.db_dir / db_name
-        self.conn = sqlite3.connect(self.db_path)
-        self.conn.row_factory = sqlite3.Row
         self._create_tables()
 
+    def _get_connection(self):
+        """Get thread-specific database connection"""
+        if not hasattr(self._local, 'conn'):
+            self._local.conn = sqlite3.connect(self.db_path)
+            self._local.conn.row_factory = sqlite3.Row
+        return self._local.conn
+
     def _create_tables(self):
-        cursor = self.conn.cursor()
+        conn = self._get_connection()
+        cursor = conn.cursor()
 
         cursor.executescript("""
         CREATE TABLE IF NOT EXISTS CHANNEL (
@@ -36,6 +55,7 @@ class DatabaseManager:
             handle TEXT,
             sub_count INTEGER,
             desc TEXT,
+            profile_pic TEXT,
             created_at DATETIME,
             updated_at DATETIME
         );
@@ -58,7 +78,7 @@ class DatabaseManager:
         CREATE TABLE IF NOT EXISTS TRANSCRIPT (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             video_id INTEGER,
-            file_path TEXT,  -- reference to transcript file
+            file_path TEXT,
             language TEXT,
             confidence REAL,
             created_at DATETIME,
@@ -69,7 +89,7 @@ class DatabaseManager:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             video_id INTEGER,
             author TEXT,
-            file_path TEXT,  -- reference to comment file
+            file_path TEXT,
             like_count INTEGER,
             pub_date DATETIME,
             created_at DATETIME,
@@ -84,7 +104,7 @@ class DatabaseManager:
             location TEXT,
             last_used DATETIME,
             created_at DATETIME,
-            file_path TEXT -- reference to proxy log file
+            file_path TEXT
         );
 
         CREATE TABLE IF NOT EXISTS PROXY_USAGE (
@@ -97,35 +117,38 @@ class DatabaseManager:
             FOREIGN KEY(channel_id) REFERENCES CHANNEL(id)
         );
         """)
-        self.conn.commit()
+        conn.commit()
 
     # ---------- Core Helpers ----------
     def insert(self, table: str, data: Dict[str, Any]) -> int:
+        conn = self._get_connection()
         keys = ", ".join(data.keys())
         placeholders = ", ".join(["?"] * len(data))
         values = tuple(data.values())
         query = f"INSERT INTO {table} ({keys}) VALUES ({placeholders})"
-        cursor = self.conn.cursor()
+        cursor = conn.cursor()
         cursor.execute(query, values)
-        self.conn.commit()
+        conn.commit()
         return cursor.lastrowid
 
     def fetch(self, table: str, where: Optional[str] = None, params: Tuple = ()) -> List[Dict[str, Any]]:
+        conn = self._get_connection()
         query = f"SELECT * FROM {table}"
         if where:
             query += f" WHERE {where}"
-        cursor = self.conn.cursor()
+        cursor = conn.cursor()
         cursor.execute(query, params)
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
 
     def update(self, table: str, data: Dict[str, Any], where: str, params: Tuple) -> int:
+        conn = self._get_connection()
         set_clause = ", ".join([f"{k}=?" for k in data.keys()])
         values = tuple(data.values()) + params
         query = f"UPDATE {table} SET {set_clause} WHERE {where}"
-        cursor = self.conn.cursor()
+        cursor = conn.cursor()
         cursor.execute(query, values)
-        self.conn.commit()
+        conn.commit()
         return cursor.rowcount
 
     # ---------- File Management Helpers ----------
@@ -142,4 +165,7 @@ class DatabaseManager:
         return {}
 
     def close(self):
-        self.conn.close()
+        """Close the thread-specific connection"""
+        if hasattr(self._local, 'conn'):
+            self._local.conn.close()
+            del self._local.conn
