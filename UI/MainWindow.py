@@ -1,8 +1,8 @@
 from PySide6 import QtCore, QtGui
 from PySide6.QtWidgets import (QApplication, QMainWindow, QStackedWidget, QWidget, 
                                QLineEdit, QListWidget, QVBoxLayout, QHBoxLayout, QLabel,
-                               QPushButton, QListWidgetItem)
-from PySide6.QtCore import Qt
+                               QPushButton, QListWidgetItem, QCompleter)
+from PySide6.QtCore import Qt, QStringListModel
 import threading
 import time
 import traceback
@@ -16,7 +16,7 @@ from utils.Proxy import Proxy
 class MainWindow(QMainWindow):
     results_ready = QtCore.Signal(list)
     videos = {}
-    video_url = [] #temp
+    video_url = []
     live = {}
     shorts = {}
     content = {}
@@ -31,12 +31,17 @@ class MainWindow(QMainWindow):
         
         # Replace ComboBox with LineEdit and ListWidget
         self.searchbar = QLineEdit()
+        self.model = QStringListModel()
+        self.completer = QCompleter(self.model, self.searchbar)
+        self.completer.setCompletionMode(QCompleter.UnfilteredPopupCompletion)
         self.dropdown_list = QListWidget()
-        
+        self.searchbar.setCompleter(self.completer)
+
         self.search_timer = QtCore.QTimer()
         self.stop_event = threading.Event()
         self.search_thread_instance = None
         self.channels = None
+        self.search_channel_button = QPushButton("Search")
         self.scrap_video_button = QPushButton("Scrape Video")
         self.scrape_transcription_button = QPushButton("screpe transcription")
 
@@ -49,13 +54,14 @@ class MainWindow(QMainWindow):
         # Setup search components
         self.searchbar.setPlaceholderText("Search")
         self.searchbar.textChanged.connect(self.reset_search_timer)
-        self.dropdown_list.hide()  # Initially hidden
-        self.dropdown_list.itemClicked.connect(self.on_item_selected)
+        #self.dropdown_list.hide()  # Initially hidden
+        #self.dropdown_list.itemClicked.connect(self.on_item_selected)
         
         # Override key press to handle navigation
         #self.searchbar.keyPressEvent = self.handle_key_press
         
         self.scrap_video_button.clicked.connect(self.scrape_videos)
+        self.search_channel_button.clicked.connect(self.search_channel)
         self.scrape_transcription_button.clicked.connect(self.scrape_transcription)
         self.results_ready.connect(self.update_results)
 
@@ -77,8 +83,9 @@ class MainWindow(QMainWindow):
 
     def setuptop(self):
         self.top_layout = QVBoxLayout()
+        self.top_layout.addWidget(self.search_channel_button)
         self.top_layout.addWidget(self.searchbar)
-        self.top_layout.addWidget(self.dropdown_list)  # Add dropdown list
+        #self.top_layout.addWidget(self.dropdown_list)  # Add dropdown list
         self.top_layout.addWidget(self.scrap_video_button)
         self.top_layout.addWidget(self.scrape_transcription_button)
         self.top_panel.setLayout(self.top_layout)
@@ -109,7 +116,7 @@ class MainWindow(QMainWindow):
         
         search = Search(self.db)  # Pass db instance
         self.channels = search.search_channel(query)
-        print(self.channels)
+        #print(self.channels)
 
         self.channel_name = [item.get('title') for key, item in self.channels.items()]
         self.results_ready.emit(self.channel_name)
@@ -119,19 +126,21 @@ class MainWindow(QMainWindow):
         text = self.searchbar.text()
         
         # Clear and populate dropdown list
-        self.dropdown_list.clear()
+        #self.dropdown_list.clear()
         
         if channels:
             for channel in channels:
                 item = QListWidgetItem(channel)
-                self.dropdown_list.addItem(item)
+                #self.dropdown_list.addItem(item)
+                self.model.setStringList(channels)
+                self.completer.complete()
             
-            self.dropdown_list.show()
-        else:
-            self.dropdown_list.hide()
+            #self.dropdown_list.show()
+        #else:
+            #self.dropdown_list.hide()
         
         # Keep focus on search input
-        self.searchbar.setFocus()
+        #self.searchbar.setFocus()
         
     def search_keyword(self):
         try:
@@ -145,12 +154,15 @@ class MainWindow(QMainWindow):
             if query:
                 self.search_thread_instance = threading.Thread(target=self.search_thread, daemon=True, args=(query,))
                 self.search_thread_instance.start()
-            else:
-                self.dropdown_list.hide()
+            #else:
+                #self.dropdown_list.hide()
         
         except Exception as e:
             traceback.print_exc()
             print(e)
+
+    def search_channel(self):
+        self.search_keyword()
 
     def scrape_videos(self):
         print("search video triggered")

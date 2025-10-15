@@ -28,7 +28,7 @@ class DatabaseManager:
         self.video_dir = self.base_dir / "Videos"
 
         # Ensure directories exist
-        for folder in [self.db_dir, self.channel_dir, self.transcript_dir, self.comment_dir, self.proxy_dir, self.video_dir]:
+        for folder in [self.db_dir, self.transcript_dir, self.comment_dir, self.proxy_dir, self.video_dir]:
             folder.mkdir(parents=True, exist_ok=True)
             print(f"Created directory: {folder}")
 
@@ -50,7 +50,7 @@ class DatabaseManager:
 
         cursor.executescript("""
         CREATE TABLE IF NOT EXISTS CHANNEL (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY,
             name TEXT,
             handle TEXT,
             sub_count INTEGER,
@@ -61,7 +61,7 @@ class DatabaseManager:
         );
 
         CREATE TABLE IF NOT EXISTS VIDEO (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY,
             channel_id INTEGER,
             title TEXT,
             desc TEXT,
