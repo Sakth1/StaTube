@@ -13,7 +13,7 @@ class Transcription:
         Handles downloading, parsing, and saving YouTube video transcripts.
         Stores transcript files in the AppData directory.
         """
-        self.db = db
+        self.db:DatabaseManager = db
 
         self.base_dir = self.db.base_dir
         self.transcripts_dir = self.db.transcript_dir
