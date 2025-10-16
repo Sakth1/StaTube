@@ -18,6 +18,10 @@ try:
     window.show()
     app.exec()
 
+except KeyboardInterrupt:
+    #close the progam
+    pass
+
 except Exception as e:
     import traceback
     traceback.print_exc()

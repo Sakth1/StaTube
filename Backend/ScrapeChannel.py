@@ -1,6 +1,7 @@
 import scrapetube
 from pathlib import Path
 from datetime import datetime
+import urllib.request
 
 from Data.DatabaseManager import DatabaseManager
 from utils.Proxy import Proxy
@@ -26,32 +27,53 @@ class Search:
 
         for ch in search_results:
             title = ch.get("title", {}).get("simpleText")
-            sub_count = ch.get("videoCountText", {}).get("simpleText")
+            sub_count = ch.get("videoCountText", {}).get("accessibility", {}).get("accessibilityData", {}).get("label")
+            desc = ch.get("descriptionSnippet", {}).get("runs")[0].get("text") if ch.get("descriptionSnippet") else None
             channel_id = ch.get("channelId")
+            profile_url = "https:" + ch.get("thumbnail", {}).get("thumbnails")[0].get("url")
+            
+            try:
+                urllib.request.urlretrieve(profile_url, rf"{self.db.profile_pic_dir}/{channel_id}.jpg")
+                print(f'pic saved to {self.db.profile_pic_dir}/{channel_id}.jpg')
+            except Exception as e:
+                print(f"Failed to save profile picture: {e}")
 
             if channel_id:
                 url = f"https://www.youtube.com/channel/{channel_id}"
                 self.channels[channel_id] = {"title": title, "url": url, "sub_count": sub_count}
 
-                # ---- Save JSON to file ----
-                file_path = self.db.save_json_file(
-                    self.db.base_dir / "Channels",
-                    f"channel_{channel_id}",
-                    {"id": channel_id, "title": title, "url": url},
-                )
-
-                # ---- Store reference in DB ----
-                self.db.insert(
-                    "CHANNEL",
-                    {
-                        "name": title,
-                        "handle": channel_id,  # if no @handle, we use channelId
-                        "sub_count": 0,  # not available here
-                        "desc": None,
-                        "created_at": datetime.now().isoformat(),
-                        "updated_at": datetime.now().isoformat(),
-                    },
-                )
+                # Check if channel already exists
+                existing_channels = self.db.fetch("CHANNEL", where="channel_id = ?", params=(channel_id,))
+                
+                if existing_channels:
+                    # Channel exists, update it
+                    self.db.update(
+                        "CHANNEL",
+                        {
+                            "name": title,
+                            "url": url,
+                            "sub_count": str(sub_count),
+                            "desc": desc,
+                            "profile_pic": f"{channel_id}.jpg",
+                        },
+                        where="channel_id = ?",
+                        params=(channel_id,)
+                    )
+                    print(f"Updated existing channel: {title}")
+                else:
+                    # Channel doesn't exist, insert new one
+                    self.db.insert(
+                        "CHANNEL",
+                        {
+                            "channel_id": channel_id,
+                            "name": title,
+                            "url": url,
+                            "sub_count": str(sub_count),
+                            "desc": desc,
+                            "profile_pic": f"{channel_id}.jpg",
+                        },
+                    )
+                    print(f"Added new channel: {title}")
 
         return self.channels
 

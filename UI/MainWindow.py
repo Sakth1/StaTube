@@ -116,7 +116,6 @@ class MainWindow(QMainWindow):
         
         search = Search(self.db)  # Pass db instance
         self.channels = search.search_channel(query)
-        #print(self.channels)
 
         self.channel_name = [item.get('title') for key, item in self.channels.items()]
         self.results_ready.emit(self.channel_name)
@@ -197,7 +196,6 @@ class MainWindow(QMainWindow):
             print(f"Fetching transcript for: {video_url}")
 
             transcription = Transcription(self.db)  # Already uses DatabaseManager internally
-            print(self.channel_id)
             transcript_data = transcription.get_transcripts(video_url, self.channel_id, lang="en")
 
             if transcript_data:

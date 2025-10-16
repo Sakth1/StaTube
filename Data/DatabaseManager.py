@@ -22,13 +22,14 @@ class DatabaseManager:
         self.base_dir = Path(base_dir or app_data_dir / "YTAnalysis")
         self.db_dir = self.base_dir / "DB"
         self.channel_dir = self.base_dir / "Channels"
+        self.profile_pic_dir = self.base_dir / "ProfilePics"
         self.transcript_dir = self.base_dir / "Transcripts"
         self.comment_dir = self.base_dir / "Comments"
         self.proxy_dir = self.base_dir / "Proxies"
         self.video_dir = self.base_dir / "Videos"
 
         # Ensure directories exist
-        for folder in [self.db_dir, self.transcript_dir, self.comment_dir, self.proxy_dir, self.video_dir]:
+        for folder in [self.db_dir, self.transcript_dir, self.comment_dir, self.proxy_dir, self.video_dir, self.channel_dir, self.profile_pic_dir]:
             folder.mkdir(parents=True, exist_ok=True)
             print(f"Created directory: {folder}")
 
@@ -36,6 +37,11 @@ class DatabaseManager:
         self._local = threading.local()
         self.db_path = self.db_dir / db_name
         self._create_tables()
+
+        if self.db_path.exists():
+            self._migrate_database()
+        else:
+            self._create_tables()
 
     def _get_connection(self):
         """Get thread-specific database connection"""
@@ -50,74 +56,70 @@ class DatabaseManager:
 
         cursor.executescript("""
         CREATE TABLE IF NOT EXISTS CHANNEL (
-            id INTEGER PRIMARY KEY,
+            channel_id TEXT PRIMARY KEY,
             name TEXT,
-            handle TEXT,
-            sub_count INTEGER,
+            url TEXT,
+            sub_count TEXT,
             desc TEXT,
-            profile_pic TEXT,
-            created_at DATETIME,
-            updated_at DATETIME
+            profile_pic TEXT
         );
 
         CREATE TABLE IF NOT EXISTS VIDEO (
-            id INTEGER PRIMARY KEY,
-            channel_id INTEGER,
+            video_id TEXT PRIMARY KEY,
+            channel_id TEXT,          
             title TEXT,
             desc TEXT,
-            duration INTEGER,
-            view_count INTEGER,
-            like_count INTEGER,
+            duration TEXT,
+            view_count TEXT,
+            like_count TEXT,
             pub_date DATETIME,
             status TEXT,
-            created_at DATETIME,
-            file_path TEXT,
-            FOREIGN KEY(channel_id) REFERENCES CHANNEL(id)
+            FOREIGN KEY(channel_id) REFERENCES CHANNEL(channel_id)
         );
 
         CREATE TABLE IF NOT EXISTS TRANSCRIPT (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            video_id INTEGER,
+            transcript_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            video_id TEXT, 
             file_path TEXT,
             language TEXT,
-            confidence REAL,
-            created_at DATETIME,
-            FOREIGN KEY(video_id) REFERENCES VIDEO(id)
+            FOREIGN KEY(video_id) REFERENCES VIDEO(video_id)
         );
 
         CREATE TABLE IF NOT EXISTS COMMENT (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            video_id INTEGER,
-            author TEXT,
+            comment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            video_id TEXT,
             file_path TEXT,
-            like_count INTEGER,
-            pub_date DATETIME,
-            created_at DATETIME,
-            FOREIGN KEY(video_id) REFERENCES VIDEO(id)
-        );
-
-        CREATE TABLE IF NOT EXISTS PROXY (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ip_address TEXT,
-            port INTEGER,
-            status TEXT,
-            location TEXT,
-            last_used DATETIME,
-            created_at DATETIME,
-            file_path TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS PROXY_USAGE (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            proxy_id INTEGER,
-            channel_id INTEGER,
-            used_at DATETIME,
-            operation TEXT,
-            FOREIGN KEY(proxy_id) REFERENCES PROXY(id),
-            FOREIGN KEY(channel_id) REFERENCES CHANNEL(id)
+            FOREIGN KEY(video_id) REFERENCES VIDEO(video_id)
         );
         """)
         conn.commit()
+    
+    def _migrate_database(self):
+        """Migrate database schema if needed"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        try:
+            # Check if CHANNEL table has the correct schema
+            cursor.execute("PRAGMA table_info(CHANNEL)")
+            columns = {col[1] for col in cursor.fetchall()}
+            
+            if 'channel_id' not in columns:
+                print("Migrating database schema...")
+                # Drop and recreate tables with correct schema
+                cursor.executescript("""
+                DROP TABLE IF EXISTS COMMENT;
+                DROP TABLE IF EXISTS TRANSCRIPT;
+                DROP TABLE IF EXISTS VIDEO;
+                DROP TABLE IF EXISTS CHANNEL;
+                """)
+                self._create_tables()
+                
+        except sqlite3.Error as e:
+            print(f"Migration error: {e}")
+            # If migration fails, recreate the entire database
+            self.db_path.unlink(missing_ok=True)
+            self._create_tables()
 
     # ---------- Core Helpers ----------
     def insert(self, table: str, data: Dict[str, Any]) -> int:
@@ -127,6 +129,7 @@ class DatabaseManager:
         values = tuple(data.values())
         query = f"INSERT INTO {table} ({keys}) VALUES ({placeholders})"
         cursor = conn.cursor()
+        cursor.execute(f"SELECT * FROM {table}")
         cursor.execute(query, values)
         conn.commit()
         return cursor.lastrowid
