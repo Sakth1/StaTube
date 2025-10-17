@@ -1,4 +1,4 @@
-Work on database
+work on displaying profile pic in list widget
 
 Change it so that the transcriptions is download for any language
 

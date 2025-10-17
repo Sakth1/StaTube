@@ -1,8 +1,9 @@
-from PySide6 import QtCore, QtGui
+from PySide6 import QtCore
 from PySide6.QtWidgets import (QApplication, QMainWindow, QStackedWidget, QWidget, 
                                QLineEdit, QListWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                QPushButton, QListWidgetItem, QCompleter, QGridLayout)
-from PySide6.QtCore import Qt, QStringListModel
+from PySide6.QtCore import Qt, QStringListModel, QSize
+from PySide6.QtGui import QPixmap
 import threading
 import time
 import traceback
@@ -31,6 +32,7 @@ class MainWindow(QMainWindow):
         # Replace ComboBox with LineEdit and ListWidget
         self.searchbar = QLineEdit()
         self.channel_list = QListWidget()
+        self.channel_list.setIconSize(QSize(64, 64))
         self.model = QStringListModel()
         self.completer = QCompleter(self.model, self.searchbar)
         self.completer.setCompletionMode(QCompleter.UnfilteredPopupCompletion)
@@ -67,7 +69,6 @@ class MainWindow(QMainWindow):
 
         self.setupUi()
         self.initiatemodule()
-        
         self.setCentralWidget(self.central_widget)
 
     def on_completer_activated(self, text):
@@ -139,8 +140,14 @@ class MainWindow(QMainWindow):
     
     def update_channel_list(self):
         self.channel_list.clear()
-        for channel in self.channels:
-            item = QListWidgetItem(self.channels[channel].get('title'))
+        for channel_id, channel_info in self.channels.items():
+            inf = self.db.fetch("CHANNEL", "channel_id=?", (channel_id,))
+            sub_count = inf[0].get("sub_count")
+            channel_name = inf[0].get("title")
+            icon_label = QPixmap(inf[0].get("profile_pic"))
+            text_label = f'{channel_name}\n{sub_count}'
+            item = QListWidgetItem(text_label)
+            item.setIcon(icon_label)
             self.channel_list.addItem(item)
         self.top_layout.addWidget(self.channel_list)
 

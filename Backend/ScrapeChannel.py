@@ -33,8 +33,9 @@ class Search:
             profile_url = "https:" + ch.get("thumbnail", {}).get("thumbnails")[0].get("url")
             
             try:
-                urllib.request.urlretrieve(profile_url, rf"{self.db.profile_pic_dir}/{channel_id}.jpg")
-                print(f'pic saved to {self.db.profile_pic_dir}/{channel_id}.jpg')
+                profile_save_path = rf"{self.db.profile_pic_dir}/{channel_id}.png"
+                urllib.request.urlretrieve(profile_url, profile_save_path)
+                print(f'pic saved to {profile_save_path}')
             except Exception as e:
                 print(f"Failed to save profile picture: {e}")
 
@@ -55,7 +56,7 @@ class Search:
                             "url": url,
                             "sub_count": str(sub_count),
                             "desc": desc,
-                            "profile_pic": f"{channel_id}.jpg",
+                            "profile_pic": profile_save_path,
                         },
                     )
                     print(f"Added new channel: {title}")
