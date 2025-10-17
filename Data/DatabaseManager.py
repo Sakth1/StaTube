@@ -38,11 +38,6 @@ class DatabaseManager:
         self.db_path = self.db_dir / db_name
         self._create_tables()
 
-        if self.db_path.exists():
-            self._migrate_database()
-        else:
-            self._create_tables()
-
     def _get_connection(self):
         """Get thread-specific database connection"""
         if not hasattr(self._local, 'conn'):
@@ -104,16 +99,16 @@ class DatabaseManager:
             cursor.execute("PRAGMA table_info(CHANNEL)")
             columns = {col[1] for col in cursor.fetchall()}
             
-            if 'channel_id' not in columns:
-                print("Migrating database schema...")
-                # Drop and recreate tables with correct schema
-                cursor.executescript("""
-                DROP TABLE IF EXISTS COMMENT;
-                DROP TABLE IF EXISTS TRANSCRIPT;
-                DROP TABLE IF EXISTS VIDEO;
-                DROP TABLE IF EXISTS CHANNEL;
-                """)
-                self._create_tables()
+            #if 'channel_id' not in columns:
+            #    print("Migrating database schema...")
+            #    # Drop and recreate tables with correct schema
+            #    cursor.executescript("""
+            #    DROP TABLE IF EXISTS COMMENT;
+            #    DROP TABLE IF EXISTS TRANSCRIPT;
+            #    DROP TABLE IF EXISTS VIDEO;
+            #    DROP TABLE IF EXISTS CHANNEL;
+            #    """)
+            #    self._create_tables()
                 
         except sqlite3.Error as e:
             print(f"Migration error: {e}")

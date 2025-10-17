@@ -1,7 +1,7 @@
 from PySide6 import QtCore, QtGui
 from PySide6.QtWidgets import (QApplication, QMainWindow, QStackedWidget, QWidget, 
                                QLineEdit, QListWidget, QVBoxLayout, QHBoxLayout, QLabel,
-                               QPushButton, QListWidgetItem, QCompleter)
+                               QPushButton, QListWidgetItem, QCompleter, QGridLayout)
 from PySide6.QtCore import Qt, QStringListModel
 import threading
 import time
@@ -25,16 +25,15 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__()
 
         self.top_panel = QWidget()
-        self.bottom_panel = QWidget()
         self.central_layout = QVBoxLayout()
         self.central_widget = QStackedWidget()
         
         # Replace ComboBox with LineEdit and ListWidget
         self.searchbar = QLineEdit()
+        self.channel_list = QListWidget()
         self.model = QStringListModel()
         self.completer = QCompleter(self.model, self.searchbar)
         self.completer.setCompletionMode(QCompleter.UnfilteredPopupCompletion)
-        self.dropdown_list = QListWidget()
         self.searchbar.setCompleter(self.completer)
 
         self.search_timer = QtCore.QTimer()
@@ -48,14 +47,13 @@ class MainWindow(QMainWindow):
         self.search_timer.setSingleShot(True)
         self.search_timer.timeout.connect(self.search_keyword)
 
+        self.top_layout = QGridLayout()
+        self.top_panel.setLayout(self.top_layout)
         self.central_widget.addWidget(self.top_panel)
-        self.central_widget.addWidget(self.bottom_panel)
         
         # Setup search components
         self.searchbar.setPlaceholderText("Search")
         self.searchbar.textChanged.connect(self.reset_search_timer)
-        #self.dropdown_list.hide()  # Initially hidden
-        #self.dropdown_list.itemClicked.connect(self.on_item_selected)
         
         # Override key press to handle navigation
         #self.searchbar.keyPressEvent = self.handle_key_press
@@ -76,26 +74,17 @@ class MainWindow(QMainWindow):
         """
         self.setGeometry(500, 200, 500, 300)
         self.setuptop()
-        self.setupbottom()
 
     def initiatemodule(self):
         self.db = DatabaseManager()
 
     def setuptop(self):
-        self.top_layout = QVBoxLayout()
-        self.top_layout.addWidget(self.search_channel_button)
-        self.top_layout.addWidget(self.searchbar)
-        #self.top_layout.addWidget(self.dropdown_list)  # Add dropdown list
-        self.top_layout.addWidget(self.scrap_video_button)
-        self.top_layout.addWidget(self.scrape_transcription_button)
-        self.top_panel.setLayout(self.top_layout)
+        self.top_layout.addWidget(self.searchbar, 0, 0)
+        self.top_layout.addWidget(self.search_channel_button, 0, 1)
+        #self.top_layout.addWidget(self.scrap_video_button, 1, 0, 1, 2)
+        #self.top_layout.addWidget(self.scrape_transcription_button, 2, 0, 1, 2)
         self.top_panel.show()
         Proxy()
-    
-    def setupbottom(self):
-        self.bottom_layout = QVBoxLayout()
-        self.bottom_panel.setLayout(self.bottom_layout)
-        self.bottom_panel.show()
 
     def reset_search_timer(self):
         self.search_timer.start(100)
@@ -106,42 +95,43 @@ class MainWindow(QMainWindow):
             self.searchbar.blockSignals(True)
             selected_text = item.text()
             self.searchbar.setText(selected_text)
-            #self.dropdown_list.hide()
             # Return focus to input after selection
             QtCore.QTimer.singleShot(10, lambda: self.searchbar.setFocus())
             self.searchbar.blockSignals(False)
 
-    def search_thread(self, query):
+    def search_thread(self, query, final=False):
         print("search channel thread triggered")
         
         search = Search(self.db)  # Pass db instance
         self.channels = search.search_channel(query)
 
         self.channel_name = [item.get('title') for key, item in self.channels.items()]
-        self.results_ready.emit(self.channel_name)
 
+        if not final:
+            self.results_ready.emit(self.channel_name)
+        else:
+            self.update_channel_list()
+            
     def update_results(self, channels):
         """Update dropdown list with search results"""
         text = self.searchbar.text()
         
         # Clear and populate dropdown list
-        #self.dropdown_list.clear()
         
         if channels:
             for channel in channels:
                 item = QListWidgetItem(channel)
-                #self.dropdown_list.addItem(item)
                 self.model.setStringList(channels)
                 self.completer.complete()
-            
-            #self.dropdown_list.show()
-        #else:
-            #self.dropdown_list.hide()
-        
-        # Keep focus on search input
-        #self.searchbar.setFocus()
-        
-    def search_keyword(self):
+    
+    def update_channel_list(self):
+        self.channel_list.clear()
+        for channel in self.channels:
+            item = QListWidgetItem(self.channels[channel].get('title'))
+            self.channel_list.addItem(item)
+        self.top_layout.addWidget(self.channel_list)
+
+    def search_keyword(self, final=False):
         try:
             if self.search_thread_instance and self.search_thread_instance.is_alive():
                 self.stop_event.set()
@@ -151,17 +141,15 @@ class MainWindow(QMainWindow):
 
             query = self.searchbar.text()
             if query:
-                self.search_thread_instance = threading.Thread(target=self.search_thread, daemon=True, args=(query,))
+                self.search_thread_instance = threading.Thread(target=self.search_thread, daemon=True, args=(query,final))
                 self.search_thread_instance.start()
-            #else:
-                #self.dropdown_list.hide()
         
         except Exception as e:
             traceback.print_exc()
             print(e)
 
     def search_channel(self):
-        self.search_keyword()
+        self.search_keyword(True)
 
     def scrape_videos(self):
         print("search video triggered")

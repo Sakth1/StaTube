@@ -12,7 +12,7 @@ class Search:
         self.db = db
         self.channels = {}
 
-    def search_channel(self, name: str = None):
+    def search_channel(self, name: str = None, limit: int = 6):
         if not name:
             return {"None": {"title": None, "url": None}}
         
@@ -20,10 +20,10 @@ class Search:
         if proxy:
             pass
         else:
-            proxy = None        
+            proxy = None
 
         self.channels = {}
-        search_results = scrapetube.get_search(name, results_type="channel", limit=6)
+        search_results = scrapetube.get_search(name, results_type="channel", limit=limit)
 
         for ch in search_results:
             title = ch.get("title", {}).get("simpleText")
