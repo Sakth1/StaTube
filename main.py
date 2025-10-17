@@ -1,9 +1,19 @@
 from UI.MainWindow import MainWindow
 from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtCore import QTimer
 import sys
+import signal
 from utils.CheckInternet import Internet
 
-try:
+def handle_interrupt(*args):
+    """Handle Ctrl+C cleanly."""
+    print("\nCtrl+C detected — closing application...")
+    QApplication.quit()
+
+def main():
+    # Ensure Ctrl+C works cross-platform
+    signal.signal(signal.SIGINT, handle_interrupt)
+
     if not Internet().check_internet():
         app = QApplication()
         msg = QMessageBox()
@@ -16,13 +26,18 @@ try:
     app = QApplication()
     window = MainWindow()
     window.show()
-    app.exec()
 
-except KeyboardInterrupt:
-    #close the progam
-    pass
+    # Timer allows event loop to check for SIGINT periodically
+    timer = QTimer()
+    timer.start(100)
+    timer.timeout.connect(lambda: None)
 
-except Exception as e:
-    import traceback
-    traceback.print_exc()
-    print(e)
+    try:
+        app.exec()
+    except KeyboardInterrupt:
+        print("Interrupted by user, exiting...")
+    finally:
+        sys.exit(0)
+
+if __name__ == "__main__":
+    main()

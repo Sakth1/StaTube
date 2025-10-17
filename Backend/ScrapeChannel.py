@@ -45,22 +45,7 @@ class Search:
                 # Check if channel already exists
                 existing_channels = self.db.fetch("CHANNEL", where="channel_id = ?", params=(channel_id,))
                 
-                if existing_channels:
-                    # Channel exists, update it
-                    self.db.update(
-                        "CHANNEL",
-                        {
-                            "name": title,
-                            "url": url,
-                            "sub_count": str(sub_count),
-                            "desc": desc,
-                            "profile_pic": f"{channel_id}.jpg",
-                        },
-                        where="channel_id = ?",
-                        params=(channel_id,)
-                    )
-                    print(f"Updated existing channel: {title}")
-                else:
+                if not existing_channels:
                     # Channel doesn't exist, insert new one
                     self.db.insert(
                         "CHANNEL",

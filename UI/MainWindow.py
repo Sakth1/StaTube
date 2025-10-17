@@ -35,6 +35,10 @@ class MainWindow(QMainWindow):
         self.completer = QCompleter(self.model, self.searchbar)
         self.completer.setCompletionMode(QCompleter.UnfilteredPopupCompletion)
         self.searchbar.setCompleter(self.completer)
+        self.searchbar.mousePressEvent = lambda event, e=self.searchbar.mousePressEvent: (e(event), self.completer.complete())
+        self.searchbar.focusInEvent = lambda event, e=self.searchbar.focusInEvent: (e(event), self.completer.complete())
+
+        self.completer_active = False
 
         self.search_timer = QtCore.QTimer()
         self.stop_event = threading.Event()
@@ -54,9 +58,7 @@ class MainWindow(QMainWindow):
         # Setup search components
         self.searchbar.setPlaceholderText("Search")
         self.searchbar.textChanged.connect(self.reset_search_timer)
-        
-        # Override key press to handle navigation
-        #self.searchbar.keyPressEvent = self.handle_key_press
+        self.completer.activated.connect(self.on_completer_activated)
         
         self.scrap_video_button.clicked.connect(self.scrape_videos)
         self.search_channel_button.clicked.connect(self.search_channel)
@@ -67,6 +69,13 @@ class MainWindow(QMainWindow):
         self.initiatemodule()
         
         self.setCentralWidget(self.central_widget)
+
+    def on_completer_activated(self, text):
+        """Handle completer selection"""
+        self.completer_active = True
+        self.search_timer.stop()  # Stop any pending search
+        # Reset flag after a short delay
+        QtCore.QTimer.singleShot(50, lambda: setattr(self, 'completer_active', False))
     
     def setupUi(self):
         """
@@ -87,7 +96,8 @@ class MainWindow(QMainWindow):
         Proxy()
 
     def reset_search_timer(self):
-        self.search_timer.start(100)
+        if not self.completer_active:
+            self.search_timer.start(100)
 
     def on_item_selected(self, item):
         """Handle item selection from dropdown"""
@@ -103,7 +113,10 @@ class MainWindow(QMainWindow):
         print("search channel thread triggered")
         
         search = Search(self.db)  # Pass db instance
-        self.channels = search.search_channel(query)
+        if final:
+            self.channels = search.search_channel(query, limit=20)
+        else:
+            self.channels = search.search_channel(query, limit=6)
 
         self.channel_name = [item.get('title') for key, item in self.channels.items()]
 

@@ -88,33 +88,6 @@ class DatabaseManager:
         );
         """)
         conn.commit()
-    
-    def _migrate_database(self):
-        """Migrate database schema if needed"""
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        
-        try:
-            # Check if CHANNEL table has the correct schema
-            cursor.execute("PRAGMA table_info(CHANNEL)")
-            columns = {col[1] for col in cursor.fetchall()}
-            
-            #if 'channel_id' not in columns:
-            #    print("Migrating database schema...")
-            #    # Drop and recreate tables with correct schema
-            #    cursor.executescript("""
-            #    DROP TABLE IF EXISTS COMMENT;
-            #    DROP TABLE IF EXISTS TRANSCRIPT;
-            #    DROP TABLE IF EXISTS VIDEO;
-            #    DROP TABLE IF EXISTS CHANNEL;
-            #    """)
-            #    self._create_tables()
-                
-        except sqlite3.Error as e:
-            print(f"Migration error: {e}")
-            # If migration fails, recreate the entire database
-            self.db_path.unlink(missing_ok=True)
-            self._create_tables()
 
     # ---------- Core Helpers ----------
     def insert(self, table: str, data: Dict[str, Any]) -> int:
