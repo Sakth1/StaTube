@@ -37,7 +37,7 @@ packaging==25.0
 pandas==2.3.2
 pefile==2023.2.7
 pillow==11.0.0
-platformdirs==4.4.0
+platformdirs==4.5.0
 pooch==1.8.2
 psutil==7.0.0
 pycparser==2.23
