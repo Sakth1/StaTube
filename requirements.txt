@@ -6,7 +6,7 @@ bottle==0.13.4
 bottle-websocket==0.2.9
 certifi==2025.8.3
 cffi==2.0.0
-charset-normalizer==3.4.3
+charset-normalizer==3.4.4
 colorama==0.4.6
 decorator==5.2.1
 defusedxml==0.7.1
