@@ -144,7 +144,7 @@ class MainWindow(QMainWindow):
             sub_count = inf[0].get("sub_count")
             channel_name = inf[0].get("name")
             icon_label = QIcon(inf[0].get("profile_pic"))
-            text_label = f'{channel_name}\n{sub_count}'
+            text_label = f'\n{channel_name}\n{sub_count}\n'
             item = QListWidgetItem(icon_label, text_label)
             self.channel_list.addItem(item)
         self.channel_list.setIconSize(QSize(32, 32))
