@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QStackedWidget, QWidge
                                QLineEdit, QListWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                QPushButton, QListWidgetItem, QCompleter, QGridLayout)
 from PySide6.QtCore import Qt, QStringListModel, QSize
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QPixmap, QIcon
 import threading
 import time
 import traceback
@@ -32,7 +32,6 @@ class MainWindow(QMainWindow):
         # Replace ComboBox with LineEdit and ListWidget
         self.searchbar = QLineEdit()
         self.channel_list = QListWidget()
-        self.channel_list.setIconSize(QSize(64, 64))
         self.model = QStringListModel()
         self.completer = QCompleter(self.model, self.searchbar)
         self.completer.setCompletionMode(QCompleter.UnfilteredPopupCompletion)
@@ -143,13 +142,13 @@ class MainWindow(QMainWindow):
         for channel_id, channel_info in self.channels.items():
             inf = self.db.fetch("CHANNEL", "channel_id=?", (channel_id,))
             sub_count = inf[0].get("sub_count")
-            channel_name = inf[0].get("title")
-            icon_label = QPixmap(inf[0].get("profile_pic"))
+            channel_name = inf[0].get("name")
+            icon_label = QIcon(inf[0].get("profile_pic"))
             text_label = f'{channel_name}\n{sub_count}'
-            item = QListWidgetItem(text_label)
-            item.setIcon(icon_label)
+            item = QListWidgetItem(icon_label, text_label)
             self.channel_list.addItem(item)
-        self.top_layout.addWidget(self.channel_list)
+        self.channel_list.setIconSize(QSize(32, 32))
+        self.top_layout.addWidget(self.channel_list, 1, 0, 1, 2)
 
     def search_keyword(self, final=False):
         try:
