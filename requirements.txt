@@ -75,7 +75,7 @@ transformers==4.56.1
 typing_extensions==4.15.0
 tzdata==2025.2
 urllib3==2.5.0
-uv==0.8.17
+uv==0.9.5
 webvtt-py==0.5.1
 youtube-transcript-api==1.2.2
 yt-dlp==2025.9.5
