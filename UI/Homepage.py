@@ -13,7 +13,7 @@ from Backend.ScrapeVideo import Videos
 from Backend.ScrapeTranscription import Transcription
 from Data.DatabaseManager import DatabaseManager
 
-class Homepage(QWidget):
+class Home(QWidget):
     results_ready = QtCore.Signal(list)
     videos = {}
     video_url = []
@@ -22,7 +22,7 @@ class Homepage(QWidget):
     content = {}
 
     def __init__(self, parent: QMainWindow = None):
-        super(Homepage, self).__init__(parent)
+        super(Home, self).__init__(parent)
 
         self.mainwindow = parent
 

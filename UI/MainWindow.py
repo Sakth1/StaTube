@@ -6,7 +6,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt, QSize, QThread
 import os
 
-from UI.Homepage import Homepage
+from UI.Homepage import Home
 from .SplashScreen import ProxyThread
 
 class MainWindow(QMainWindow):
@@ -30,7 +30,7 @@ class MainWindow(QMainWindow):
         self.setupsidebar()
 
         # Setup pages
-        self.homepage = Homepage(self)
+        self.homepage = Home(self)
         self.stack.addWidget(self.homepage)
         # TODO: add other pages here
 
