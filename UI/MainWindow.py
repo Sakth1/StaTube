@@ -6,7 +6,11 @@ from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt, QSize, QThread
 import os
 
-from UI.Homepage import Home
+from .Homepage import Home
+from .VideoPage import Video
+from .CommentPage import Comment
+from .TranscriptPage import Transcript
+from .SettingsPage import Settings
 from .SplashScreen import ProxyThread
 
 class MainWindow(QMainWindow):
@@ -31,8 +35,16 @@ class MainWindow(QMainWindow):
 
         # Setup pages
         self.homepage = Home(self)
+        self.video_page = Video(self)
+        self.comment_page = Comment(self)
+        self.transcript_page = Transcript(self)
+        self.settings_page = Settings(self)
+
         self.stack.addWidget(self.homepage)
-        # TODO: add other pages here
+        self.stack.addWidget(self.video_page)
+        self.stack.addWidget(self.comment_page)
+        self.stack.addWidget(self.transcript_page)
+        self.stack.addWidget(self.settings_page)
 
         self.switch_page(-1)
         self.sidebar_buttons[0].setChecked(True)
