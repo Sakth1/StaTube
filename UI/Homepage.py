@@ -12,7 +12,6 @@ from Backend.ScrapeChannel import Search
 from Backend.ScrapeVideo import Videos
 from Backend.ScrapeTranscription import Transcription
 from Data.DatabaseManager import DatabaseManager
-from utils.Proxy import Proxy
 
 class Homepage(QWidget):
     results_ready = QtCore.Signal(list)
@@ -97,7 +96,6 @@ class Homepage(QWidget):
         self.top_layout.addWidget(self.searchbar, 0, 0)
         self.top_layout.addWidget(self.search_channel_button, 0, 1)
         self.top_panel.show()
-        Proxy()
 
     def reset_search_timer(self):
         if not self.completer_active:

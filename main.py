@@ -5,16 +5,10 @@ import sys
 import signal
 from utils.CheckInternet import Internet
 
-def handle_interrupt(*args):
-    """Handle Ctrl+C cleanly."""
-    print("\nCtrl+C detected — closing application...")
-    QApplication.quit()
-
 def main():
-    # Ensure Ctrl+C works cross-platform
-    signal.signal(signal.SIGINT, handle_interrupt)
+    internet = Internet()
 
-    if not Internet().check_internet():
+    if not internet.check_internet():
         app = QApplication()
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Critical)
@@ -26,11 +20,6 @@ def main():
     app = QApplication()
     window = MainWindow()
     window.show()
-
-    # Timer allows event loop to check for SIGINT periodically
-    timer = QTimer()
-    timer.start(100)
-    timer.timeout.connect(lambda: None)
 
     try:
         app.exec()
