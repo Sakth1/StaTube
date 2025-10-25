@@ -1,19 +1,12 @@
 from PySide6 import QtCore
-from PySide6.QtWidgets import (QApplication, QMainWindow, QStackedWidget, QWidget, 
-                               QLineEdit, QListWidget, QVBoxLayout, QHBoxLayout, QLabel,
-                               QPushButton, QListWidgetItem, QCompleter, QGridLayout)
-
+from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout
 
 class Video(QWidget):
-    def __init__(self, parent: QMainWindow = None):
+    def __init__(self, parent=None):
         super(Video, self).__init__(parent)
 
-        self.mainwindow = parent
-
-        self.main_widget = QWidget()
-        self.main_layout = QVBoxLayout()
+        self.main_layout = QVBoxLayout(self)
         self.set_coming_soon()
-        self.main_widget.setLayout(self.main_layout)
 
     def set_coming_soon(self):
         coming_soon = QLabel("Video Analysis Coming Soon")
