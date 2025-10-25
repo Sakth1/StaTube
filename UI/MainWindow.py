@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt, QSize, QThread
-import threading
+import os
 
 from UI.Homepage import Homepage
 from .SplashScreen import ProxyThread
@@ -23,6 +23,27 @@ class MainWindow(QMainWindow):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
 
+        # Stacked widget
+        self.stack = QStackedWidget()
+
+        # setup sidebar
+        self.setupsidebar()
+
+        # Setup pages
+        self.homepage = Homepage(self)
+        self.stack.addWidget(self.homepage)
+        # TODO: add other pages here
+
+        self.switch_page(-1)
+        self.sidebar_buttons[0].setChecked(True)
+
+    def switch_page(self, index):
+        if index > 0:
+            self.stack.setCurrentIndex(index)
+        else:
+            self.stack.setCurrentIndex(0)
+
+    def setupsidebar(self):
         main_layout = QHBoxLayout(self.central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
@@ -34,47 +55,34 @@ class MainWindow(QMainWindow):
         side_layout.setContentsMargins(10, 20, 10, 20)
         side_layout.setSpacing(25)
 
-        # Stacked widget
-        self.stack = QStackedWidget()
-
         # Create icons + buttons
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        base_dir = os.path.dirname(base_dir)
+        icon_path = os.path.join(base_dir, "assets", "icon", "light")
         icons = [
-            ("Home", "Home"),
-            ("videos", "Videos from selected channel"),
-            ("TA", "Transcription Analysis"),
-            ("CA", "Comment Analysis"),
-            ("settings", "Settings")
+            ("light_home.ico", "Home"),
+            ("light_video.ico", "Videos"),
+            ("light_transcript.ico", "Transcription Analysis"),
+            ("light_comment.ico", "Comment Analysis"),
+            ("light_settings.ico", "Settings")
         ]
 
-        self.buttons = []
-        for i, (icon_name, tooltip) in enumerate(icons):
+        self.sidebar_buttons = []
+        for i, (filename, tooltip) in enumerate(icons):
+            icon_file = os.path.join(icon_path, filename)
             btn = QToolButton()
-            btn.setText(icon_name)
+            btn.setIcon(QIcon(icon_file))
             btn.setIconSize(QSize(28, 28))
             btn.setToolTip(tooltip)
             btn.setCheckable(True)
             btn.setAutoExclusive(True)
             btn.clicked.connect(lambda checked, idx=i: self.switch_page(idx))
             side_layout.addWidget(btn)
-            self.buttons.append(btn)
+            self.sidebar_buttons.append(btn)
 
         # Add sidebar + stacked widget to main layout
         main_layout.addWidget(self.sidebar)
         main_layout.addWidget(self.stack, stretch=1)
-
-        # Setup pages
-        self.homepage = Homepage(self)
-        self.stack.addWidget(self.homepage)
-        # TODO: add other pages here
-
-        self.switch_page(-1)
-
-    def switch_page(self, index):
-        if index > 0:
-            self.stack.setCurrentIndex(index)
-
-        else:
-            self.stack.setCurrentIndex(0)
 
 if __name__ == "__main__":
     import sys
