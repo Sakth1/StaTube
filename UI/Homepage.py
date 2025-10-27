@@ -12,6 +12,7 @@ from Backend.ScrapeChannel import Search
 from Backend.ScrapeVideo import Videos
 from Backend.ScrapeTranscription import Transcription
 from Data.DatabaseManager import DatabaseManager
+from utils import AppState
 
 class Home(QWidget):
     results_ready = QtCore.Signal(list)
@@ -36,6 +37,7 @@ class Home(QWidget):
         self.channel_list = QListWidget()
         self.model = QStringListModel()
         self.completer = QCompleter(self.model, self.searchbar)
+        self.select_button.clicked.connect(self.select_channel)
         self.completer.setCompletionMode(QCompleter.UnfilteredPopupCompletion)
         self.searchbar.setCompleter(self.completer)
         self.searchbar.mousePressEvent = lambda event, e=self.searchbar.mousePressEvent: (e(event), self.completer.complete())
@@ -99,6 +101,14 @@ class Home(QWidget):
         self.top_layout.addWidget(self.select_button, 2, 0, 1, 2, alignment=Qt.AlignBottom)
         self.top_panel.show()
 
+    def select_channel(self):
+        item = self.channel_list.currentItem()
+        if item:
+            text = item.data(Qt.UserRole)['channel_name']
+            AppState.channel_name = text
+
+        print(AppState.channel_name)
+
     def reset_search_timer(self):
         if not self.completer_active:
             self.search_timer.start(100)
@@ -150,6 +160,11 @@ class Home(QWidget):
             icon_label = QIcon(inf[0].get("profile_pic"))
             text_label = f'\n{channel_name}\n{sub_count}\n'
             item = QListWidgetItem(icon_label, text_label)
+            item.setData(Qt.UserRole, {
+                "channel_id": channel_id,
+                "channel_name": channel_name,
+                "sub_count": sub_count
+            })
             self.channel_list.addItem(item)
         self.channel_list.setIconSize(QSize(32, 32))
         self.top_layout.addWidget(self.channel_list, 1, 0, 1, 2)
