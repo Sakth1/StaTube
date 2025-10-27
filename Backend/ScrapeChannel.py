@@ -1,11 +1,7 @@
 import scrapetube
-from pathlib import Path
-from datetime import datetime
 import urllib.request
 
 from Data.DatabaseManager import DatabaseManager
-from utils.Proxy import Proxy
-
 
 class Search:
     def __init__(self, db: DatabaseManager):
@@ -15,12 +11,6 @@ class Search:
     def search_channel(self, name: str = None, limit: int = 6):
         if not name:
             return {"None": {"title": None, "url": None}}
-        
-        proxy = Proxy().get_proxy()
-        if proxy:
-            pass
-        else:
-            proxy = None
 
         self.channels = {}
         search_results = scrapetube.get_search(name, results_type="channel", limit=limit)
@@ -35,7 +25,6 @@ class Search:
             try:
                 profile_save_path = rf"{self.db.profile_pic_dir}/{channel_id}.png"
                 urllib.request.urlretrieve(profile_url, profile_save_path)
-                print(f'pic saved to {profile_save_path}')
             except Exception as e:
                 print(f"Failed to save profile picture: {e}")
 

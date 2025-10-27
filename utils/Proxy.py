@@ -1,19 +1,44 @@
+import requests
 from swiftshadow.classes import ProxyInterface
 
-
 class Proxy:
-    def __init__(self, protocol: str = "http", auto_rotate: bool = True):
-        """
-        Wrapper for ProxyInterface to provide proxy rotation support.
-        
-        :param protocol: Proxy protocol ("http", "https", "socks4", "socks5").
-        :param auto_rotate: Whether to enable automatic proxy rotation.
-        """
+    def __init__(self, protocol = "https", auto_rotate: bool = True):
         self.proxy_manager = ProxyInterface(
+            countries=["US"],
             protocol=protocol,
             autoRotate=auto_rotate
         )
 
+    def validate_proxy(self, proxy_str: str) -> bool:
+        """Check if proxy works by pinging YouTube."""
+        try:
+            response = requests.get(
+                "https://www.youtube.com/",
+                proxies={self.proxy_manager.protocol: proxy_str},
+                timeout=5
+            )
+            return response.status_code == 200
+        except Exception as e:
+            print(f"[ERROR] Proxy validation failed: {e}")
+            return False
+
+    def get_working_proxy(self, max_attempts=10) -> str | None:
+        """Fetch proxy and validate it."""
+        try:
+            for _ in range(max_attempts):
+                proxy_obj = self.proxy_manager.get()
+                if not proxy_obj:
+                    continue
+                proxy_str = proxy_obj.as_string()
+                print(f"[INFO] Testing proxy: {proxy_str}")
+                if self.validate_proxy(proxy_str):
+                    return proxy_str
+            print("[ERROR] No working HTTPS proxy found.")
+            return None
+        except Exception as e:
+            print(f"[ERROR] Proxy validation failed: {e}")
+            return None
+        
     def get_proxy(self) -> str | None:
         """
         Returns a proxy string like "http://ip:port" if available.

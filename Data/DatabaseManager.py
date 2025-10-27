@@ -31,7 +31,6 @@ class DatabaseManager:
         # Ensure directories exist
         for folder in [self.db_dir, self.transcript_dir, self.comment_dir, self.proxy_dir, self.video_dir, self.channel_dir, self.profile_pic_dir]:
             folder.mkdir(parents=True, exist_ok=True)
-            print(f"Created directory: {folder}")
 
         # Thread-local storage for database connections
         self._local = threading.local()

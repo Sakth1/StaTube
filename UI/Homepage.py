@@ -11,7 +11,6 @@ import traceback
 from Backend.ScrapeChannel import Search
 from Backend.ScrapeVideo import Videos
 from Backend.ScrapeTranscription import Transcription
-from Data.DatabaseManager import DatabaseManager
 from utils.AppState import app_state
 
 class Home(QWidget):
@@ -52,13 +51,10 @@ class Home(QWidget):
         self.search_channel_button = QPushButton("Search")
         self.scrap_video_button = QPushButton("Scrape Video")
         self.scrape_transcription_button = QPushButton("screpe transcription")
+        self.db = app_state.db
 
         self.search_timer.setSingleShot(True)
         self.search_timer.timeout.connect(self.search_keyword)
-
-        #self.top_layout = QGridLayout()
-        #self.top_panel.setLayout(self.top_layout)
-        #self.central_widget.addWidget(self.top_panel)
         
         # Setup search components
         self.searchbar.setPlaceholderText("Search")
@@ -71,7 +67,6 @@ class Home(QWidget):
         self.results_ready.connect(self.update_results)
 
         self.setupUi()
-        self.initiatemodule()
         self.setLayout(self.central_layout)
         self.central_layout.addWidget(self.top_panel)
 
@@ -88,9 +83,6 @@ class Home(QWidget):
         """
         self.setuptop()
 
-    def initiatemodule(self):
-        self.db = DatabaseManager()
-
     def setuptop(self):
         self.top_layout = QGridLayout()
         self.top_panel.setLayout(self.top_layout)
@@ -105,6 +97,8 @@ class Home(QWidget):
             data = item.data(Qt.UserRole)
             app_state.channel_name = data['channel_name']
             app_state.channel_id = data['channel_id']
+            print(f'{data["channel_url"]}')
+            app_state.channel_url = data['channel_url']
 
     def reset_search_timer(self):
         if not self.completer_active:
@@ -160,6 +154,7 @@ class Home(QWidget):
             item.setData(Qt.UserRole, {
                 "channel_id": channel_id,
                 "channel_name": channel_name,
+                "channel_url": channel_info['url'],
                 "sub_count": sub_count
             })
             self.channel_list.addItem(item)

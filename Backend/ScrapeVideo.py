@@ -1,5 +1,6 @@
 import yt_dlp
 from datetime import datetime
+import json
 from pathlib import Path
 
 from utils.Proxy import Proxy
@@ -38,6 +39,9 @@ class Videos:
 
                 channel_name = info.get('title')
                 entries = info.get('entries')
+
+                with open ("channel.json", "w", encoding="utf-8") as f:
+                    json.dump(info, f, indent=2, ensure_ascii=False)
 
                 for entry in entries:
                     entry_name = entry.get('title')
@@ -122,6 +126,8 @@ class Videos:
             return self.content
 
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             print(f"Error while fetching video URLs: {e}")
             return {}
 
