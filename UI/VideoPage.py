@@ -15,21 +15,14 @@ class Video(QWidget):
         self.mainwindow = parent
         self.channel_label = QLabel()
         self.central_layout = QVBoxLayout()
-        self.central_layout.addWidget(self.channel_label)
+        self.central_layout.addWidget(self.channel_label, alignment=QtCore.Qt.AlignTop)
 
         app_state.channel_name_changed.connect(self.update_channel_label)
         self.update_channel_label(app_state.channel_name)
 
         self.setLayout(self.central_layout)
-        #self.set_coming_soon()
 
     def update_channel_label(self, name=None):
         self.channel_label.setText(f"Selected channel: {name or 'None'}")
         self.central_layout.replaceWidget(self.channel_label, self.channel_label)
 
-    def set_coming_soon(self):
-        self.main_layout = QVBoxLayout(self)
-        coming_soon = QLabel("Video Analysis Coming Soon")
-        coming_soon.setAlignment(QtCore.Qt.AlignCenter)
-        coming_soon.setStyleSheet("font-size: 30px;")
-        self.main_layout.addWidget(coming_soon)
