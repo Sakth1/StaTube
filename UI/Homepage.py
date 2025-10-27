@@ -32,6 +32,7 @@ class Home(QWidget):
         
         # Replace ComboBox with LineEdit and ListWidget
         self.searchbar = QLineEdit()
+        self.select_button = QPushButton("Select")
         self.channel_list = QListWidget()
         self.model = QStringListModel()
         self.completer = QCompleter(self.model, self.searchbar)
@@ -93,8 +94,9 @@ class Home(QWidget):
     def setuptop(self):
         self.top_layout = QGridLayout()
         self.top_panel.setLayout(self.top_layout)
-        self.top_layout.addWidget(self.searchbar, 0, 0)
+        self.top_layout.addWidget(self.searchbar, 0, 0, alignment=Qt.AlignTop)
         self.top_layout.addWidget(self.search_channel_button, 0, 1)
+        self.top_layout.addWidget(self.select_button, 2, 0, 1, 2, alignment=Qt.AlignBottom)
         self.top_panel.show()
 
     def reset_search_timer(self):

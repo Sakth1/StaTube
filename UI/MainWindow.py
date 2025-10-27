@@ -63,8 +63,8 @@ class MainWindow(QMainWindow):
         self.sidebar = QFrame()
         self.sidebar.setFixedWidth(80)
         side_layout = QVBoxLayout(self.sidebar)
-        side_layout.setAlignment(Qt.AlignTop)
-        side_layout.setContentsMargins(10, 20, 10, 20)
+        side_layout.setAlignment(Qt.AlignCenter)
+        side_layout.setContentsMargins(20, 0, 0, 0)
         side_layout.setSpacing(25)
 
         # Create icons + buttons
