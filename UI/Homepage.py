@@ -12,7 +12,7 @@ from Backend.ScrapeChannel import Search
 from Backend.ScrapeVideo import Videos
 from Backend.ScrapeTranscription import Transcription
 from Data.DatabaseManager import DatabaseManager
-from utils import AppState
+from utils.AppState import app_state
 
 class Home(QWidget):
     results_ready = QtCore.Signal(list)
@@ -74,7 +74,6 @@ class Home(QWidget):
         self.initiatemodule()
         self.setLayout(self.central_layout)
         self.central_layout.addWidget(self.top_panel)
-        self.main_widget = self.central_widget
 
     def on_completer_activated(self, text):
         """Handle completer selection"""
@@ -87,7 +86,6 @@ class Home(QWidget):
         """
         Set up the user interface of the main window.
         """
-        self.mainwindow.setGeometry(500, 200, 500, 300)
         self.setuptop()
 
     def initiatemodule(self):
@@ -104,10 +102,9 @@ class Home(QWidget):
     def select_channel(self):
         item = self.channel_list.currentItem()
         if item:
-            text = item.data(Qt.UserRole)['channel_name']
-            AppState.channel_name = text
-
-        print(AppState.channel_name)
+            data = item.data(Qt.UserRole)
+            app_state.channel_name = data['channel_name']
+            app_state.channel_id = data['channel_id']
 
     def reset_search_timer(self):
         if not self.completer_active:
