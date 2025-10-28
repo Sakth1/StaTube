@@ -3,18 +3,25 @@ from datetime import datetime
 import httpx
 from pathlib import Path
 import os
+import asyncio
 
 from utils.Proxy import Proxy
 from Data.DatabaseManager import DatabaseManager  # Your DB class
 
 
-async def download_with_proxy(url, save_path, proxy_url=Proxy().get_working_proxy()):
-    async with httpx.AsyncClient(proxies=proxy_url, timeout=15.0) as client:
-        async with client.stream("GET", url) as r:
-            r.raise_for_status()
-            with open(save_path, "wb") as f:
-                async for chunk in r.aiter_bytes():
-                    f.write(chunk)
+def download_with_proxy(url, save_path, proxy_url=None):
+    if proxy_url is None:
+        proxy_url = Proxy().get_working_proxy()
+    
+    import requests
+    try:
+        response = requests.get(url, proxies={'http': proxy_url, 'https': proxy_url}, timeout=15.0, stream=True)
+        response.raise_for_status()
+        with open(save_path, "wb") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+    except Exception as e:
+        print(f"[ERROR] Failed to download {url}: {e}")
 
 class Videos:
     def __init__(self, db: DatabaseManager):
@@ -63,7 +70,7 @@ class Videos:
                         views = video_entry.get('view_count')
                         duration = video_entry.get('duration')
 
-                        thumbnail_url = "https:" + video_entry.get("thumbnails")[-1].get("url")
+                        thumbnail_url = video_entry.get("thumbnails")[-1].get("url")
                         os.makedirs(f"{self.db.thumbnail_dir}/{channel_id}", exist_ok=True)
                         profile_save_path = rf"{self.db.thumbnail_dir}/{channel_id}/{video_id}.png"
                         download_with_proxy(thumbnail_url, profile_save_path, proxy_url)
@@ -103,19 +110,3 @@ class Videos:
             traceback.print_exc()
             print(f"Error while fetching video URLs: {e}")
             return {}
-
-
-if __name__ == "__main__":
-    db = DatabaseManager()
-    videos = Videos(db)
-
-    # Let's say we already inserted a CHANNEL and got its id
-    channel_id = 1  
-    channel_url = "https://www.youtube.com/@mrbeast"
-
-    results = videos.fetch_video_urls(channel_id, channel_url)
-
-    print("Fetched:", results["videos"])
-    print("Saved video entries in DB:", db.fetch("VIDEO", "channel_id=?", (channel_id,)))
-
-    db.close()
