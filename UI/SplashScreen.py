@@ -14,6 +14,4 @@ class ProxyThread(QThread):
 
     def run(self):
         """This runs in a background thread."""
-        while True:
-            self.proxy.get_proxy()
-            self.sleep(600)
+        pass

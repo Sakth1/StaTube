@@ -1,19 +1,17 @@
 import scrapetube
-import urllib.request
+import httpx
 
 from Data.DatabaseManager import DatabaseManager
 from utils.Proxy import Proxy
 
-def download_with_proxy(profile_url, profile_save_path, proxy_url=None):
-    if proxy_url:
-        proxy_handler = urllib.request.ProxyHandler({
-            'http': proxy_url,
-            'https': proxy_url
-        })
-        opener = urllib.request.build_opener(proxy_handler)
-        urllib.request.install_opener(opener)
 
-    urllib.request.urlretrieve(profile_url, profile_save_path)
+async def download_with_proxy(url, save_path, proxy_url=Proxy().get_working_proxy()):
+    async with httpx.AsyncClient(proxies=proxy_url, timeout=15.0) as client:
+        async with client.stream("GET", url) as r:
+            r.raise_for_status()
+            with open(save_path, "wb") as f:
+                async for chunk in r.aiter_bytes():
+                    f.write(chunk)
 
 class Search:
     def __init__(self, db: DatabaseManager):
@@ -26,6 +24,7 @@ class Search:
 
         self.channels = {}
         search_results = scrapetube.get_search(name, results_type="channel", limit=limit)
+        proxy_url = Proxy().get_working_proxy()
 
         for ch in search_results:
             title = ch.get("title", {}).get("simpleText")
@@ -33,12 +32,14 @@ class Search:
             desc = ch.get("descriptionSnippet", {}).get("runs")[0].get("text") if ch.get("descriptionSnippet") else None
             channel_id = ch.get("channelId")
             profile_url = "https:" + ch.get("thumbnail", {}).get("thumbnails")[0].get("url")
-            
+                        
             try:
                 profile_save_path = rf"{self.db.profile_pic_dir}/{channel_id}.png"
-                download_with_proxy(profile_url, profile_save_path, Proxy().get_working_proxy())
+                download_with_proxy(profile_url, profile_save_path, profile_url)
             except Exception as e:
                 print(f"Failed to save profile picture: {e}")
+                import traceback
+                traceback.print_exc()
 
             if channel_id:
                 url = f"https://www.youtube.com/channel/{channel_id}"

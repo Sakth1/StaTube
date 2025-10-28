@@ -1,11 +1,20 @@
 import yt_dlp
 from datetime import datetime
-import json
+import httpx
 from pathlib import Path
+import os
 
 from utils.Proxy import Proxy
 from Data.DatabaseManager import DatabaseManager  # Your DB class
 
+
+async def download_with_proxy(url, save_path, proxy_url=Proxy().get_working_proxy()):
+    async with httpx.AsyncClient(proxies=proxy_url, timeout=15.0) as client:
+        async with client.stream("GET", url) as r:
+            r.raise_for_status()
+            with open(save_path, "wb") as f:
+                async for chunk in r.aiter_bytes():
+                    f.write(chunk)
 
 class Videos:
     def __init__(self, db: DatabaseManager):
@@ -25,12 +34,6 @@ class Videos:
                 'quiet': True,
             }
 
-            # Choose proxy
-            proxy = Proxy().get_working_proxy()
-            if proxy:
-                ydl_opts['proxy'] = proxy
-                print(f"[INFO] Using proxy for videos: {proxy}")
-
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(channel_url, download=False)
 
@@ -40,87 +43,57 @@ class Videos:
                 channel_name = info.get('title')
                 entries = info.get('entries')
 
-                with open ("channel.json", "w", encoding="utf-8") as f:
-                    json.dump(info, f, indent=2, ensure_ascii=False)
-
                 for entry in entries:
                     entry_name = entry.get('title')
 
                     # --- Normal Videos ---
                     if entry_name == f'{channel_name} - Videos':
-                        video_entries = entry.get('entries')
-                        for i, video_entry in enumerate(video_entries):
-                            video_id = video_entry.get('id')
-                            title = video_entry.get('title')
-                            url = video_entry.get('url')
-                            views = video_entry.get('view_count')
-                            duration = video_entry.get('duration')
-
-                            # Save JSON file for raw data
-                            file_path = self.db.save_json_file(
-                                self.db.video_dir, f"video_{video_id}", video_entry
-                            )
-
-                            # Insert into DB
-                            self.db.insert("VIDEO", {
-                                "channel_id": channel_id,
-                                "title": title,
-                                "desc": video_entry.get("description"),
-                                "duration": duration,
-                                "view_count": views,
-                                "like_count": video_entry.get("like_count"),
-                                "pub_date": video_entry.get("upload_date"),
-                                "status": "active",
-                                "created_at": datetime.now().isoformat(),
-                                "file_path": str(file_path)
-                            })
-
-                            self.videos[i] = {
-                                "title": title,
-                                "url": url,
-                                "views": views,
-                                "duration": duration
-                            }
-                            self.video_url.append(url)
-
-                    # --- Live Videos ---
-                    elif entry_name == f'{channel_name} - Live':
-                        live_entries = entry.get('entries')
-                        for i, live_entry in enumerate(live_entries):
-                            title = live_entry.get('title')
-                            url = live_entry.get('url')
-                            views = live_entry.get('view_count')
-                            duration = live_entry.get('duration')
-
-                            self.live[i] = {
-                                "title": title,
-                                "url": url,
-                                "views": views,
-                                "duration": duration
-                            }
-
-                    # --- Shorts ---
+                        video_type = 'video'
                     elif entry_name == f'{channel_name} - Shorts':
-                        shorts_entries = entry.get('entries')
-                        for i, shorts_entry in enumerate(shorts_entries):
-                            title = shorts_entry.get('title')
-                            url = shorts_entry.get('url')
-                            views = shorts_entry.get('view_count')
-                            duration = shorts_entry.get('duration')
+                        video_type = 'shorts'
+                    elif entry_name == f'{channel_name} - Live':
+                        video_type = 'live'
 
-                            self.shorts[i] = {
-                                "title": title,
-                                "url": url,
-                                "views": views,
-                                "duration": duration
-                            }
+                    proxy_url = Proxy().get_working_proxy()
+                    video_entries = entry.get('entries')
+                    for i, video_entry in enumerate(video_entries):
+                        video_id = video_entry.get('id')
+                        title = video_entry.get('title')
+                        url = video_entry.get('url')
+                        views = video_entry.get('view_count')
+                        duration = video_entry.get('duration')
+
+                        thumbnail_url = "https:" + video_entry.get("thumbnails")[-1].get("url")
+                        os.makedirs(f"{self.db.thumbnail_dir}/{channel_id}", exist_ok=True)
+                        profile_save_path = rf"{self.db.thumbnail_dir}/{channel_id}/{video_id}.png"
+                        download_with_proxy(thumbnail_url, profile_save_path, proxy_url)
+
+                        # Insert into DB
+                        self.db.insert("VIDEO", {
+                            "video_id": video_id,
+                            "channel_id": channel_id,
+                            "video_type": video_type,
+                            "video_url": url,
+                            "title": title,
+                            "desc": video_entry.get("description"),
+                            "duration": duration,
+                            "view_count": views,
+                            "like_count": video_entry.get("like_count"),
+                            "pub_date": video_entry.get("upload_date"),
+                            "status": "active",
+                        })
+
+                        self.videos[i] = {
+                            "title": title,
+                            "url": url,
+                            "views": views,
+                            "duration": duration
+                        }
+                        self.video_url.append(url)
 
                 # Final structured dict (for immediate use)
                 self.content = {
-                    "live": self.live,
-                    "shorts": self.shorts,
                     "videos": self.videos,
-                    "video_url": self.video_url
                 }
 
             return self.content

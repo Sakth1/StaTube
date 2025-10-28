@@ -24,12 +24,15 @@ class DatabaseManager:
         self.channel_dir = self.base_dir / "Channels"
         self.profile_pic_dir = self.base_dir / "ProfilePics"
         self.transcript_dir = self.base_dir / "Transcripts"
+        self.thumbnail_dir = self.base_dir / "Thumbnails"
         self.comment_dir = self.base_dir / "Comments"
         self.proxy_dir = self.base_dir / "Proxies"
         self.video_dir = self.base_dir / "Videos"
 
         # Ensure directories exist
-        for folder in [self.db_dir, self.transcript_dir, self.comment_dir, self.proxy_dir, self.video_dir, self.channel_dir, self.profile_pic_dir]:
+        for folder in [self.db_dir, self.transcript_dir, self.comment_dir,
+                       self.proxy_dir, self.video_dir, self.channel_dir,
+                       self.profile_pic_dir, self.thumbnail_dir]:
             folder.mkdir(parents=True, exist_ok=True)
 
         # Thread-local storage for database connections
@@ -60,7 +63,9 @@ class DatabaseManager:
 
         CREATE TABLE IF NOT EXISTS VIDEO (
             video_id TEXT PRIMARY KEY,
-            channel_id TEXT,          
+            channel_id TEXT,
+            video_type TEXT,
+            video_url TEXT,
             title TEXT,
             desc TEXT,
             duration TEXT,
