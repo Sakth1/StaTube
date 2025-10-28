@@ -101,10 +101,33 @@ class DatabaseManager:
         values = tuple(data.values())
         query = f"INSERT INTO {table} ({keys}) VALUES ({placeholders})"
         cursor = conn.cursor()
-        cursor.execute(f"SELECT * FROM {table}")
-        cursor.execute(query, values)
-        conn.commit()
-        return cursor.lastrowid
+        
+        try:
+            cursor.execute(query, values)
+            conn.commit()
+            return cursor.lastrowid
+        except sqlite3.IntegrityError as e:
+            # If it's a UNIQUE constraint error, try updating instead
+            if "UNIQUE constraint failed" in str(e):
+                # Extract the primary key column name from the error or table
+                if table == "VIDEO":
+                    pk_column = "video_id"
+                elif table == "CHANNEL":
+                    pk_column = "channel_id"
+                else:
+                    # For other tables with auto-increment primary keys, re-raise
+                    raise
+                
+                # Get the primary key value from data
+                if pk_column in data:
+                    pk_value = data[pk_column]
+                    # Update instead of insert
+                    update_data = {k: v for k, v in data.items() if k != pk_column}
+                    return self.update(table, update_data, f"{pk_column}=?", (pk_value,))
+                else:
+                    raise
+            else:
+                raise
 
     def fetch(self, table: str, where: Optional[str] = None, params: Tuple = ()) -> List[Dict[str, Any]]:
         conn = self._get_connection()

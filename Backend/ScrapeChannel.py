@@ -35,7 +35,7 @@ class Search:
                         
             try:
                 profile_save_path = rf"{self.db.profile_pic_dir}/{channel_id}.png"
-                download_with_proxy(profile_url, profile_save_path, profile_url)
+                download_with_proxy(profile_url, profile_save_path, proxy_url)
             except Exception as e:
                 print(f"Failed to save profile picture: {e}")
                 import traceback
