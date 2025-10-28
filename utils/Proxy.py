@@ -22,10 +22,12 @@ class Proxy:
             print(f"[ERROR] Proxy validation failed: {e}")
             return False
 
-    def get_working_proxy(self, max_attempts=10) -> str | None:
+    def get_working_proxy(self) -> str | None:
         """Fetch proxy and validate it."""
         try:
-            for _ in range(max_attempts):
+            i = 0
+            print(len(self.proxy_manager.proxies))
+            while i < len(self.proxy_manager.proxies):
                 self.proxy_manager.rotate()
                 proxy_obj = self.proxy_manager.get()
                 if not proxy_obj:
@@ -34,6 +36,7 @@ class Proxy:
                 print(f"[INFO] Testing proxy: {proxy_str}")
                 if self.validate_proxy(proxy_str):
                     return proxy_str
+                i += 1
             print("[ERROR] No working HTTPS proxy found.")
             return None
         except Exception as e:
