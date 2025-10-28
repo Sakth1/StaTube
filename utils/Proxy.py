@@ -2,7 +2,7 @@ import requests
 from swiftshadow.classes import ProxyInterface
 
 class Proxy:
-    def __init__(self, protocol = "https", auto_rotate: bool = True):
+    def __init__(self, protocol = "http", auto_rotate: bool = True):
         self.proxy_manager = ProxyInterface(
             countries=["US"],
             protocol=protocol,
@@ -14,7 +14,7 @@ class Proxy:
         try:
             response = requests.get(
                 "https://www.youtube.com/",
-                proxies={self.proxy_manager.protocol: proxy_str},
+                proxies={'http': proxy_str},
                 timeout=5
             )
             return response.status_code == 200
@@ -26,6 +26,7 @@ class Proxy:
         """Fetch proxy and validate it."""
         try:
             for _ in range(max_attempts):
+                self.proxy_manager.rotate()
                 proxy_obj = self.proxy_manager.get()
                 if not proxy_obj:
                     continue

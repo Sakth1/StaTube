@@ -26,7 +26,7 @@ class Videos:
             }
 
             # Choose proxy
-            proxy = Proxy().get_proxy()
+            proxy = Proxy().get_working_proxy()
             if proxy:
                 ydl_opts['proxy'] = proxy
                 print(f"[INFO] Using proxy for videos: {proxy}")
