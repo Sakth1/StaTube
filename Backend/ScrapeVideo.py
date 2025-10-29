@@ -10,6 +10,7 @@ from Data.DatabaseManager import DatabaseManager
 def download_with_proxy(url, save_path, proxy_url=None):
     if proxy_url is None:
         return
+        return
     
     import requests
     try:

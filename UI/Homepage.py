@@ -11,7 +11,7 @@ import traceback
 from Backend.ScrapeChannel import Search
 from Backend.ScrapeVideo import Videos
 from Backend.ScrapeTranscription import Transcription
-from utils.AppState import app_state
+from utils.AppState import app_state, proxy_thread
 
 class Home(QWidget):
     results_ready = QtCore.Signal(list)
@@ -103,7 +103,7 @@ class Home(QWidget):
 
     def reset_search_timer(self):
         if not self.completer_active:
-            self.search_timer.start(100)
+            self.search_timer.start(10)
 
     def on_item_selected(self, item):
         """Handle item selection from dropdown"""
@@ -141,16 +141,10 @@ class Home(QWidget):
             self.update_channel_list()
             
     def update_results(self, channels):
-        """Update dropdown list with search results"""
-        text = self.searchbar.text()
-        
-        # Clear and populate dropdown list
-        
+        """Update dropdown list with search results"""        
         if channels:
-            for channel in channels:
-                item = QListWidgetItem(channel)
-                self.model.setStringList(channels)
-                self.completer.complete()
+            self.model.setStringList(channels)
+            self.completer.complete()
     
     def update_channel_list(self):
         self.channel_list.clear()
