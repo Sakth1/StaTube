@@ -1,4 +1,5 @@
 from PySide6.QtCore import QObject, Signal
+
 from Data.DatabaseManager import DatabaseManager
 
 class AppState(QObject):

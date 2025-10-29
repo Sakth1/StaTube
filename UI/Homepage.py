@@ -25,6 +25,8 @@ class Home(QWidget):
         super(Home, self).__init__(parent)
 
         self.mainwindow = parent
+        self.db = app_state.db
+        self.search = Search(self.db)
 
         self.top_panel = QWidget()
         self.central_layout = QVBoxLayout()
@@ -51,7 +53,6 @@ class Home(QWidget):
         self.search_channel_button = QPushButton("Search")
         self.scrap_video_button = QPushButton("Scrape Video")
         self.scrape_transcription_button = QPushButton("screpe transcription")
-        self.db = app_state.db
 
         self.search_timer.setSingleShot(True)
         self.search_timer.timeout.connect(self.search_keyword)
@@ -117,11 +118,20 @@ class Home(QWidget):
     def search_thread(self, query, final=False):
         print("search channel thread triggered")
         
-        search = Search(self.db)  # Pass db instance
+        # Check if thread should stop before starting work
+        if self.stop_event.is_set():
+            print("Search thread cancelled before execution")
+            return
+        
         if final:
-            self.channels = search.search_channel(query, limit=20)
+            self.channels = self.search.search_channel(query, limit=20)
         else:
-            self.channels = search.search_channel(query, limit=6)
+            self.channels = self.search.search_channel(query, limit=6)
+
+        # Check again before processing results
+        if self.stop_event.is_set():
+            print("Search thread cancelled after search")
+            return
 
         self.channel_name = [item.get('title') for key, item in self.channels.items()]
 
@@ -163,15 +173,20 @@ class Home(QWidget):
 
     def search_keyword(self, final=False):
         try:
+            # Signal any existing thread to stop
             if self.search_thread_instance and self.search_thread_instance.is_alive():
                 self.stop_event.set()
-                self.search_thread_instance.join(timeout=0.1)
+                self.search_thread_instance.join(timeout=0.5)  # Wait longer for thread to finish
+                
+                # Force cleanup if thread is still alive
+                if self.search_thread_instance.is_alive():
+                    print("Warning: Previous search thread did not terminate gracefully")
 
             self.stop_event.clear()
 
             query = self.searchbar.text()
             if query:
-                self.search_thread_instance = threading.Thread(target=self.search_thread, daemon=True, args=(query,final))
+                self.search_thread_instance = threading.Thread(target=self.search_thread, daemon=True, args=(query, final))
                 self.search_thread_instance.start()
         
         except Exception as e:

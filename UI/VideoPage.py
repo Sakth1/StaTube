@@ -3,6 +3,7 @@ from PySide6.QtWidgets import QWidget, QLabel, QGridLayout, QVBoxLayout, QHBoxLa
 
 from Backend.ScrapeVideo import Videos
 from utils.AppState import app_state
+from utils.Proxy import Proxy
 
 class Video(QWidget):
     videos:dict = None
@@ -15,6 +16,8 @@ class Video(QWidget):
         super(Video, self).__init__(parent)
         self.mainwindow = parent
         self.db = app_state.db
+        self.videos_scraper = Videos(self.db)
+
         self.channel_label = QLabel()
         self.central_layout = QGridLayout()
         self.scrap_video_button = QPushButton("Scrape Videos")
@@ -41,6 +44,5 @@ class Video(QWidget):
             print("No channel selected")
             return
         
-        videos = Videos(self.db)  # Pass db instance
-        self.content = videos.fetch_video_urls(channel_id, channel_url)
+        self.content = self.videos_scraper.fetch_video_urls(channel_id, channel_url)
 

@@ -9,7 +9,7 @@ from Data.DatabaseManager import DatabaseManager
 
 def download_with_proxy(url, save_path, proxy_url=None):
     if proxy_url is None:
-        proxy_url = Proxy().get_working_proxy()
+        return
     
     import requests
     try:
@@ -24,6 +24,7 @@ def download_with_proxy(url, save_path, proxy_url=None):
 class Videos:
     def __init__(self, db: DatabaseManager):
         self.db = db
+        self.proxy = Proxy()
         self.content = {}
         self.videos = {}
         self.live = {}
@@ -50,6 +51,7 @@ class Videos:
 
                 for entry in entries:
                     entry_name = entry.get('title')
+                    proxy_url = self.proxy.get_working_proxy()
 
                     # --- Normal Videos ---
                     if entry_name == f'{channel_name} - Videos':
@@ -59,7 +61,6 @@ class Videos:
                     elif entry_name == f'{channel_name} - Live':
                         video_type = 'live'
 
-                    proxy_url = Proxy().get_working_proxy()
                     video_entries = entry.get('entries')
                     for i, video_entry in enumerate(video_entries):
                         video_id = video_entry.get('id')

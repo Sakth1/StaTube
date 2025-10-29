@@ -5,7 +5,7 @@ from utils.Proxy import Proxy
 
 def download_with_proxy(url, save_path, proxy_url=None):
     if proxy_url is None:
-        proxy_url = Proxy().get_working_proxy()
+        return
     
     import requests
     try:
@@ -20,6 +20,7 @@ def download_with_proxy(url, save_path, proxy_url=None):
 class Search:
     def __init__(self, db: DatabaseManager):
         self.db = db
+        self.proxy = Proxy()
         self.channels = {}
 
     def search_channel(self, name: str = None, limit: int = 6):
@@ -28,7 +29,7 @@ class Search:
 
         self.channels = {}
         search_results = scrapetube.get_search(name, results_type="channel", limit=limit)
-        proxy_url = Proxy().get_working_proxy()
+        proxy_url = self.proxy.get_working_proxy()
 
         for ch in search_results:
             title = ch.get("title", {}).get("simpleText")
