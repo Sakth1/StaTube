@@ -117,6 +117,11 @@ class Proxy:
         except Exception as e:
             print(f"[WARN] Could not fetch proxy: {e}")
             return None
+        
+    def check_working_proxy(self):
+        if self.working_proxies.qsize() > 3:
+            return True
+        return False
     
     def cleanup(self):
         """Cleanup method to gracefully stop the validation thread."""

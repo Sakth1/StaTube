@@ -12,6 +12,7 @@ from Backend.ScrapeChannel import Search
 from Backend.ScrapeVideo import Videos
 from Backend.ScrapeTranscription import Transcription
 from utils.AppState import app_state
+from utils.Proxy import Proxy
 
 class Home(QWidget):
     results_ready = QtCore.Signal(list)
@@ -25,6 +26,9 @@ class Home(QWidget):
         super(Home, self).__init__(parent)
 
         self.mainwindow = parent
+        self.db = app_state.db
+        self.search = Search(self.db)
+        self.proxy_url = Proxy().get_working_proxy()
 
         self.top_panel = QWidget()
         self.central_layout = QVBoxLayout()
@@ -51,7 +55,6 @@ class Home(QWidget):
         self.search_channel_button = QPushButton("Search")
         self.scrap_video_button = QPushButton("Scrape Video")
         self.scrape_transcription_button = QPushButton("screpe transcription")
-        self.db = app_state.db
 
         self.search_timer.setSingleShot(True)
         self.search_timer.timeout.connect(self.search_keyword)
@@ -102,7 +105,7 @@ class Home(QWidget):
 
     def reset_search_timer(self):
         if not self.completer_active:
-            self.search_timer.start(100)
+            self.search_timer.start(10)
 
     def on_item_selected(self, item):
         """Handle item selection from dropdown"""
@@ -114,15 +117,13 @@ class Home(QWidget):
             QtCore.QTimer.singleShot(10, lambda: self.searchbar.setFocus())
             self.searchbar.blockSignals(False)
 
-    def search_thread(self, query, final=False):
-        print("search channel thread triggered")
-        
-        search = Search(self.db)  # Pass db instance
+    def search_thread(self, query, proxy_url, final=False):
         if final:
-            self.channels = search.search_channel(query, limit=20)
+            print(f'final {proxy_url=}')
+            self.channels = self.search.search_channel(query, limit=20, proxy_url=proxy_url)
         else:
-            self.channels = search.search_channel(query, limit=6)
-
+            print(f'not final {proxy_url=}')
+            self.channels = self.search.search_channel(query, limit=6, proxy_url=proxy_url)
         self.channel_name = [item.get('title') for key, item in self.channels.items()]
 
         if not final:
@@ -131,16 +132,10 @@ class Home(QWidget):
             self.update_channel_list()
             
     def update_results(self, channels):
-        """Update dropdown list with search results"""
-        text = self.searchbar.text()
-        
-        # Clear and populate dropdown list
-        
+        """Update dropdown list with search results"""        
         if channels:
-            for channel in channels:
-                item = QListWidgetItem(channel)
-                self.model.setStringList(channels)
-                self.completer.complete()
+            self.model.setStringList(channels)
+            self.completer.complete()
     
     def update_channel_list(self):
         self.channel_list.clear()
@@ -171,7 +166,9 @@ class Home(QWidget):
 
             query = self.searchbar.text()
             if query:
-                self.search_thread_instance = threading.Thread(target=self.search_thread, daemon=True, args=(query,final))
+                print(f'search {self.proxy_url=}')
+                self.search_thread_instance = threading.Thread(target=self.search_thread,
+                                                               daemon=True, args=(query, self.proxy_url, final))
                 self.search_thread_instance.start()
         
         except Exception as e:

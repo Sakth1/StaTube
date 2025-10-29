@@ -20,9 +20,9 @@ class Video(QWidget):
         self.scrap_video_button = QPushButton("Scrape Videos")
         self.scrap_video_button.clicked.connect(self.scrape_videos)
 
-        self.central_layout.addWidget(self.scrap_video_button, 0, 1, 1, 1, alignment=QtCore.Qt.AlignRight | QtCore.Qt.AlignTop)
         self.central_layout.addWidget(self.channel_label, 0, 0, 1, 3, alignment=QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
-
+        self.central_layout.addWidget(self.scrap_video_button, 0, 1, 1, 1, alignment=QtCore.Qt.AlignRight | QtCore.Qt.AlignTop)
+        
         app_state.channel_name_changed.connect(self.update_channel_label)
         self.update_channel_label(app_state.channel_name)
 

@@ -6,12 +6,17 @@ import sys, time
 from utils.Proxy import Proxy
 
 
-class ProxyThread(QThread):
+class ProxyThread():
 
     def __init__(self):
         super().__init__()
         self.proxy = Proxy()
 
-    def run(self):
+    def start(self):
         """This runs in a background thread."""
-        pass
+        while True:
+            print('waiting for proxy')
+            if self.proxy.check_working_proxy():
+                print('got proxy')
+                return
+            time.sleep(1)

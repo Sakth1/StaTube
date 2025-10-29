@@ -22,14 +22,17 @@ class Search:
         self.db = db
         self.channels = {}
 
-    def search_channel(self, name: str = None, limit: int = 6):
+    def search_channel(self, name: str = None, limit: int = 6, proxy_url=None):
         if not name:
             return {"None": {"title": None, "url": None}}
 
+        print(f'{proxy_url=}')
+        if proxy_url is None:
+            proxy_url = Proxy().get_working_proxy()
+
         self.channels = {}
         search_results = scrapetube.get_search(name, results_type="channel", limit=limit)
-        proxy_url = Proxy().get_working_proxy()
-
+        
         for ch in search_results:
             title = ch.get("title", {}).get("simpleText")
             sub_count = ch.get("videoCountText", {}).get("accessibility", {}).get("accessibilityData", {}).get("label")
