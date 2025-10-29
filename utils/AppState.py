@@ -1,6 +1,20 @@
 from PySide6.QtCore import QObject, Signal
 
 from Data.DatabaseManager import DatabaseManager
+from .Proxy import Proxy
+
+class ProxyThread():
+    def __init__(self):
+        self.proxy = Proxy()
+    
+    def start(self):
+        self.proxy_thread = threading.Thread(target=self.update_proxy, daemon=True)
+        self.proxy_thread.start()
+    
+    def update_proxy(self):
+        while True:
+            self.proxy_url = self.proxy.get_working_proxy()
+            time.sleep(100)
 
 class AppState(QObject):
     channel_name_changed = Signal(str)
