@@ -1,12 +1,10 @@
 import yt_dlp
 from datetime import datetime
-import httpx
 from pathlib import Path
 import os
-import asyncio
 
 from utils.Proxy import Proxy
-from Data.DatabaseManager import DatabaseManager  # Your DB class
+from Data.DatabaseManager import DatabaseManager  
 
 
 def download_with_proxy(url, save_path, proxy_url=None):
@@ -87,23 +85,9 @@ class Videos:
                             "view_count": views,
                             "like_count": video_entry.get("like_count"),
                             "pub_date": video_entry.get("upload_date"),
-                            "status": "active",
                         })
 
-                        self.videos[i] = {
-                            "title": title,
-                            "url": url,
-                            "views": views,
-                            "duration": duration
-                        }
-                        self.video_url.append(url)
-
-                # Final structured dict (for immediate use)
-                self.content = {
-                    "videos": self.videos,
-                }
-
-            return self.content
+            return
 
         except Exception as e:
             import traceback

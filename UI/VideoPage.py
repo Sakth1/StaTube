@@ -41,12 +41,6 @@ class Video(QWidget):
             print("No channel selected")
             return
         
-        # Remove cache logic and use database directly
         videos = Videos(self.db)  # Pass db instance
         self.content = videos.fetch_video_urls(channel_id, channel_url)
-
-        print("Videos Fetched")
-
-        if 'video_url' in self.content:
-            self.video_url = self.content.get('video_url')
 

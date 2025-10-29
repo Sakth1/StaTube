@@ -1,9 +1,7 @@
 import scrapetube
-import httpx
 
 from Data.DatabaseManager import DatabaseManager
 from utils.Proxy import Proxy
-
 
 def download_with_proxy(url, save_path, proxy_url=None):
     if proxy_url is None:
