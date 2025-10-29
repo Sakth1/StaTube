@@ -6,7 +6,6 @@ from utils.Proxy import Proxy
 def download_with_proxy(url, save_path, proxy_url=None):
     if proxy_url is None:
         return
-        return
     
     import requests
     try:
@@ -24,13 +23,9 @@ class Search:
         self.proxy = Proxy()
         self.channels = {}
 
-    def search_channel(self, name: str = None, limit: int = 6, proxy_url=None):
+    def search_channel(self, name: str = None, limit: int = 6):
         if not name:
             return {"None": {"title": None, "url": None}}
-
-        print(f'{proxy_url=}')
-        if proxy_url is None:
-            return
 
         self.channels = {}
         search_results = scrapetube.get_search(name, results_type="channel", limit=limit)

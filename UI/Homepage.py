@@ -11,7 +11,8 @@ import traceback
 from Backend.ScrapeChannel import Search
 from Backend.ScrapeVideo import Videos
 from Backend.ScrapeTranscription import Transcription
-from utils.AppState import app_state, proxy_thread
+from utils.AppState import app_state
+from utils.Proxy import Proxy
 
 class Home(QWidget):
     results_ready = QtCore.Signal(list)
@@ -26,6 +27,7 @@ class Home(QWidget):
 
         self.mainwindow = parent
         self.db = app_state.db
+        self.proxy = Proxy()
         self.search = Search(self.db)
 
         self.top_panel = QWidget()
@@ -70,6 +72,13 @@ class Home(QWidget):
         self.setupUi()
         self.setLayout(self.central_layout)
         self.central_layout.addWidget(self.top_panel)
+
+        threading.Thread(target=self.refresh_proxy, daemon=True).start()
+
+    def refresh_proxy(self):
+        while True:
+            self.proxy_url = self.proxy.get_working_proxy()
+            time.sleep(100)
 
     def on_completer_activated(self, text):
         """Handle completer selection"""

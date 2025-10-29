@@ -16,7 +16,6 @@ from .SplashScreen import SplashScreen
 
 # ---- Import Proxy and AppState ----
 from utils.ProxyThread import ProxyThread
-from utils.Proxy import Proxy
 from utils.AppState import app_state
 
 
@@ -39,7 +38,6 @@ class MainWindow(QMainWindow):
 
     def on_proxy_ready(self):
         """Called when proxy thread has working proxies ready"""
-        self.proxy = app_state.Proxy
         self.splash.close()
         
         # Continue with UI setup

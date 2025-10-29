@@ -62,7 +62,8 @@ class ProxyThread(QThread):
                 new_proxy = self.proxy.get_working_proxy()
                 if new_proxy:
                     app_state.proxy = new_proxy
-                    self.proxy_updated.emit(new_proxy)
+                    #self.proxy_updated.emit(new_proxy)
+                    # TODO: Emit proxy_updated signal
                     print(f"[INFO] Proxy updated: {new_proxy}")
                 else:
                     print("[WARN] No working proxy found to update app_state.")

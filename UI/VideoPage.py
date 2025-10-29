@@ -3,7 +3,6 @@ from PySide6.QtWidgets import QWidget, QLabel, QGridLayout, QVBoxLayout, QHBoxLa
 
 from Backend.ScrapeVideo import Videos
 from utils.AppState import app_state
-from utils.Proxy import Proxy
 
 class Video(QWidget):
     videos:dict = None
