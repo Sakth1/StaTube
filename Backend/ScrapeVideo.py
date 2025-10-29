@@ -3,13 +3,13 @@ from datetime import datetime
 from pathlib import Path
 import os
 
-from utils.Proxy import Proxy
+from utils.AppState import proxy_thread
 from Data.DatabaseManager import DatabaseManager  
 
 
 def download_with_proxy(url, save_path, proxy_url=None):
     if proxy_url is None:
-        proxy_url = Proxy().get_working_proxy()
+        return
     
     import requests
     try:
@@ -59,7 +59,7 @@ class Videos:
                     elif entry_name == f'{channel_name} - Live':
                         video_type = 'live'
 
-                    proxy_url = Proxy().get_working_proxy()
+                    proxy_url = proxy_thread.proxy_url
                     video_entries = entry.get('entries')
                     for i, video_entry in enumerate(video_entries):
                         video_id = video_entry.get('id')

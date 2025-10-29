@@ -5,9 +5,7 @@ import sys, time
 
 from utils.Proxy import Proxy
 
-
-class ProxyThread():
-
+class InitiateProxy():
     def __init__(self):
         super().__init__()
         self.proxy = Proxy()

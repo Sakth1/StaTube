@@ -11,7 +11,8 @@ from .VideoPage import Video
 from .CommentPage import Comment
 from .TranscriptPage import Transcript
 from .SettingsPage import Settings
-from .SplashScreen import ProxyThread
+from .SplashScreen import InitiateProxy
+from utils.AppState import proxy_thread
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -20,8 +21,10 @@ class MainWindow(QMainWindow):
         self.setGeometry(500, 200, 500, 300)
         
         # ---- Setup threading properly ----
-        self.proxy_thread = ProxyThread()
-        self.proxy_thread.start()
+        initiate_proxy = InitiateProxy()
+        return_value = initiate_proxy.start()
+
+        proxy_thread.start()
 
         # Central container and layout
         self.central_widget = QWidget()

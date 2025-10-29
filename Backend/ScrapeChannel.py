@@ -1,11 +1,11 @@
 import scrapetube
 
 from Data.DatabaseManager import DatabaseManager
-from utils.Proxy import Proxy
+from utils.AppState import proxy_thread
 
 def download_with_proxy(url, save_path, proxy_url=None):
     if proxy_url is None:
-        proxy_url = Proxy().get_working_proxy()
+        return
     
     import requests
     try:
@@ -28,7 +28,7 @@ class Search:
 
         print(f'{proxy_url=}')
         if proxy_url is None:
-            proxy_url = Proxy().get_working_proxy()
+            return
 
         self.channels = {}
         search_results = scrapetube.get_search(name, results_type="channel", limit=limit)

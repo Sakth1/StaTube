@@ -11,8 +11,7 @@ import traceback
 from Backend.ScrapeChannel import Search
 from Backend.ScrapeVideo import Videos
 from Backend.ScrapeTranscription import Transcription
-from utils.AppState import app_state
-from utils.Proxy import Proxy
+from utils.AppState import app_state, proxy_thread
 
 class Home(QWidget):
     results_ready = QtCore.Signal(list)
@@ -28,7 +27,7 @@ class Home(QWidget):
         self.mainwindow = parent
         self.db = app_state.db
         self.search = Search(self.db)
-        self.proxy_url = Proxy().get_working_proxy()
+        self.proxy_url = proxy_thread.proxy_url
 
         self.top_panel = QWidget()
         self.central_layout = QVBoxLayout()
