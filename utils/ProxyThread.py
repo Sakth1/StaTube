@@ -1,16 +1,15 @@
 from PySide6.QtCore import QThread, Signal
 import time
-from .AppState import app_state
 from .Proxy import Proxy
 
 class ProxyThread(QThread):
     """
-    Runs in the background to keep app_state.proxy updated 
+    Runs in the background to keep proxy updated 
     with a fresh working proxy every 100 seconds.
     """
     proxy_updated = Signal(str)
-    proxy_ready = Signal()  # Signal when initial proxy is ready
-    proxy_status = Signal(str)  # Signal for status updates
+    proxy_ready = Signal()
+    proxy_status = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -20,7 +19,7 @@ class ProxyThread(QThread):
 
     def run(self):
         """
-        Background loop that updates app_state.proxy every 100 seconds.
+        Background loop that updates proxy every 100 seconds.
         """
         # Initial proxy fetch with status updates
         self.proxy_status.emit("Initializing proxy system...")
@@ -31,7 +30,6 @@ class ProxyThread(QThread):
             self.proxy_status.emit("Fetching working proxy...")
             new_proxy = self.proxy.get_working_proxy()
             if new_proxy:
-                app_state.proxy = new_proxy
                 self.proxy_status.emit("Proxy ready! Starting application...")
                 QThread.msleep(500)  # Small delay before emitting ready signal
                 self.proxy_ready.emit()  # Signal that initial proxy is ready
@@ -47,7 +45,6 @@ class ProxyThread(QThread):
                     if self.proxy.ensure_sufficient_proxies():
                         new_proxy = self.proxy.get_working_proxy()
                         if new_proxy:
-                            app_state.proxy = new_proxy
                             self.proxy_status.emit("Proxy ready! Starting application...")
                             QThread.msleep(500)
                             self.proxy_ready.emit()
@@ -61,12 +58,11 @@ class ProxyThread(QThread):
             if self.proxy.ensure_sufficient_proxies():
                 new_proxy = self.proxy.get_working_proxy()
                 if new_proxy:
-                    app_state.proxy = new_proxy
                     #self.proxy_updated.emit(new_proxy)
                     # TODO: Emit proxy_updated signal
                     print(f"[INFO] Proxy updated: {new_proxy}")
                 else:
-                    print("[WARN] No working proxy found to update app_state.")
+                    print("[WARN] No working proxy found to update.")
             else:
                 print("[WARN] Waiting for working proxies...")
                 time.sleep(1)
@@ -79,7 +75,7 @@ class ProxyThread(QThread):
 
     def _on_proxy_updated(self, proxy_str):
         """Callback after proxy update."""
-        print(f"[SIGNAL] app_state.proxy updated to: {proxy_str}")
+        print(f"[SIGNAL] proxy updated to: {proxy_str}")
 
     def stop(self):
         """Gracefully stop the thread and clean up."""
