@@ -24,7 +24,6 @@ def download_with_proxy(url, save_path, proxy_url=None):
 class Videos:
     def __init__(self, db: DatabaseManager):
         self.db = db
-        self.proxy = Proxy()
         self.content = {}
         self.videos = {}
         self.live = {}
@@ -51,7 +50,7 @@ class Videos:
 
                 for entry in entries:
                     entry_name = entry.get('title')
-                    proxy_url = self.proxy.get_working_proxy()
+                    proxy_url = Proxy().get_working_proxy()
 
                     # --- Normal Videos ---
                     if entry_name == f'{channel_name} - Videos':
