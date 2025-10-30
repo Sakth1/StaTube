@@ -1,7 +1,7 @@
 from PySide6.QtCore import QThread, Signal
 import time
 from .Proxy import Proxy
-
+# TODO: Can't get valid proxy from swiftshadow. Move to different method or research
 class ProxyThread(QThread):
     """
     Runs in the background to keep proxy updated 
