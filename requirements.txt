@@ -6,7 +6,7 @@ appdirs==1.4.4
 attrs==25.4.0
 certifi==2025.8.3
 charset-normalizer==3.4.3
-frozenlist==1.7.0
+frozenlist==1.8.0
 idna==3.10
 lxml==6.0.2
 multidict==6.6.4
