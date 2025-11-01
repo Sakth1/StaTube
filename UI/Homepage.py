@@ -11,7 +11,8 @@ import traceback
 from Backend.ScrapeChannel import Search
 from Backend.ScrapeVideo import Videos
 from Backend.ScrapeTranscription import Transcription
-from Data.DatabaseManager import DatabaseManager
+from utils.AppState import app_state
+from utils.Proxy import Proxy
 
 class Home(QWidget):
     results_ready = QtCore.Signal(list)
@@ -25,6 +26,9 @@ class Home(QWidget):
         super(Home, self).__init__(parent)
 
         self.mainwindow = parent
+        self.db = app_state.db
+        self.proxy = Proxy()
+        self.search = Search(self.db)
 
         self.top_panel = QWidget()
         self.central_layout = QVBoxLayout()
@@ -32,9 +36,11 @@ class Home(QWidget):
         
         # Replace ComboBox with LineEdit and ListWidget
         self.searchbar = QLineEdit()
+        self.select_button = QPushButton("Select")
         self.channel_list = QListWidget()
         self.model = QStringListModel()
         self.completer = QCompleter(self.model, self.searchbar)
+        self.select_button.clicked.connect(self.select_channel)
         self.completer.setCompletionMode(QCompleter.UnfilteredPopupCompletion)
         self.searchbar.setCompleter(self.completer)
         self.searchbar.mousePressEvent = lambda event, e=self.searchbar.mousePressEvent: (e(event), self.completer.complete())
@@ -52,10 +58,6 @@ class Home(QWidget):
 
         self.search_timer.setSingleShot(True)
         self.search_timer.timeout.connect(self.search_keyword)
-
-        #self.top_layout = QGridLayout()
-        #self.top_panel.setLayout(self.top_layout)
-        #self.central_widget.addWidget(self.top_panel)
         
         # Setup search components
         self.searchbar.setPlaceholderText("Search")
@@ -68,10 +70,15 @@ class Home(QWidget):
         self.results_ready.connect(self.update_results)
 
         self.setupUi()
-        self.initiatemodule()
         self.setLayout(self.central_layout)
         self.central_layout.addWidget(self.top_panel)
-        self.main_widget = self.central_widget
+
+        threading.Thread(target=self.refresh_proxy, daemon=True).start()
+
+    def refresh_proxy(self):
+        while True:
+            self.proxy_url = self.proxy.get_working_proxy()
+            time.sleep(100)
 
     def on_completer_activated(self, text):
         """Handle completer selection"""
@@ -84,22 +91,28 @@ class Home(QWidget):
         """
         Set up the user interface of the main window.
         """
-        self.mainwindow.setGeometry(500, 200, 500, 300)
         self.setuptop()
-
-    def initiatemodule(self):
-        self.db = DatabaseManager()
 
     def setuptop(self):
         self.top_layout = QGridLayout()
         self.top_panel.setLayout(self.top_layout)
-        self.top_layout.addWidget(self.searchbar, 0, 0)
+        self.top_layout.addWidget(self.searchbar, 0, 0, alignment=Qt.AlignTop)
         self.top_layout.addWidget(self.search_channel_button, 0, 1)
+        self.top_layout.addWidget(self.select_button, 2, 0, 1, 2, alignment=Qt.AlignBottom)
         self.top_panel.show()
+
+    def select_channel(self):
+        item = self.channel_list.currentItem()
+        if item:
+            data = item.data(Qt.UserRole)
+            app_state.channel_name = data['channel_name']
+            app_state.channel_id = data['channel_id']
+            print(f'{data["channel_url"]}')
+            app_state.channel_url = data['channel_url']
 
     def reset_search_timer(self):
         if not self.completer_active:
-            self.search_timer.start(100)
+            self.search_timer.start(10)
 
     def on_item_selected(self, item):
         """Handle item selection from dropdown"""
@@ -114,11 +127,20 @@ class Home(QWidget):
     def search_thread(self, query, final=False):
         print("search channel thread triggered")
         
-        search = Search(self.db)  # Pass db instance
+        # Check if thread should stop before starting work
+        if self.stop_event.is_set():
+            print("Search thread cancelled before execution")
+            return
+        
         if final:
-            self.channels = search.search_channel(query, limit=20)
+            self.channels = self.search.search_channel(query, limit=20)
         else:
-            self.channels = search.search_channel(query, limit=6)
+            self.channels = self.search.search_channel(query, limit=6)
+
+        # Check again before processing results
+        if self.stop_event.is_set():
+            print("Search thread cancelled after search")
+            return
 
         self.channel_name = [item.get('title') for key, item in self.channels.items()]
 
@@ -128,16 +150,10 @@ class Home(QWidget):
             self.update_channel_list()
             
     def update_results(self, channels):
-        """Update dropdown list with search results"""
-        text = self.searchbar.text()
-        
-        # Clear and populate dropdown list
-        
+        """Update dropdown list with search results"""        
         if channels:
-            for channel in channels:
-                item = QListWidgetItem(channel)
-                self.model.setStringList(channels)
-                self.completer.complete()
+            self.model.setStringList(channels)
+            self.completer.complete()
     
     def update_channel_list(self):
         self.channel_list.clear()
@@ -148,21 +164,32 @@ class Home(QWidget):
             icon_label = QIcon(inf[0].get("profile_pic"))
             text_label = f'\n{channel_name}\n{sub_count}\n'
             item = QListWidgetItem(icon_label, text_label)
+            item.setData(Qt.UserRole, {
+                "channel_id": channel_id,
+                "channel_name": channel_name,
+                "channel_url": channel_info['url'],
+                "sub_count": sub_count
+            })
             self.channel_list.addItem(item)
         self.channel_list.setIconSize(QSize(32, 32))
         self.top_layout.addWidget(self.channel_list, 1, 0, 1, 2)
 
     def search_keyword(self, final=False):
         try:
+            # Signal any existing thread to stop
             if self.search_thread_instance and self.search_thread_instance.is_alive():
                 self.stop_event.set()
-                self.search_thread_instance.join(timeout=0.1)
+                self.search_thread_instance.join(timeout=0.5)  # Wait longer for thread to finish
+                
+                # Force cleanup if thread is still alive
+                if self.search_thread_instance.is_alive():
+                    print("Warning: Previous search thread did not terminate gracefully")
 
             self.stop_event.clear()
 
             query = self.searchbar.text()
             if query:
-                self.search_thread_instance = threading.Thread(target=self.search_thread, daemon=True, args=(query,final))
+                self.search_thread_instance = threading.Thread(target=self.search_thread, daemon=True, args=(query, final))
                 self.search_thread_instance.start()
         
         except Exception as e:

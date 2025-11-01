@@ -24,14 +24,16 @@ class DatabaseManager:
         self.channel_dir = self.base_dir / "Channels"
         self.profile_pic_dir = self.base_dir / "ProfilePics"
         self.transcript_dir = self.base_dir / "Transcripts"
+        self.thumbnail_dir = self.base_dir / "Thumbnails"
         self.comment_dir = self.base_dir / "Comments"
         self.proxy_dir = self.base_dir / "Proxies"
         self.video_dir = self.base_dir / "Videos"
 
         # Ensure directories exist
-        for folder in [self.db_dir, self.transcript_dir, self.comment_dir, self.proxy_dir, self.video_dir, self.channel_dir, self.profile_pic_dir]:
+        for folder in [self.db_dir, self.transcript_dir, self.comment_dir,
+                       self.proxy_dir, self.video_dir, self.channel_dir,
+                       self.profile_pic_dir, self.thumbnail_dir]:
             folder.mkdir(parents=True, exist_ok=True)
-            print(f"Created directory: {folder}")
 
         # Thread-local storage for database connections
         self._local = threading.local()
@@ -61,7 +63,9 @@ class DatabaseManager:
 
         CREATE TABLE IF NOT EXISTS VIDEO (
             video_id TEXT PRIMARY KEY,
-            channel_id TEXT,          
+            channel_id TEXT,
+            video_type TEXT,
+            video_url TEXT,
             title TEXT,
             desc TEXT,
             duration TEXT,
@@ -97,10 +101,33 @@ class DatabaseManager:
         values = tuple(data.values())
         query = f"INSERT INTO {table} ({keys}) VALUES ({placeholders})"
         cursor = conn.cursor()
-        cursor.execute(f"SELECT * FROM {table}")
-        cursor.execute(query, values)
-        conn.commit()
-        return cursor.lastrowid
+        
+        try:
+            cursor.execute(query, values)
+            conn.commit()
+            return cursor.lastrowid
+        except sqlite3.IntegrityError as e:
+            # If it's a UNIQUE constraint error, try updating instead
+            if "UNIQUE constraint failed" in str(e):
+                # Extract the primary key column name from the error or table
+                if table == "VIDEO":
+                    pk_column = "video_id"
+                elif table == "CHANNEL":
+                    pk_column = "channel_id"
+                else:
+                    # For other tables with auto-increment primary keys, re-raise
+                    raise
+                
+                # Get the primary key value from data
+                if pk_column in data:
+                    pk_value = data[pk_column]
+                    # Update instead of insert
+                    update_data = {k: v for k, v in data.items() if k != pk_column}
+                    return self.update(table, update_data, f"{pk_column}=?", (pk_value,))
+                else:
+                    raise
+            else:
+                raise
 
     def fetch(self, table: str, where: Optional[str] = None, params: Tuple = ()) -> List[Dict[str, Any]]:
         conn = self._get_connection()

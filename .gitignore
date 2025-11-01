@@ -1,12 +1,20 @@
-.vscode/
+# Virtual environments
 .venv/
-UI/__pycache__
-Backend/__pycache__
-trial.py
-audio/
+
+# IDE and editor settings
+.vscode/
+
+# Python cache files
+__pycache__/
+UI/__pycache__/
+Backend/__pycache__/
+Data/__pycache__/
+utils/__pycache__/
+
+# Temporary or generated files
 output/
-try/
-Data/__pycache__
-utils/__pycache__
+experiments/
+
+# Notes and documentation drafts
 notes.excalidraw
 Dev_Dairy.md
