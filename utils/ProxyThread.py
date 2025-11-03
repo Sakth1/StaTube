@@ -1,6 +1,5 @@
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QThread, Signal, QCoreApplication, QTimer
 import time
-import threading
 from .Proxy import Proxy
 from .AppState import app_state
 
@@ -9,8 +8,8 @@ class ProxyThread(QThread):
     """
     Runs Proxy in background and shares it through app_state.
     - Waits until 3 proxies are ready (shows progress in splash)
-    - Then emits proxy_ready signal to continue app
-    - Keeps background updates running in a helper thread
+    - Emits proxy_ready once
+    - Keeps background updates running
     """
     proxy_ready = Signal()
     proxy_status = Signal(str)
@@ -20,64 +19,71 @@ class ProxyThread(QThread):
         self._running = True
         self.pool = None
         self._last_proxy = None
-        self._reuse_count = 2  # initialized as used up
-        self._bg_monitor_thread = None
+        self._reuse_count = 2  # ensures rotation after two uses
+        self._ready_emitted = False  # emit once only
 
     def run(self):
         def ui_status(msg: str):
+            print(f"[UI-STATUS] {msg}")
             self.proxy_status.emit(msg)
 
         ui_status("Initializing proxy pool...")
+        print("[DEBUG] Creating Proxy instance...")
         self.pool = Proxy(
             target_valid=30,
             refill_threshold=20,
             status_callback=ui_status
         )
         app_state.proxy = self.pool
+        print("[DEBUG] Proxy instance created and stored in app_state")
 
         ui_status("Validating proxies...")
-        start = time.time()
-        # Wait until at least 3 valid proxies are found
-        while self._running and self.pool.peek_count() < 3:
-            ui_status(f"Valid proxies: {self.pool.peek_count()}/3")
-            time.sleep(1)
+        start_time = time.time()
 
-        elapsed = round(time.time() - start, 1)
-        ui_status(f"Proxy initialization complete ({self.pool.peek_count()} valid, {elapsed}s)")
-        print(f"[INFO] Proxy ready with {self.pool.peek_count()} proxies.")
-
-        # ✅ Notify MainWindow and continue app setup
-        self.proxy_ready.emit()
-
-        # ✅ Start a background monitor for ongoing proxy validation
-        self._bg_monitor_thread = threading.Thread(target=self._background_monitor, daemon=True)
-        self._bg_monitor_thread.start()
-
-    def _background_monitor(self):
-        """Runs separately to send proxy status updates every 3 seconds."""
         while self._running:
-            count = self.pool.peek_count() if self.pool else 0
-            self.proxy_status.emit(f"Active proxies: {count}")
+            count = self.pool.peek_count()
+            if not self._ready_emitted:
+                ui_status(f"Valid proxies: {count}/3")
+                print(f"[DEBUG] Current valid proxy count: {count}")
+                if count >= 3 and not self._ready_emitted:
+                    print(f"[DEBUG] Threshold reached — emitting proxy_ready signal from thread {int(self.currentThreadId())}")
+                    ui_status(f"Proxy initialization complete ({count} valid)")
+
+                    # Schedule emission in GUI thread safely
+                    QTimer.singleShot(0, lambda: self.proxy_ready.emit())
+
+                    self._ready_emitted = True
+                    elapsed = round(time.time() - start_time, 1)
+                    print(f"[INFO] Proxy ready emitted after {elapsed}s, total {count}")
+
+            else:
+                ui_status(f"Active proxies: {count}")
+
             time.sleep(3)
 
+        print("[DEBUG] ProxyThread exiting run() loop")
+
     def get_proxy(self) -> str | None:
-        """
-        Returns same proxy twice before rotating to next one.
-        """
+        """Returns same proxy twice before rotating."""
         if not self.pool:
+            print("[WARN] Proxy pool not initialized yet")
             return None
         if self._reuse_count < 2:
             self._reuse_count += 1
+            print(f"[DEBUG] Reusing proxy ({self._reuse_count}/2): {self._last_proxy}")
             return self._last_proxy
         proxy = self.pool.get_working_proxy()
         if proxy:
+            print(f"[DEBUG] New proxy fetched: {proxy}")
             self._last_proxy = proxy
             self._reuse_count = 1
         return proxy
 
     def stop(self):
+        print("[DEBUG] Stopping ProxyThread...")
         self._running = False
         if self.pool:
             self.pool.cleanup()
         self.quit()
         self.wait()
+        print("[DEBUG] ProxyThread stopped and cleaned up")

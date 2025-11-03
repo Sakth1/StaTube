@@ -3,7 +3,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QToolButton
 )
 from PySide6.QtGui import QIcon
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt, QSize, QThread
+import threading
 import os, sys
 
 # ---- Import Pages ----
@@ -36,16 +37,23 @@ class MainWindow(QMainWindow):
 
         # Start Proxy Thread
         self.proxy_thread = ProxyThread()
-        self.proxy_thread.proxy_ready.connect(self.on_proxy_ready)
-        self.proxy_thread.proxy_status.connect(self.splash.update_status)
+
+        self.proxy_thread.proxy_ready.connect(self.on_proxy_ready, Qt.QueuedConnection)
+        self.proxy_thread.proxy_status.connect(self.splash.update_status, Qt.QueuedConnection)
+
+        print(f"[DEBUG] Connected signals — main thread id={threading.get_ident()}")
+
         self.proxy_thread.start()
+        print("[DEBUG] Proxy thread started — waiting for signal.")
+
 
     def on_proxy_ready(self):
-        """Called when proxy thread has working proxies ready"""
+        print(f"[DEBUG] on_proxy_ready() received in thread {threading.get_ident()}")
+        self.splash.update_status("Proxy initialization complete! Launching app...")
         self.splash.close()
-        
-        # Continue with UI setup
+        QApplication.processEvents()
         self.setup_ui()
+        print("[DEBUG] Main UI initialized successfully")
 
     def setup_ui(self):
         """Setup the main UI after proxy is ready"""
