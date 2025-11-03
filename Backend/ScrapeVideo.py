@@ -1,10 +1,7 @@
 import yt_dlp
-from datetime import datetime
-from pathlib import Path
 import os
 
-from utils.Proxy import Proxy
-from Data.DatabaseManager import DatabaseManager  
+from utils.AppState import app_state
 
 
 def download_with_proxy(url, save_path, proxy_url=None):
@@ -22,16 +19,24 @@ def download_with_proxy(url, save_path, proxy_url=None):
         print(f"[ERROR] Failed to download {url}: {e}")
 
 class Videos:
-    def __init__(self, db: DatabaseManager):
-        self.db = db
+    def __init__(self):
+        self.db = app_state.db
         self.content = {}
         self.videos = {}
         self.live = {}
         self.shorts = {}
         self.video_url = []
+        self.proxy_url = app_state.proxy.get_working_proxy()
 
     def fetch_video_urls(self, channel_id: int, channel_url: str):
+        """
+        Fetch video URLs and metadata for a YouTube channel.
+        Downloads thumbnails with automatic proxy retry.
+        """
         try:
+            # Get initial proxy for yt-dlp
+            proxy_url = self.proxy_url
+            
             # yt_dlp options
             ydl_opts = {
                 'extract_flat': True,
@@ -50,7 +55,7 @@ class Videos:
 
                 for entry in entries:
                     entry_name = entry.get('title')
-                    proxy_url = Proxy().get_working_proxy()
+                    proxy_url = app_state.proxy.get_working_proxy()
 
                     # --- Normal Videos ---
                     if entry_name == f'{channel_name} - Videos':

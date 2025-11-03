@@ -15,7 +15,7 @@ class Video(QWidget):
         super(Video, self).__init__(parent)
         self.mainwindow = parent
         self.db = app_state.db
-        self.videos_scraper = Videos(self.db)
+        self.videos_scraper = Videos()
 
         self.channel_label = QLabel()
         self.central_layout = QGridLayout()

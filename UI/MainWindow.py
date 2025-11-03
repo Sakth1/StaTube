@@ -14,6 +14,8 @@ from .TranscriptPage import Transcript
 from .SettingsPage import Settings
 from .SplashScreen import SplashScreen
 
+from Data.DatabaseManager import DatabaseManager
+
 # ---- Import Proxy and AppState ----
 from utils.ProxyThread import ProxyThread
 from utils.AppState import app_state
@@ -22,6 +24,8 @@ from utils.AppState import app_state
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        db = DatabaseManager()
+        app_state.db = db
         self.setWindowTitle("YTA")
         self.setGeometry(500, 200, 500, 300)
         
