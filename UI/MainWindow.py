@@ -38,7 +38,7 @@ class MainWindow(QMainWindow):
         # Start Proxy Thread
         self.proxy_thread = ProxyThread()
 
-        self.proxy_thread.proxy_ready.connect(self.on_proxy_ready, Qt.QueuedConnection)
+        self.proxy_thread.proxy_ready.connect(self.on_proxy_ready)
         self.proxy_thread.proxy_status.connect(self.splash.update_status, Qt.QueuedConnection)
 
         print(f"[DEBUG] Connected signals — main thread id={threading.get_ident()}")
