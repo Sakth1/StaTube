@@ -85,7 +85,7 @@ class Proxy:
 
     def _build_proxy_url(self, scheme: str, ipport: str) -> str:
         if scheme.lower().startswith("socks5"):
-            return f"socks5h://{ipport}"
+            return f"socks5://{ipport}"
         elif scheme.lower().startswith("socks4"):
             return f"socks4://{ipport}"
         return f"http://{ipport}"
@@ -134,7 +134,7 @@ class Proxy:
                     added += 1
                     print(f"[VALID] {proxy_url}")
                     if self.status_callback:
-                        self.status_callback(f"Valid proxy found ({self.working_proxies.qsize()})")
+                        self.status_callback(f"Valid proxy found ({self.working_proxies.qsize()}/3). \nMay take a Minute or two...")
 
                     if max_add and added >= max_add:
                         break
