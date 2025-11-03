@@ -40,25 +40,32 @@ class ProxyThread(QThread):
         ui_status("Validating proxies...")
         start_time = time.time()
 
+        while self._running and not self._ready_emitted:
+            count = self.pool.peek_count()
+            # ADD DEBUGGING:
+            print(f"[DEBUG] peek_count() returned: {count}")
+            print(f"[DEBUG] Pool type: {type(self.pool)}")
+            print(f"[DEBUG] Pool attributes: {[attr for attr in dir(self.pool) if not attr.startswith('_')]}")
+            
+            ui_status(f"Valid proxies: {count}/3")
+            
+            if count >= 3 and not self._ready_emitted:
+                print(f"[DEBUG] Threshold reached — emitting proxy_ready signal")
+                ui_status(f"Proxy initialization complete ({count} valid)")
+                QTimer.singleShot(0, self.proxy_ready.emit)
+                self._ready_emitted = True
+                elapsed = round(time.time() - start_time, 1)
+                print(f"[INFO] Proxy ready emitted after {elapsed}s, total {count}")
+                break
+
+            time.sleep(2)
+
+        # Continue running in background to maintain proxy pool, but with less frequent updates
         while self._running:
             count = self.pool.peek_count()
-            if not self._ready_emitted:
-                ui_status(f"Valid proxies: {count}/3")
-                print(f"[DEBUG] Current valid proxy count: {count}")
-                if count >= 3 and not self._ready_emitted:
-                    print(f"[DEBUG] Threshold reached — emitting proxy_ready signal from thread {int(self.currentThreadId())}")
-                    ui_status(f"Proxy initialization complete ({count} valid)")
-
-                    # Schedule emission in GUI thread safely
-                    QTimer.singleShot(0, lambda: self.proxy_ready.emit())
-
-                    self._ready_emitted = True
-                    elapsed = round(time.time() - start_time, 1)
-                    print(f"[INFO] Proxy ready emitted after {elapsed}s, total {count}")
-
-            else:
-                ui_status(f"Active proxies: {count}")
-
+            # Only update status occasionally to avoid spam
+            if int(time.time()) % 10 == 0:  # Update every 10 seconds
+                ui_status(f"Background: {count} valid proxies")
             time.sleep(3)
 
         print("[DEBUG] ProxyThread exiting run() loop")
