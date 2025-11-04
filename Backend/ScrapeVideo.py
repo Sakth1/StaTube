@@ -33,8 +33,8 @@ class Videos:
 
     def open_splashscreen(self):
         self.splash = SplashScreen()
-        self.splash.show()
         self.splash.set_title("Scraping Videos...")
+        self.splash.show()
 
     def fetch_video_urls(self, channel_id: int, channel_url: str):
         """
@@ -44,6 +44,7 @@ class Videos:
         try:
             # Get initial proxy for yt-dlp
             proxy_url = self.proxy_url
+            self.open_splashscreen()
             
             # yt_dlp options
             ydl_opts = {

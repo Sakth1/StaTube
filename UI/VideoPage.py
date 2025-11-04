@@ -1,5 +1,6 @@
 from PySide6 import QtCore
 from PySide6.QtWidgets import QWidget, QLabel, QGridLayout, QVBoxLayout, QHBoxLayout, QPushButton
+import threading
 
 from Backend.ScrapeVideo import Videos
 from utils.AppState import app_state
@@ -43,5 +44,5 @@ class Video(QWidget):
             print("No channel selected")
             return
         
-        self.content = self.videos_scraper.fetch_video_urls(channel_id, channel_url)
+        self.content = threading.Thread(target=self.videos_scraper.fetch_video_urls, args=(channel_id, channel_url), daemon=True).start()
 

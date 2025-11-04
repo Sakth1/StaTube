@@ -35,7 +35,6 @@ class MainWindow(QMainWindow):
         self.splash.set_title("StaTube - YouTube Data Analysis Tool")
         self.splash.update_status("Initializing Proxy...")
         self.splash.show()
-        QApplication.processEvents()
 
         # Start Proxy Thread
         self.proxy_thread = ProxyThread()

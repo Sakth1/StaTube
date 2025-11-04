@@ -21,8 +21,9 @@ from typing import List, Tuple, Set
 import atexit
 
 PROXY_SOURCES: List[Tuple[str, str, str]] = [
-    #("https://proxylist.geonode.com/api/proxy-list?anonymityLevel=elite&protocols=socks5&speed=fast&limit=500&page=1&sort_by=lastChecked&sort_type=desc", "socks5", "Free-proxy-list"),
+    ("https://proxylist.geonode.com/api/proxy-list?anonymityLevel=elite&protocols=socks5&speed=fast&limit=500&page=1&sort_by=lastChecked&sort_type=desc", "socks5", "Free-proxy-list"),
     ("https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks5.txt", "socks5", "default"),
+    #("https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks4.txt", "socks4", "default"),
 ]
 
 DEFAULT_TARGET_VALID = 30
@@ -39,6 +40,7 @@ class Proxy:
         validation_timeout: float = 2.5,
         validation_url: str = "https://www.youtube.com/",
         thumbnail_url: str = "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+        profile_pic_dir: str = "https://yt3.ggpht.com/o7cU9OJXZZauZuaVvqhZkKlxQ02kgR6JMlQkoLZE7rU7VL8phOtJt_qUsPWJCGyrY10N9Kg9gA=s88-c-k-c0x00ffffff-no-rj-mo",
         status_callback=None,
     ):
         self.target_valid = target_valid
@@ -48,6 +50,7 @@ class Proxy:
         self.validation_timeout = validation_timeout
         self.validation_url = validation_url
         self.thumbnail_url = thumbnail_url
+        self.profile_pic_url = profile_pic_dir
         self.time_taken_from_last_fetching = None
 
         self.working_proxies: Queue = Queue()
@@ -107,15 +110,24 @@ class Proxy:
     def validate_proxy(self, proxy_url: str) -> bool:
         try:
             proxies = {"http": proxy_url, "https": proxy_url}
+
+            # Step 1: Validate YouTube homepage
             r1 = requests.get(self.validation_url, proxies=proxies, timeout=self.validation_timeout)
             if r1.status_code != 200:
                 return False
 
-            # Secondary validation (thumbnail)
+            # Step 2: Validate thumbnail
             r2 = requests.get(self.thumbnail_url, proxies=proxies, timeout=self.validation_timeout)
-            return r2.status_code == 200
+            if r2.status_code != 200:
+                return False
+
+            # Step 3: Validate YouTube profile picture
+            r3 = requests.get(self.profile_pic_url, proxies=proxies, timeout=self.validation_timeout)
+            return r3.status_code == 200
+
         except Exception:
             return False
+
 
     def _validate_batch(self, batch: List[Tuple[str, str]], max_add: int = 0):
         added = 0

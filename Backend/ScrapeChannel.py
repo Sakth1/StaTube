@@ -28,7 +28,7 @@ class Search:
 
         self.channels = {}
         search_results = scrapetube.get_search(name, results_type="channel", limit=limit)
-        proxy_url = Proxy().get_working_proxy()
+        proxy_url = app_state.proxy.get_working_proxy()
 
         for ch in search_results:
             title = ch.get("title", {}).get("simpleText")
