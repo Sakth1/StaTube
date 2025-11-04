@@ -20,7 +20,7 @@ from typing import List, Tuple, Set
 import atexit
 
 PROXY_SOURCES: List[Tuple[str, str]] = [
-    ("https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks4.txt", "socks4"),
+    #("https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks4.txt", "socks4"),
     ("https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks5.txt", "socks5"),
 ]
 
