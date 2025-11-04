@@ -43,11 +43,11 @@ class ProxyThread(QThread):
         while self._running:
             count = self.pool.peek_count()
             # ADD DEBUGGING:
-            print(f"[DEBUG] peek_count() returned: {count}")
-            print(f"[DEBUG] Pool type: {type(self.pool)}")
-            print(f"[DEBUG] Pool attributes: {[attr for attr in dir(self.pool) if not attr.startswith('_')]}")
+            #print(f"[DEBUG] peek_count() returned: {count}")
+            #print(f"[DEBUG] Pool type: {type(self.pool)}")
+            #print(f"[DEBUG] Pool attributes: {[attr for attr in dir(self.pool) if not attr.startswith('_')]}")
             
-            ui_status(f"Valid proxies: {count}/3")
+            #ui_status(f"Valid proxies: {count}/3")
             
             if count >= 3:
                 print(f"[DEBUG] Threshold reached — emitting proxy_ready signal")
@@ -58,7 +58,7 @@ class ProxyThread(QThread):
                 print(f"[INFO] Proxy ready emitted after {elapsed}s, total {count}")
                 break
 
-            time.sleep(2)  # Reduced from 2 to 1 for faster response
+            time.sleep(5)
 
         # Continue running in background to maintain proxy pool, but with less frequent updates
         while self._running:

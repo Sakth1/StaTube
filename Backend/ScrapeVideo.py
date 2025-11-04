@@ -17,6 +17,8 @@ def download_with_proxy(url, save_path, proxy_url=None):
                 f.write(chunk)
     except Exception as e:
         print(f"[ERROR] Failed to download {url}: {e}")
+        import traceback
+        traceback.print_exc()
 
 class Videos:
     def __init__(self):
@@ -55,7 +57,7 @@ class Videos:
 
                 for entry in entries:
                     entry_name = entry.get('title')
-                    proxy_url = app_state.proxy.get_working_proxy()
+                    #proxy_url = app_state.proxy.get_working_proxy()
 
                     # --- Normal Videos ---
                     if entry_name == f'{channel_name} - Videos':
