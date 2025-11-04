@@ -18,7 +18,7 @@ class SplashScreen(QSplashScreen):
         layout.setAlignment(Qt.AlignCenter)
         
         # App title label
-        self.title_label = QLabel("YTA - YouTube Analysis Tool")
+        self.title_label = QLabel("StaTube - YouTube Data Analysis Tool")
         title_font = QFont()
         title_font.setPointSize(18)
         title_font.setBold(True)

@@ -28,7 +28,7 @@ class Home(QWidget):
         self.mainwindow = parent
         self.db = app_state.db
         self.proxy = Proxy()
-        self.search = Search(self.db)
+        self.search = Search()
 
         self.top_panel = QWidget()
         self.central_layout = QVBoxLayout()
@@ -209,7 +209,7 @@ class Home(QWidget):
                 break
 
         # Remove cache logic and use database directly
-        videos = Videos(self.db)  # Pass db instance
+        videos = Videos()  # Pass db instance
         self.content = videos.fetch_video_urls(channel_id, channel_url)
         self.channel_id = channel_id
 

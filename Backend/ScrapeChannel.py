@@ -1,6 +1,6 @@
 import scrapetube
 
-from Data.DatabaseManager import DatabaseManager
+from utils.AppState import app_state
 from utils.Proxy import Proxy
 
 def download_with_proxy(url, save_path, proxy_url=None):
@@ -18,8 +18,8 @@ def download_with_proxy(url, save_path, proxy_url=None):
         print(f"[ERROR] Failed to download {url}: {e}")
 
 class Search:
-    def __init__(self, db: DatabaseManager):
-        self.db = db
+    def __init__(self):
+        self.db = app_state.db
         self.channels = {}
 
     def search_channel(self, name: str = None, limit: int = 6):

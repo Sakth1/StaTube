@@ -1,361 +1,211 @@
-# Proxy.py
+"""
+Proxy.py
+---------
+In-memory proxy pool with background validation.
+
+✅ Fetches SOCKS4 + SOCKS5 proxies from GitHub.
+✅ Validates in parallel using requests (YouTube + thumbnail check).
+✅ Maintains queue of valid proxies (target=30, refill_threshold=20).
+✅ Prints debug info every 3 sec.
+✅ Thread-safe and auto-cleanup on exit.
+"""
+
 import requests
 import threading
-from queue import Queue
-import time
+from queue import Queue, Empty
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
+import random
+from typing import List, Tuple, Set
 import atexit
-from urllib.parse import urlparse
+
+PROXY_SOURCES: List[Tuple[str, str]] = [
+    #("https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks4.txt", "socks4"),
+    ("https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks5.txt", "socks5"),
+]
+
+DEFAULT_TARGET_VALID = 30
+DEFAULT_REFILL_THRESHOLD = 20
+
 
 class Proxy:
-    """
-    Self-contained proxy manager.
-    - Fetches proxies from multiple public sources
-    - Validates them concurrently
-    - Keeps a queue of working proxies for other modules to consume
-    """
+    def __init__(
+        self,
+        target_valid: int = DEFAULT_TARGET_VALID,
+        refill_threshold: int = DEFAULT_REFILL_THRESHOLD,
+        initial_workers: int = 200,
+        validator_workers: int = 100,
+        validation_timeout: float = 2.5,
+        validation_url: str = "https://www.youtube.com/",
+        thumbnail_url: str = "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+        status_callback=None,
+    ):
+        self.target_valid = target_valid
+        self.refill_threshold = refill_threshold
+        self.initial_workers = initial_workers
+        self.validator_workers = validator_workers
+        self.validation_timeout = validation_timeout
+        self.validation_url = validation_url
+        self.thumbnail_url = thumbnail_url
 
-    DEFAULT_SOURCES = [
-        # TheSpeedX raw lists
-        ("https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks4.txt", "socks4"),
-        ("https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks5.txt", "socks5"),
-        ("https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/http.txt", "http"),
-        # ProxyScrape API (good fallback)
-        ("https://api.proxyscrape.com/?request=getproxies&proxytype=http&timeout=10000&country=all&ssl=all&anonymity=all", "http"),
-        ("https://api.proxyscrape.com/?request=getproxies&proxytype=socks4&timeout=10000&country=all", "socks4"),
-        ("https://api.proxyscrape.com/?request=getproxies&proxytype=socks5&timeout=10000&country=all", "socks5"),
-        # Alternate sources (may be slow/unreliable but useful)
-        ("https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list-raw.txt", "http"),
-    ]
-
-    def __init__(self, protocol: str = "http", auto_rotate: bool = True, max_working_proxies: int = 50):
-        self.protocol = protocol  # default protocol hint for get_proxy
-        self.auto_rotate = auto_rotate
-        self.max_working_proxies = max_working_proxies
-
-        # requests session for re-use
-        self._session = requests.Session()
-        # Add common headers to look a bit less like a bot
-        self._session.headers.update({
-            "User-Agent": "Mozilla/5.0 (compatible; ProxyValidator/1.0; +https://example.com/)"
-        })
-
-        # Candidate proxies awaiting validation: list of (proxy_string, proxy_type)
-        self._candidates = []
+        self.working_proxies: Queue = Queue()
+        self._seen_lock = threading.Lock()
+        self._seen: Set[str] = set()
         self._candidates_lock = threading.Lock()
+        self._candidates: List[Tuple[str, str]] = []
 
-        # Queue of validated working proxies (strings like "http://ip:port" or "socks5://ip:port")
-        self.working_proxies = Queue()
-
-        # control flags
         self.should_stop = threading.Event()
+        self._monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
+        self._initial_fill_thread = threading.Thread(target=self._initial_fill, daemon=True)
+        self.status_callback = status_callback
 
-        # Threads
-        self.fetcher_thread = threading.Thread(target=self._fetcher_loop, daemon=True)
-        self.validator_threads = []
-        self._start_background_workers(num_validator_threads=3)
-
-        # Start fetching and validating
-        self.fetcher_thread.start()
-
+        self._download_and_mix_proxies()
+        self._initial_fill_thread.start()
+        self._monitor_thread.start()
         atexit.register(self.cleanup)
 
-    # ----------------------------
-    # Public API
-    # ----------------------------
-    def get_working_proxy(self) -> str | None:
-        """
-        Return a validated working proxy string in the form:
-          - "http://ip:port"
-          - "socks5://ip:port"
-        Returns None if queue is empty.
-        """
+    # -------------------------- Downloading --------------------------
+    def _download_and_mix_proxies(self):
+        candidates: List[Tuple[str, str]] = []
+        for url, scheme in PROXY_SOURCES:
+            try:
+                print(f"[INFO] Fetching proxies from {url}")
+                r = requests.get(url, timeout=10)
+                if r.status_code == 200:
+                    lines = [l.strip() for l in r.text.splitlines() if ":" in l]
+                    for ln in lines:
+                        candidates.append((scheme, ln))
+                    print(f"[INFO] Loaded {len(lines)} {scheme.upper()} proxies.")
+            except Exception as e:
+                print(f"[WARN] Failed to fetch {url}: {e}")
+
+        random.shuffle(candidates)
+        with self._candidates_lock:
+            self._candidates = candidates
+        print(f"[INFO] Total proxies mixed: {len(candidates)}")
+
+    def _build_proxy_url(self, scheme: str, ipport: str) -> str:
+        if scheme.lower().startswith("socks5"):
+            return f"socks5://{ipport}"
+        elif scheme.lower().startswith("socks4"):
+            return f"socks4://{ipport}"
+        return f"http://{ipport}"
+
+    # -------------------------- Validation --------------------------
+    def validate_proxy(self, proxy_url: str) -> bool:
         try:
-            if self.working_proxies.empty():
-                return None
-            return self.working_proxies.get_nowait()
-        except Exception as e:
-            print(f"[ERROR] get_working_proxy: {e}")
+            proxies = {"http": proxy_url, "https": proxy_url}
+            r1 = requests.get(self.validation_url, proxies=proxies, timeout=self.validation_timeout)
+            if r1.status_code != 200:
+                return False
+
+            # Secondary validation (thumbnail)
+            r2 = requests.get(self.thumbnail_url, proxies=proxies, timeout=self.validation_timeout)
+            return r2.status_code == 200
+        except Exception:
+            return False
+
+    def _validate_batch(self, batch: List[Tuple[str, str]], max_add: int = 0):
+        added = 0
+        start = time.time()
+        futures = {}
+        with ThreadPoolExecutor(max_workers=self.validator_workers) as ex:
+            for scheme, ipport in batch:
+                if self.should_stop.is_set():
+                    break
+                proxy_url = self._build_proxy_url(scheme, ipport)
+                futures[ex.submit(self.validate_proxy, proxy_url)] = proxy_url
+
+            for fut in as_completed(futures):
+                proxy_url = futures[fut]
+                if self.should_stop.is_set():
+                    break
+                ok = False
+                try:
+                    ok = fut.result(timeout=self.validation_timeout + 1)
+                except Exception:
+                    pass
+
+                if ok:
+                    with self._seen_lock:
+                        if proxy_url in self._seen:
+                            continue
+                        self._seen.add(proxy_url)
+                    self.working_proxies.put_nowait(proxy_url)
+                    added += 1
+                    print(f"[VALID] {proxy_url}")
+                    if self.status_callback:
+                        self.status_callback(f"Valid proxy found ({self.working_proxies.qsize()}/3). \nMay take a Minute or two...")
+
+                    if max_add and added >= max_add:
+                        break
+
+        elapsed = round(time.time() - start, 2)
+        print(f"[DEBUG] Batch done: +{added}, total={self.working_proxies.qsize()}, took={elapsed}s")
+        return added
+
+    # -------------------------- Initial Fill --------------------------
+    def _initial_fill(self):
+        wanted = self.target_valid
+        print("[INFO] Performing initial validation...")
+        while not self.should_stop.is_set() and self.working_proxies.qsize() < wanted:
+            with self._candidates_lock:
+                if not self._candidates:
+                    self._download_and_mix_proxies()
+                batch = self._candidates[: self.initial_workers]
+                self._candidates = self._candidates[self.initial_workers :]
+            if not batch:
+                break
+            self._validate_batch(batch, max_add=wanted - self.working_proxies.qsize())
+
+    # -------------------------- Background Monitor --------------------------
+    def _monitor_loop(self):
+        last_log = time.time()
+        while not self.should_stop.is_set():
+            size = self.working_proxies.qsize()
+            if size < self.refill_threshold:
+                with self._candidates_lock:
+                    if len(self._candidates) < self.initial_workers:
+                        self._download_and_mix_proxies()
+                    batch = self._candidates[: self.initial_workers]
+                    self._candidates = self._candidates[self.initial_workers :]
+                self._validate_batch(batch, max_add=self.target_valid - size)
+
+            if time.time() - last_log >= 3:
+                print(f"[DEBUG] Working proxies: {self.working_proxies.qsize()}")
+                last_log = time.time()
+            time.sleep(1)
+
+    # -------------------------- Accessors --------------------------
+    def get_working_proxy(self, block: bool = False, timeout: float = 1.0) -> str | None:
+        try:
+            return self.working_proxies.get(block=block, timeout=timeout)
+        except Empty:
             return None
 
-    def get_proxy(self) -> str | None:
-        """
-        Return a raw (not necessarily validated) proxy from candidates in the preferred protocol.
-        If none available, returns None.
-        """
-        with self._candidates_lock:
-            # prefer the configured protocol first
-            for idx, (pstr, ptype) in enumerate(self._candidates):
-                if ptype == self.protocol:
-                    return pstr
-            # fallback to any
-            if self._candidates:
-                return self._candidates[0][0]
-        return None
+    def peek_count(self) -> int:
+        return self.working_proxies.qsize()
 
-    def ensure_sufficient_proxies(self) -> bool:
-        """
-        Block until we have at least 2 working proxies (or until stopped).
-        Returns True when satisfied, False if stopped before.
-        """
+    def ensure_sufficient_proxies(self, min_count: int = 1, poll_interval: float = 1.0) -> bool:
         while not self.should_stop.is_set():
-            if self.working_proxies.qsize() > 1:
+            if self.working_proxies.qsize() >= min_count:
                 return True
-            time.sleep(0.5)
+            time.sleep(poll_interval)
         return False
 
-    def cleanup(self):
-        """
-        Gracefully stop background workers.
-        """
-        print("[INFO] Proxy.cleanup: stopping background workers...")
+    def cleanup(self, join_timeout: float = 2.0):
+        print("[INFO] Cleaning up ProxyPool...")
         self.should_stop.set()
+        if self._monitor_thread.is_alive():
+            self._monitor_thread.join(timeout=join_timeout)
 
-        # Join fetcher thread
-        if self.fetcher_thread.is_alive():
-            self.fetcher_thread.join(timeout=2)
 
-        # Join validator threads
-        for t in self.validator_threads:
-            if t.is_alive():
-                t.join(timeout=2)
-
-        try:
-            self._session.close()
-        except Exception:
-            pass
-
-    # ----------------------------
-    # Internal: fetching proxies
-    # ----------------------------
-    def _fetch_proxies_from_url(self, url: str, proxy_type: str) -> list:
-        """
-        Download a plain-text list of proxies from url.
-        Gracefully handles rate limits (HTTP 429) and temporary errors.
-        Implements automatic backoff for 10 minutes on rate-limited sources.
-        """
-        # static cache for backoff state (shared across instances)
-        if not hasattr(self, "_rate_limited_sources"):
-            self._rate_limited_sources = {}
-
-        # Skip URL if still in backoff
-        last_fail = self._rate_limited_sources.get(url, 0)
-        if time.time() - last_fail < 600:  # 10 minutes
-            print(f"[BACKOFF] Skipping {url} (still in cooldown after 429)")
-            return []
-
-        try:
-            resp = self._session.get(url, timeout=10)
-            code = resp.status_code
-
-            if code == 429:
-                print(f"[RATE LIMIT] {url} -> HTTP 429 (Too Many Requests). Backing off 10 min.")
-                self._rate_limited_sources[url] = time.time()
-                return []
-            elif code >= 400:
-                print(f"[WARN] Source {url} returned HTTP {code}")
-                return []
-
-            # Parse response lines into proxy list
-            result = []
-            for ln in resp.text.splitlines():
-                ln = ln.strip()
-                if not ln or ln.startswith("#"):
-                    continue
-                if "://" in ln:
-                    try:
-                        ln = urlparse(ln).netloc
-                    except Exception:
-                        ln = ln.split("://", 1)[-1]
-                if ":" not in ln:
-                    continue
-                result.append((ln, proxy_type))
-
-            return result
-
-        except requests.exceptions.RequestException as e:
-            # transient network errors, timeouts, etc.
-            print(f"[WARN] Could not fetch from {url}: {e}")
-            return []
-        except Exception as e:
-            # unexpected (still log safely)
-            print(f"[ERROR] Unexpected error while fetching {url}: {e}")
-            return []
-
-    def _merge_new_candidates(self, new_list: list):
-        """
-        Add new candidates into self._candidates without duplicates.
-        new_list: list of (proxy_str, proxy_type)
-        """
-        with self._candidates_lock:
-            existing = set(self._candidates)
-            for item in new_list:
-                if item not in existing:
-                    self._candidates.append(item)
-                    existing.add(item)
-
-    def _fetcher_loop(self):
-        """
-        Periodically fetch lists of proxies from configured sources and add them to candidates.
-        This runs in its own thread.
-        """
-        print("[INFO] Proxy.fetcher: started")
-        # initial immediate fetch
-        fetch_interval = 60  # seconds between refreshes
-        while not self.should_stop.is_set():
-            all_new = []
-            for url, ptype in self.DEFAULT_SOURCES:
-                if self.should_stop.is_set():
-                    break
-                proxies = self._fetch_proxies_from_url(url, ptype)
-                if proxies:
-                    all_new.extend(proxies)
-            if all_new:
-                self._merge_new_candidates(all_new)
-                print(f"[INFO] Proxy.fetcher: added {len(all_new)} new candidates (total candidates: {len(self._candidates)})")
-            else:
-                print("[INFO] Proxy.fetcher: no new candidates fetched this round")
-
-            # If we've already reached capacity of working proxies, wait longer before fetching again
-            if self.working_proxies.qsize() >= self.max_working_proxies:
-                sleep_for = fetch_interval * 5
-            else:
-                sleep_for = fetch_interval
-
-            for _ in range(int(sleep_for / 1)):
-                if self.should_stop.is_set():
-                    break
-                time.sleep(1)
-        print("[INFO] Proxy.fetcher: stopped")
-
-    # ----------------------------
-    # Internal: validation
-    # ----------------------------
-    def _start_background_workers(self, num_validator_threads=3):
-        """
-        Start a number of background validator threads that each run a validator loop.
-        """
-        for i in range(num_validator_threads):
-            t = threading.Thread(target=self._validate_proxies_worker, daemon=True, name=f"ProxyValidator-{i}")
-            t.start()
-            self.validator_threads.append(t)
-
-    def _validate_proxies_worker(self):
-        """
-        Background validator worker:
-        - Grabs batches of candidates
-        - Validates them concurrently using ThreadPoolExecutor
-        - Stores working proxies into self.working_proxies (queue)
-        - Stops when self.should_stop set or when working_proxies reaches capacity
-        """
-        print(f"[INFO] {threading.current_thread().name} started")
-        while not self.should_stop.is_set():
-            # stop if we already have enough working proxies
-            if self.working_proxies.qsize() >= self.max_working_proxies:
-                # sleep a bit and re-check later (allows fetcher to reduce load)
-                time.sleep(1)
-                continue
-
-            # prepare a batch of candidates (up to 50 each worker will attempt)
-            batch = []
-            with self._candidates_lock:
-                # pop up to N candidates to test, avoid removing them permanently
-                # we'll rotate them: test then append back if not working
-                pop_count = min(60, max(10, len(self._candidates)))
-                for _ in range(pop_count):
-                    if not self._candidates:
-                        break
-                    batch.append(self._candidates.pop(0))
-
-            if not batch:
-                # nothing to validate; wait a bit for fetcher
-                time.sleep(1)
-                continue
-
-            # validate batch concurrently
-            with ThreadPoolExecutor(max_workers=20) as executor:
-                futures = {executor.submit(self._validate_single_proxy, proxy, ptype): (proxy, ptype) for proxy, ptype in batch}
-                for future in as_completed(futures):
-                    if self.should_stop.is_set():
-                        break
-                    result = None
-                    try:
-                        result = future.result(timeout=6)  # short timeout on result
-                    except Exception:
-                        # individual validation failures are normal
-                        result = None
-
-                    proxy_tuple = futures[future]
-                    # if success, put into working queue
-                    if result:
-                        proxy_url = result  # normalized proxy URL like "http://ip:port"
-                        # avoid duplicates in working queue
-                        # Since Queue has no easy membership test, do a quick approximate check:
-                        if self.working_proxies.qsize() < self.max_working_proxies:
-                            self.working_proxies.put(proxy_url)
-                            print(f"[✓] Working proxy added: {proxy_url} (total working: {self.working_proxies.qsize()})")
-                            if self.working_proxies.qsize() >= self.max_working_proxies:
-                                break
-                    else:
-                        # if not working, re-insert into candidates tail for future attempts (rotation)
-                        with self._candidates_lock:
-                            # re-use the original proxy_tuple forms "ip:port" with ptype
-                            self._candidates.append(proxy_tuple)
-
-            # lightweight sleep to avoid hot-looping
-            time.sleep(0.2)
-
-        print(f"[INFO] {threading.current_thread().name} stopped")
-
-    def _validate_single_proxy(self, proxy_str: str, proxy_type: str) -> str | None:
-        """
-        Validate a single proxy by attempting to GET https://www.youtube.com.
-        Returns a proxy URL string on success (e.g. 'http://1.2.3.4:8080' or 'socks5://1.2.3.4:1080'),
-        or None if invalid/unresponsive.
-        NOTE: Validation uses the requests library. For SOCKS proxies, ensure 'requests[socks]' is installed
-              (PySocks) to allow requests to use 'socks5://'/'socks4://' schemes.
-        """
-        if self.should_stop.is_set():
-            return None
-
-        # build scheme + proxy url
-        scheme = proxy_type if proxy_type in ("http", "https", "socks4", "socks5") else proxy_type
-        proxy_url = f"{scheme}://{proxy_str}"
-
-        # Use a short timeout to validate quickly
-        timeout = 5.0
-
-        # Build proxies dict for requests
-        proxies = {
-            'http': proxy_url,
-            'https': proxy_url
-        }
-
-        try:
-            # We set allow_redirects=False to avoid extra time in redirects
-            resp = self._session.get("https://www.youtube.com/", proxies=proxies, timeout=timeout, allow_redirects=False)
-            if resp.status_code == 200:
-                # quick sanity: return standardized proxy_url
-                return proxy_url
-            # some proxies may return 301/302; treat 200 as success only (safer)
-        except Exception:
-            # likely connection timeout / proxy refused / unsupported scheme
-            return None
-        return None
-
-# Example quick test if module run directly
 if __name__ == "__main__":
-    p = Proxy(max_working_proxies=10)
+    pool = Proxy()
     try:
-        print("Waiting for some working proxies (max 10)...")
-        # wait until we have at least 1 or until 60 seconds elapsed
-        waited = 0
-        while p.working_proxies.qsize() < 1 and waited < 60:
-            time.sleep(1)
-            waited += 1
-            print(f"Waiting... ({waited}s) working={p.working_proxies.qsize()}")
-        print("Collected working proxies:")
-        while not p.working_proxies.empty():
-            print(" -", p.get_working_proxy())
+        pool.ensure_sufficient_proxies(3)
+        print(f"[INFO] Got {pool.peek_count()} proxies ready.")
+        while pool.peek_count():
+            print("[VALID-PROXY]", pool.get_working_proxy())
     finally:
-        p.cleanup()
+        pool.cleanup()
