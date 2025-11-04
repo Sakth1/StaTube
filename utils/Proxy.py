@@ -15,13 +15,14 @@ import threading
 from queue import Queue, Empty
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
+import json
 import random
 from typing import List, Tuple, Set
 import atexit
 
-PROXY_SOURCES: List[Tuple[str, str]] = [
-    #("https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks4.txt", "socks4"),
-    ("https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks5.txt", "socks5"),
+PROXY_SOURCES: List[Tuple[str, str, str]] = [
+    #("https://proxylist.geonode.com/api/proxy-list?anonymityLevel=elite&protocols=socks5&speed=fast&limit=500&page=1&sort_by=lastChecked&sort_type=desc", "socks5", "Free-proxy-list"),
+    ("https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks5.txt", "socks5", "default"),
 ]
 
 DEFAULT_TARGET_VALID = 30
@@ -47,6 +48,7 @@ class Proxy:
         self.validation_timeout = validation_timeout
         self.validation_url = validation_url
         self.thumbnail_url = thumbnail_url
+        self.time_taken_from_last_fetching = None
 
         self.working_proxies: Queue = Queue()
         self._seen_lock = threading.Lock()
@@ -66,16 +68,26 @@ class Proxy:
 
     # -------------------------- Downloading --------------------------
     def _download_and_mix_proxies(self):
-        candidates: List[Tuple[str, str]] = []
-        for url, scheme in PROXY_SOURCES:
+        candidates: List[Tuple[str, str, str]] = []
+        for url, scheme, proxy_source in PROXY_SOURCES:
             try:
                 print(f"[INFO] Fetching proxies from {url}")
                 r = requests.get(url, timeout=10)
+                self.time_taken_from_last_fetching = time.time()
                 if r.status_code == 200:
-                    lines = [l.strip() for l in r.text.splitlines() if ":" in l]
-                    for ln in lines:
-                        candidates.append((scheme, ln))
-                    print(f"[INFO] Loaded {len(lines)} {scheme.upper()} proxies.")
+                    if proxy_source == "Free-proxy-list":
+                        data = json.loads(r.text)
+                        data = data.get('data')
+                        for d in data:
+                            ip = d.get('ip')
+                            port = d.get('port')
+                            ipport = f"{ip}:{port}"
+                            candidates.append((scheme, ipport))
+                    else:
+                        lines = [l.strip() for l in r.text.splitlines() if ":" in l]
+                        for ln in lines:
+                            candidates.append((scheme, ln))
+                        print(f"[INFO] Loaded {len(lines)} {scheme.upper()} proxies.")
             except Exception as e:
                 print(f"[WARN] Failed to fetch {url}: {e}")
 
@@ -150,7 +162,8 @@ class Proxy:
         print("[INFO] Performing initial validation...")
         while not self.should_stop.is_set() and self.working_proxies.qsize() < wanted:
             with self._candidates_lock:
-                if not self._candidates:
+                if not self._candidates and (self.time_taken_from_last_fetching is not None and time.time()
+                                             - self.time_taken_from_last_fetching > 60 * 20):
                     self._download_and_mix_proxies()
                 batch = self._candidates[: self.initial_workers]
                 self._candidates = self._candidates[self.initial_workers :]
@@ -165,7 +178,8 @@ class Proxy:
             size = self.working_proxies.qsize()
             if size < self.refill_threshold:
                 with self._candidates_lock:
-                    if len(self._candidates) < self.initial_workers:
+                    if not self._candidates and (self.time_taken_from_last_fetching is not None and time.time()
+                                             - self.time_taken_from_last_fetching > 60 * 20):
                         self._download_and_mix_proxies()
                     batch = self._candidates[: self.initial_workers]
                     self._candidates = self._candidates[self.initial_workers :]

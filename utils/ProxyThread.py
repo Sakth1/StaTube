@@ -37,7 +37,7 @@ class ProxyThread(QThread):
         app_state.proxy = self.pool
         print("[DEBUG] Proxy instance created and stored in app_state")
 
-        ui_status("Validating proxies...")
+        ui_status("Validating proxies...\nMight take a minute or two...")
         start_time = time.time()
 
         while self._running:

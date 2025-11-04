@@ -32,6 +32,8 @@ class MainWindow(QMainWindow):
         
         # Show splash screen before starting proxy thread
         self.splash = SplashScreen()
+        self.splash.set_title("StaTube - YouTube Data Analysis Tool")
+        self.splash.update_status("Initializing Proxy...")
         self.splash.show()
         QApplication.processEvents()
 
@@ -51,7 +53,6 @@ class MainWindow(QMainWindow):
         print(f"[DEBUG] on_proxy_ready() received in thread {threading.get_ident()}")
         self.splash.update_status("Proxy initialization complete! Launching app...")
         self.splash.close()
-        QApplication.processEvents()
         self.setup_ui()
         print("[DEBUG] Main UI initialized successfully")
 

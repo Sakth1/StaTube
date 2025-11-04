@@ -1,6 +1,7 @@
 import yt_dlp
 import os
 
+from UI.SplashScreen import SplashScreen
 from utils.AppState import app_state
 
 
@@ -30,6 +31,11 @@ class Videos:
         self.video_url = []
         self.proxy_url = app_state.proxy.get_working_proxy()
 
+    def open_splashscreen(self):
+        self.splash = SplashScreen()
+        self.splash.show()
+        self.splash.set_title("Scraping Videos...")
+
     def fetch_video_urls(self, channel_id: int, channel_url: str):
         """
         Fetch video URLs and metadata for a YouTube channel.
@@ -55,6 +61,23 @@ class Videos:
                 channel_name = info.get('title')
                 entries = info.get('entries')
 
+                total_available_videos = 0
+                for entry in entries:
+                    entry_name = entry.get('title')
+
+                    # --- Normal Videos ---
+                    if entry_name == f'{channel_name} - Videos':
+                        video_type = 'video'
+                    elif entry_name == f'{channel_name} - Shorts':
+                        video_type = 'shorts'
+                    elif entry_name == f'{channel_name} - Live':
+                        video_type = 'live'
+
+                    video_entries = entry.get('entries')
+                    for video_entry in video_entries:
+                        total_available_videos += 1
+
+                total_videos_scrapped = 0
                 for entry in entries:
                     entry_name = entry.get('title')
                     #proxy_url = app_state.proxy.get_working_proxy()
@@ -94,6 +117,11 @@ class Videos:
                             "pub_date": video_entry.get("upload_date"),
                         })
 
+                        total_videos_scrapped += 1
+                        if total_videos_scrapped % 5 == 0:
+                            self.splash.set_title(f"Scraping Videos...\n({total_videos_scrapped}/{total_available_videos}) videos scraped")
+            
+            self.splash.close()
             return
 
         except Exception as e:
