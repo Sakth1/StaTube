@@ -40,7 +40,7 @@ class ProxyThread(QThread):
         ui_status("Validating proxies...")
         start_time = time.time()
 
-        while self._running and not self._ready_emitted:
+        while self._running:
             count = self.pool.peek_count()
             # ADD DEBUGGING:
             print(f"[DEBUG] peek_count() returned: {count}")
@@ -49,7 +49,7 @@ class ProxyThread(QThread):
             
             ui_status(f"Valid proxies: {count}/3")
             
-            if count >= 3 and not self._ready_emitted:
+            if count >= 3:
                 print(f"[DEBUG] Threshold reached — emitting proxy_ready signal")
                 ui_status(f"Proxy initialization complete ({count} valid)")
                 self.proxy_ready.emit()
@@ -58,8 +58,7 @@ class ProxyThread(QThread):
                 print(f"[INFO] Proxy ready emitted after {elapsed}s, total {count}")
                 break
 
-            QCoreApplication.processEvents()  # Process Qt events
-            time.sleep(1)  # Reduced from 2 to 1 for faster response
+            time.sleep(2)  # Reduced from 2 to 1 for faster response
 
         # Continue running in background to maintain proxy pool, but with less frequent updates
         while self._running:

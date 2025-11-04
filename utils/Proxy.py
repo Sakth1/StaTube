@@ -56,10 +56,11 @@ class Proxy:
 
         self.should_stop = threading.Event()
         self._monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
+        self._initial_fill_thread = threading.Thread(target=self._initial_fill, daemon=True)
         self.status_callback = status_callback
 
         self._download_and_mix_proxies()
-        self._initial_fill()
+        self._initial_fill_thread.start()
         self._monitor_thread.start()
         atexit.register(self.cleanup)
 
