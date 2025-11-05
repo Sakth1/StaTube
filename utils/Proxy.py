@@ -21,8 +21,11 @@ from typing import List, Tuple, Set
 import atexit
 
 PROXY_SOURCES: List[Tuple[str, str, str]] = [
-    ("https://proxylist.geonode.com/api/proxy-list?anonymityLevel=elite&protocols=socks5&speed=fast&limit=500&page=1&sort_by=lastChecked&sort_type=desc", "socks5", "Free-proxy-list"),
-    ("https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks5.txt", "socks5", "default"),
+    #("https://proxylist.geonode.com/api/proxy-list?anonymityLevel=elite&protocols=socks5&speed=fast&limit=500&page=1&sort_by=lastChecked&sort_type=desc", "socks5", "Free-proxy-list"),
+    #("https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks5.txt", "socks5", "default"),
+    #("https://raw.githubusercontent.com/officialputuid/KangProxy/KangProxy/socks5/socks5.txt", "socks5", "default"),
+    #("https://raw.githubusercontent.com/officialputuid/KangProxy/KangProxy/socks4/socks4.txt", "socks4", "default"),
+    ("https://raw.githubusercontent.com/officialputuid/KangProxy/KangProxy/https/https.txt", "https", "default"),
     #("https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks4.txt", "socks4", "default"),
 ]
 
@@ -104,6 +107,8 @@ class Proxy:
             return f"socks5://{ipport}"
         elif scheme.lower().startswith("socks4"):
             return f"socks4://{ipport}"
+        elif scheme.lower().startswith("https"):
+            return f"https://{ipport}"
         return f"http://{ipport}"
 
     # -------------------------- Validation --------------------------
@@ -190,8 +195,8 @@ class Proxy:
             size = self.working_proxies.qsize()
             if size < self.refill_threshold:
                 with self._candidates_lock:
-                    if not self._candidates and (self.time_taken_from_last_fetching is not None and time.time()
-                                             - self.time_taken_from_last_fetching > 60 * 20):
+                    if not self._candidates and (self.time_taken_from_last_fetching is not None and self.time_taken_from_last_fetching
+                                             - time.time() > 60 * 20):
                         self._download_and_mix_proxies()
                     batch = self._candidates[: self.initial_workers]
                     self._candidates = self._candidates[self.initial_workers :]

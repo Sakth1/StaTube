@@ -15,7 +15,7 @@ def download_with_proxy(url, save_path, proxy_url=None):
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
     except Exception as e:
-        print(f"[ERROR] Failed to download {url}: {e}")
+        print(f"[ERROR] Failed to download {url}: {e}\nusing proxy: {proxy_url}")
 
 class Search:
     def __init__(self):
