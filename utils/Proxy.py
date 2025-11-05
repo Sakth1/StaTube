@@ -23,10 +23,19 @@ import atexit
 PROXY_SOURCES: List[Tuple[str, str, str]] = [
     #("https://proxylist.geonode.com/api/proxy-list?anonymityLevel=elite&protocols=socks5&speed=fast&limit=500&page=1&sort_by=lastChecked&sort_type=desc", "socks5", "Free-proxy-list"),
     #("https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks5.txt", "socks5", "default"),
-    #("https://raw.githubusercontent.com/officialputuid/KangProxy/KangProxy/socks5/socks5.txt", "socks5", "default"),
+    ("https://raw.githubusercontent.com/officialputuid/KangProxy/KangProxy/socks5/socks5.txt", "socks5", "default"),
     #("https://raw.githubusercontent.com/officialputuid/KangProxy/KangProxy/socks4/socks4.txt", "socks4", "default"),
-    ("https://raw.githubusercontent.com/officialputuid/KangProxy/KangProxy/https/https.txt", "https", "default"),
+    #("https://raw.githubusercontent.com/officialputuid/KangProxy/KangProxy/https/https.txt", "https", "default"),
     #("https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks4.txt", "socks4", "default"),
+    #("https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/protocols/https/data.txt", "https", "default"),
+    #("https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/protocols/socks4/data.txt", "socks4", "default"),
+    #("https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/protocols/socks5/data.txt", "socks5", "default"),
+    #("https://github.com/roosterkid/openproxylist/blob/main/SOCKS5_RAW.txt", "socks5", "default"), #bad
+    #("https://github.com/roosterkid/openproxylist/blob/main/SOCKS4_RAW.txt", "socks4", "default"),
+    #("https://github.com/roosterkid/openproxylist/blob/main/HTTPS_RAW.txt", "https", "default"),
+    #("https://sunny9577.github.io/proxy-scraper/generated/socks5_proxies.txt", "socks5", "default"),
+    #("https://sunny9577.github.io/proxy-scraper/generated/socks4_proxies.txt", "socks4", "default"),
+    #("https://sunny9577.github.io/proxy-scraper/generated/http_proxies.txt", "https", "default"),
 ]
 
 DEFAULT_TARGET_VALID = 30
