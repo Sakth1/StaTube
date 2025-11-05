@@ -15,7 +15,6 @@ class AppState(QObject):
         self._channel_id = None
         self._channel_url = None
         self._db = None
-        self._proxy = None  # Shared proxy instance
         
     @property
     def channel_name(self):
@@ -54,19 +53,6 @@ class AppState(QObject):
     @db.setter
     def db(self, value):
         self._db = value
-    
-    @property
-    def proxy(self):
-        """Get the shared Proxy instance"""
-        return self._proxy
-    
-    @proxy.setter
-    def proxy(self, value):
-        """Set the shared Proxy instance (should only be called once at startup)"""
-        if self._proxy is None:
-            self._proxy = value
-        else:
-            print("[WARN] Attempted to override existing proxy instance!")
 
 # Global singleton instance
 app_state = AppState()

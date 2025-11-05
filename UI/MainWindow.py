@@ -17,8 +17,7 @@ from .SplashScreen import SplashScreen
 
 from Data.DatabaseManager import DatabaseManager
 
-# ---- Import Proxy and AppState ----
-from utils.ProxyThread import ProxyThread
+# ---- Import AppState ----
 from utils.AppState import app_state
 
 
@@ -30,33 +29,21 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("YTA")
         self.setGeometry(500, 200, 500, 300)
         
-        # Show splash screen before starting proxy thread
+        # Show splash screen
         self.splash = SplashScreen()
         self.splash.set_title("StaTube - YouTube Data Analysis Tool")
-        self.splash.update_status("Initializing Proxy...")
+        self.splash.update_status("Initializing ...")
         self.splash.show()
+        self.initialize()
 
-        # Start Proxy Thread
-        self.proxy_thread = ProxyThread()
-
-        self.proxy_thread.proxy_ready.connect(self.on_proxy_ready)
-        self.proxy_thread.proxy_status.connect(self.splash.update_status, Qt.QueuedConnection)
-
-        print(f"[DEBUG] Connected signals — main thread id={threading.get_ident()}")
-        print(f"[DEBUG] Proxy thread signals connected successfully")
-
-        self.proxy_thread.start()
-        print("[DEBUG] Proxy thread started — waiting for signal.")
-
-    def on_proxy_ready(self):
-        print(f"[DEBUG] on_proxy_ready() received in thread {threading.get_ident()}")
-        self.splash.update_status("Proxy initialization complete! Launching app...")
+    def initialize(self):
+        self.splash.update_status("Initialization complete! Launching app...")
         self.splash.close()
         self.setup_ui()
         print("[DEBUG] Main UI initialized successfully")
 
     def setup_ui(self):
-        """Setup the main UI after proxy is ready"""
+        """Setup the main UI"""
         # Setup Main UI
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -136,9 +123,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """Handle window close event"""
-        if hasattr(self, 'proxy_thread'):
-            self.proxy_thread.stop()
-        event.accept()
+        pass
 
 
 # Entry Point
