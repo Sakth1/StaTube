@@ -1,6 +1,6 @@
 import scrapetube
 import requests
-import json
+import threading
 
 from utils.AppState import app_state
 
@@ -18,6 +18,37 @@ class Search:
     def __init__(self):
         self.db = app_state.db
         self.channels = {}
+
+    def update_db(self, channel_id, title, sub_count, desc, profile_url):
+        try:
+            profile_save_path = rf"{self.db.profile_pic_dir}/{channel_id}.png"
+            download_img(profile_url, profile_save_path)
+        except Exception as e:
+            print(f"Failed to save profile picture: {e}")
+            import traceback
+            traceback.print_exc()
+
+        if channel_id:
+            url = f"https://www.youtube.com/channel/{channel_id}"
+            self.channels[channel_id] = {"title": title, "url": url, "sub_count": sub_count}
+
+            # Check if channel already exists
+            existing_channels = self.db.fetch("CHANNEL", where="channel_id = ?", params=(channel_id,))
+            
+            if not existing_channels:
+                # Channel doesn't exist, insert new one
+                self.db.insert(
+                    "CHANNEL",
+                    {
+                        "channel_id": channel_id,
+                        "name": title,
+                        "url": url,
+                        "sub_count": str(sub_count),
+                        "desc": desc,
+                        "profile_pic": profile_save_path,
+                    },
+                )
+                print(f"Added new channel: {title}")
 
     def search_channel(self, name: str = None, limit: int = 6, stop_event=None, final=False):
         if not name:
@@ -42,35 +73,6 @@ class Search:
                 url = f"https://www.youtube.com/channel/{channel_id}"
                 self.channels[channel_id] = {"title": title, "url": url, "sub_count": sub_count}
 
-            if final:   
-                try:
-                    profile_save_path = rf"{self.db.profile_pic_dir}/{channel_id}.png"
-                    download_img(profile_url, profile_save_path)
-                except Exception as e:
-                    print(f"Failed to save profile picture: {e}")
-                    import traceback
-                    traceback.print_exc()
-
-                if channel_id:
-                    url = f"https://www.youtube.com/channel/{channel_id}"
-                    self.channels[channel_id] = {"title": title, "url": url, "sub_count": sub_count}
-
-                    # Check if channel already exists
-                    existing_channels = self.db.fetch("CHANNEL", where="channel_id = ?", params=(channel_id,))
-                    
-                    if not existing_channels:
-                        # Channel doesn't exist, insert new one
-                        self.db.insert(
-                            "CHANNEL",
-                            {
-                                "channel_id": channel_id,
-                                "name": title,
-                                "url": url,
-                                "sub_count": str(sub_count),
-                                "desc": desc,
-                                "profile_pic": profile_save_path,
-                            },
-                        )
-                        print(f"Added new channel: {title}")
+            threading.Thread(target=self.update_db, args=(channel_id, title, sub_count, desc, profile_url), daemon=True).start()                            
 
         return self.channels
