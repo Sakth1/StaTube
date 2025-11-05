@@ -94,6 +94,10 @@ class VideoWorker(QObject):
                     if not video_entries:
                         continue
 
+                    total_content = 0
+                    for i in video_entries:
+                        total_content += 1
+
                     for i, video_entry in enumerate(video_entries):
                         video_id = video_entry.get('id')
                         title = video_entry.get('title')
@@ -101,7 +105,7 @@ class VideoWorker(QObject):
                         views = video_entry.get('view_count')
                         duration = video_entry.get('duration')
 
-                        self.progress_updated.emit(f"Processing: {title[:50]}...")
+                        self.progress_updated.emit(f"Processing: ( {i+1}/{total_content} ) videos\nVideo: {title[:50]}...")
 
                         # Download thumbnail
                         thumbnail_url = video_entry.get("thumbnails")[-1].get("url")

@@ -1,41 +1,32 @@
-from PySide6.QtWidgets import QSplashScreen, QLabel, QVBoxLayout, QWidget
-from PySide6.QtCore import Qt, QMetaObject, Q_ARG
-from PySide6.QtGui import QPixmap, QFont
-
+from PySide6.QtWidgets import QSplashScreen
+from PySide6.QtCore import Qt, QRect
+from PySide6.QtGui import QPixmap, QFont, QPainter
 
 class SplashScreen(QSplashScreen):
     def __init__(self):
         pixmap = QPixmap(500, 300)
         pixmap.fill(Qt.white)
         super().__init__(pixmap, Qt.WindowStaysOnTopHint)
+        self.title = ""
+        self.status = ""
 
-        self.container = QWidget(self)
-        self.main_layout = QVBoxLayout(self.container)
-        self.main_layout.setAlignment(Qt.AlignCenter)
+    def set_title(self, title):
+        self.title = title
+        self.repaint()
 
-        self.title_label = QLabel()
-        title_font = QFont()
-        title_font.setPointSize(18)
-        title_font.setBold(True)
-        self.title_label.setFont(title_font)
-        self.title_label.setAlignment(Qt.AlignCenter)
+    def update_status(self, message):
+        self.status = message
+        self.repaint()
 
-        self.status_label = QLabel()
-        status_font = QFont()
-        status_font.setPointSize(12)
-        self.status_label.setFont(status_font)
-        self.status_label.setAlignment(Qt.AlignCenter)
+    def drawContents(self, painter: QPainter):
+        painter.setPen(Qt.black)
 
-        self.main_layout.addWidget(self.title_label)
-        self.main_layout.addWidget(self.status_label)
-        self.container.setGeometry(0, 0, 500, 300)
+        # Draw title near the top
+        painter.setFont(QFont("Segoe UI Semibold", 18))
+        title_rect = QRect(0, 80, self.width(), 40)  # top margin + height
+        painter.drawText(title_rect, Qt.AlignCenter, self.title)
 
-    def set_title(self, title: str):
-        QMetaObject.invokeMethod(
-            self.title_label, "setText", Qt.QueuedConnection, Q_ARG(str, title)
-        )
-
-    def update_status(self, message: str):
-        QMetaObject.invokeMethod(
-            self.status_label, "setText", Qt.QueuedConnection, Q_ARG(str, message)
-        )
+        # Draw status below title
+        painter.setFont(QFont("Segoe UI", 12))
+        status_rect = QRect(0, 160, self.width(), 40)  # lower vertical position
+        painter.drawText(status_rect, Qt.AlignCenter, self.status)

@@ -76,3 +76,4 @@ class Search:
             threading.Thread(target=self.update_db, args=(channel_id, title, sub_count, desc, profile_url), daemon=True).start()                            
 
         return self.channels
+    
