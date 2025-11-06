@@ -21,6 +21,7 @@ def download_img(url, save_path):
 
 class VideoWorker(QObject):
     progress_updated = Signal(str)
+    progress_percentage = Signal(int)
     finished = Signal()
     
     def __init__(self, channel_id, channel_url):
@@ -41,6 +42,7 @@ class VideoWorker(QObject):
         """
         try:
             self.progress_updated.emit("Initializing...")
+            self.progress_percentage.emit(0)
             
             # yt_dlp options
             ydl_opts = {
@@ -51,10 +53,12 @@ class VideoWorker(QObject):
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 self.progress_updated.emit("Fetching channel information...")
+                self.progress_percentage.emit(5)
                 info = ydl.extract_info(self.channel_url, download=False)
 
                 if 'entries' not in info:
                     self.progress_updated.emit("No videos found!")
+                    self.progress_percentage.emit(100)
                     self.finished.emit()
                     return {}
 
@@ -63,6 +67,7 @@ class VideoWorker(QObject):
 
                 # Count total videos first
                 self.progress_updated.emit("Counting videos...")
+                self.progress_percentage.emit(10)
                 total_available_videos = 0
                 for entry in entries:
                     entry_name = entry.get('title')
@@ -74,6 +79,7 @@ class VideoWorker(QObject):
                             total_available_videos += len(video_entries)
 
                 self.progress_updated.emit(f"Found {total_available_videos} videos to process")
+                self.progress_percentage.emit(15)
 
                 # Process videos
                 total_videos_scraped = 0
@@ -128,10 +134,17 @@ class VideoWorker(QObject):
                         })
 
                         total_videos_scraped += 1
+                        
+                        # Calculate progress (15% to 95% for video processing)
+                        if total_available_videos > 0:
+                            progress_percent = 15 + int((total_videos_scraped / total_available_videos) * 80)
+                            self.progress_percentage.emit(progress_percent)
+                        
                         if total_videos_scraped % 5 == 0:
                             self.progress_updated.emit(f"Progress: {total_videos_scraped}/{total_available_videos} videos processed")
 
             self.progress_updated.emit(f"Completed! Processed {total_videos_scraped} videos")
+            self.progress_percentage.emit(100)
             self.finished.emit()
             return
 
@@ -141,5 +154,6 @@ class VideoWorker(QObject):
             error_msg = f"Error while fetching video URLs: {e}"
             print(error_msg)
             self.progress_updated.emit(error_msg)
+            self.progress_percentage.emit(0)
             self.finished.emit()
             return {}

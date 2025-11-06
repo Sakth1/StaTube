@@ -25,9 +25,15 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.load_stylesheet()
+        
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.base_dir = os.path.dirname(base_dir)
+        icon_path = os.path.join(self.base_dir, "icon", "youtube.ico")
+        
         db = DatabaseManager()
         app_state.db = db
-        self.setWindowTitle("YTA")
+        self.setWindowTitle("StaTube - YouTube Data Analysis Tool")
+        self.setWindowIcon(QIcon(icon_path))
         self.setGeometry(500, 200, 500, 300)
         
         # Show splash screen
@@ -111,9 +117,8 @@ class MainWindow(QMainWindow):
         side_layout.setSpacing(25)
 
         # Icons path
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        base_dir = os.path.dirname(base_dir)
-        icon_path = os.path.join(base_dir, "assets", "icon", "light")
+
+        icon_path = os.path.join(self.base_dir, "assets", "icon", "light")
 
         icons = [
             ("light_home.ico", "Home"),
