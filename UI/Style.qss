@@ -1,0 +1,197 @@
+/* Main Window */
+QMainWindow {
+    background-color: #1e1e1e;
+}
+
+QWidget {
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-size: 14px;
+}
+
+/* Sidebar */
+QFrame#sidebar {
+    background-color: #252525;
+    border-right: 1px solid #3a3a3a;
+}
+
+QToolButton {
+    background-color: transparent;
+    border: none;
+    border-radius: 8px;
+    padding: 12px;
+    margin: 4px;
+}
+
+QToolButton:hover {
+    background-color: #3a3a3a;
+}
+
+QToolButton:checked {
+    background-color: #0d7377;
+}
+
+QToolButton:pressed {
+    background-color: #0a5a5d;
+}
+
+/* Search Bar */
+QLineEdit {
+    background-color: #2d2d2d;
+    border: 2px solid #3a3a3a;
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: #e0e0e0;
+    font-size: 14px;
+}
+
+QLineEdit:focus {
+    border: 2px solid #0d7377;
+    background-color: #2d2d2d;
+}
+
+QLineEdit:hover {
+    border: 2px solid #4a4a4a;
+}
+
+/* Buttons */
+QPushButton {
+    background-color: #0d7377;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+QPushButton:hover {
+    background-color: #14a1a8;
+}
+
+QPushButton:pressed {
+    background-color: #0a5a5d;
+}
+
+QPushButton:disabled {
+    background-color: #3a3a3a;
+    color: #7a7a7a;
+}
+
+/* List Widget */
+QListWidget {
+    background-color: #2d2d2d;
+    border: 2px solid #3a3a3a;
+    border-radius: 6px;
+    padding: 4px;
+    outline: none;
+}
+
+QListWidget::item {
+    background-color: transparent;
+    color: #e0e0e0;
+    border-radius: 4px;
+    padding: 8px;
+    margin: 2px;
+}
+
+QListWidget::item:hover {
+    background-color: #3a3a3a;
+}
+
+QListWidget::item:selected {
+    background-color: #0d7377;
+    color: #ffffff;
+}
+
+/* Scrollbar */
+QScrollBar:vertical {
+    background-color: #2d2d2d;
+    width: 12px;
+    border-radius: 6px;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #4a4a4a;
+    border-radius: 6px;
+    min-height: 20px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #5a5a5a;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+QScrollBar:horizontal {
+    background-color: #2d2d2d;
+    height: 12px;
+    border-radius: 6px;
+}
+
+QScrollBar::handle:horizontal {
+    background-color: #4a4a4a;
+    border-radius: 6px;
+    min-width: 20px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background-color: #5a5a5a;
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
+}
+
+/* Labels */
+QLabel {
+    background-color: transparent;
+    color: #e0e0e0;
+}
+
+/* Completer Popup */
+QCompleter QAbstractItemView {
+    background-color: #2d2d2d;
+    border: 2px solid #0d7377;
+    border-radius: 6px;
+    selection-background-color: #0d7377;
+    selection-color: #ffffff;
+    outline: none;
+}
+
+QCompleter QAbstractItemView::item {
+    padding: 8px;
+    color: #e0e0e0;
+}
+
+QCompleter QAbstractItemView::item:hover {
+    background-color: #3a3a3a;
+}
+
+/* Stacked Widget */
+QStackedWidget {
+    background-color: #1e1e1e;
+}
+
+/* Top Panel */
+QWidget#top_panel {
+    background-color: #252525;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+/* Coming Soon Pages */
+QLabel[text*="Coming Soon"] {
+    color: #0d7377;
+    font-size: 30px;
+    font-weight: 600;
+}
+
+/* Splash Screen - These styles may not work directly, but included for reference */
+QSplashScreen {
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+}

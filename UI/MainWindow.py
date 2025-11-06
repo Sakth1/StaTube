@@ -24,6 +24,7 @@ from utils.AppState import app_state
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.load_stylesheet()
         db = DatabaseManager()
         app_state.db = db
         self.setWindowTitle("YTA")
@@ -35,6 +36,24 @@ class MainWindow(QMainWindow):
         self.splash.update_status("Initializing ...")
         self.splash.show()
         self.initialize()
+
+    def load_stylesheet(self):
+        """Load and apply QSS stylesheet"""
+        try:
+            # Get the directory where mainwindow.py is located
+            base_dir = os.getcwd()
+            # Go up one level to project root
+            #base_dir = os.path.dirname(base_dir)
+            qss_path = os.path.join(base_dir, "UI", "Style.qss")
+            
+            with open(qss_path, "r", encoding="utf-8") as f:
+                self.setStyleSheet(f.read())
+                
+        except FileNotFoundError:
+            print(base_dir)
+            print(f"Warning: Stylesheet not found at {qss_path}")
+        except Exception as e:
+            print(f"Error loading stylesheet: {e}")
 
     def initialize(self):
         self.splash.update_status("Initialization complete! Launching app...")
@@ -129,6 +148,7 @@ class MainWindow(QMainWindow):
 # Entry Point
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    #app.setStyleSheet(open("UI/Style.qss").read())
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
