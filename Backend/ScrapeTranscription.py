@@ -3,7 +3,6 @@ import webvtt
 import os
 import json
 from pathlib import Path
-from utils.Proxy import Proxy
 from Data.DatabaseManager import DatabaseManager  # new DB reference
 
 
@@ -39,11 +38,6 @@ class Transcription:
             "outtmpl": "%(id)s.%(ext)s",
             "quiet": True,
         }
-
-        proxy = Proxy().get_proxy()
-        if proxy:
-            ydl_opts["proxy"] = proxy
-            print(f"[INFO] Using proxy for transcriptions: {proxy}")
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:

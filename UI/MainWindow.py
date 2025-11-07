@@ -17,46 +17,58 @@ from .SplashScreen import SplashScreen
 
 from Data.DatabaseManager import DatabaseManager
 
-# ---- Import Proxy and AppState ----
-from utils.ProxyThread import ProxyThread
+# ---- Import AppState ----
 from utils.AppState import app_state
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.load_stylesheet()
+        
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.base_dir = os.path.dirname(base_dir)
+        icon_path = os.path.join(self.base_dir, "icon", "youtube.ico")
+        
         db = DatabaseManager()
         app_state.db = db
-        self.setWindowTitle("YTA")
+        self.setWindowTitle("StaTube - YouTube Data Analysis Tool")
+        self.setWindowIcon(QIcon(icon_path))
         self.setGeometry(500, 200, 500, 300)
         
-        # Show splash screen before starting proxy thread
+        # Show splash screen
         self.splash = SplashScreen()
+        self.splash.set_title("StaTube - YouTube Data Analysis Tool")
+        self.splash.update_status("Initializing ...")
         self.splash.show()
-        QApplication.processEvents()
+        self.initialize()
 
-        # Start Proxy Thread
-        self.proxy_thread = ProxyThread()
+    def load_stylesheet(self):
+        """Load and apply QSS stylesheet"""
+        try:
+            # Get the directory where mainwindow.py is located
+            base_dir = os.getcwd()
+            # Go up one level to project root
+            #base_dir = os.path.dirname(base_dir)
+            qss_path = os.path.join(base_dir, "UI", "Style.qss")
+            
+            with open(qss_path, "r", encoding="utf-8") as f:
+                self.setStyleSheet(f.read())
+                
+        except FileNotFoundError:
+            print(base_dir)
+            print(f"Warning: Stylesheet not found at {qss_path}")
+        except Exception as e:
+            print(f"Error loading stylesheet: {e}")
 
-        self.proxy_thread.proxy_ready.connect(self.on_proxy_ready)
-        self.proxy_thread.proxy_status.connect(self.splash.update_status, Qt.QueuedConnection)
-
-        print(f"[DEBUG] Connected signals — main thread id={threading.get_ident()}")
-        print(f"[DEBUG] Proxy thread signals connected successfully")
-
-        self.proxy_thread.start()
-        print("[DEBUG] Proxy thread started — waiting for signal.")
-
-    def on_proxy_ready(self):
-        print(f"[DEBUG] on_proxy_ready() received in thread {threading.get_ident()}")
-        self.splash.update_status("Proxy initialization complete! Launching app...")
+    def initialize(self):
+        self.splash.update_status("Initialization complete! Launching app...")
         self.splash.close()
-        QApplication.processEvents()
         self.setup_ui()
         print("[DEBUG] Main UI initialized successfully")
 
     def setup_ui(self):
-        """Setup the main UI after proxy is ready"""
+        """Setup the main UI"""
         # Setup Main UI
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -105,9 +117,8 @@ class MainWindow(QMainWindow):
         side_layout.setSpacing(25)
 
         # Icons path
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        base_dir = os.path.dirname(base_dir)
-        icon_path = os.path.join(base_dir, "assets", "icon", "light")
+
+        icon_path = os.path.join(self.base_dir, "assets", "icon", "light")
 
         icons = [
             ("light_home.ico", "Home"),
@@ -136,14 +147,13 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """Handle window close event"""
-        if hasattr(self, 'proxy_thread'):
-            self.proxy_thread.stop()
-        event.accept()
+        pass
 
 
 # Entry Point
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    #app.setStyleSheet(open("UI/Style.qss").read())
     window = MainWindow()
     window.show()
     sys.exit(app.exec())

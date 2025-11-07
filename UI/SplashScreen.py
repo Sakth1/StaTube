@@ -1,56 +1,61 @@
-from PySide6.QtWidgets import QSplashScreen, QLabel, QVBoxLayout, QWidget
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap, QFont
-import os
-
+from PySide6.QtWidgets import QSplashScreen, QProgressBar, QLabel
+from PySide6.QtCore import Qt, QRect
+from PySide6.QtGui import QPixmap, QFont, QPainter, QMovie
 
 class SplashScreen(QSplashScreen):
-    def __init__(self):
-        # Create a simple colored pixmap as background
-        pixmap = QPixmap(500, 300)
+    def __init__(self, gif_path=None):
+        pixmap = QPixmap(500, 400)  # Increased height for GIF and progress bar
         pixmap.fill(Qt.white)
-        
         super().__init__(pixmap, Qt.WindowStaysOnTopHint)
+        self.title = ""
+        self.status = ""
+        self.has_gif = False
         
-        # Create a widget to hold our layout
-        container = QWidget(self)
-        layout = QVBoxLayout(container)
-        layout.setAlignment(Qt.AlignCenter)
+        # Create progress bar
+        self.progress_bar = QProgressBar(self)
+        self.progress_bar.setGeometry(50, 220, 400, 25)  # x, y, width, height
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
         
-        # App title label
-        self.title_label = QLabel("StaTube - YouTube Data Analysis Tool")
-        title_font = QFont()
-        title_font.setPointSize(18)
-        title_font.setBold(True)
-        self.title_label.setFont(title_font)
-        self.title_label.setAlignment(Qt.AlignCenter)
-        self.title_label.setStyleSheet("color: #2c3e50; margin-bottom: 20px;")
+        # Load GIF only if path is provided
+        self.movie_label = None
+        self.movie = None
         
-        # Status label
-        self.status_label = QLabel("Initializing...")
-        status_font = QFont()
-        status_font.setPointSize(12)
-        self.status_label.setFont(status_font)
-        self.status_label.setAlignment(Qt.AlignCenter)
-        self.status_label.setStyleSheet("color: #34495e; margin-top: 10px;")
-        
-        # Add labels to layout
-        layout.addWidget(self.title_label)
-        layout.addWidget(self.status_label)
-        
-        # Set the container geometry to cover the splash screen
-        container.setGeometry(0, 0, 500, 300)
-        
-        # Set splash screen style
-        self.setStyleSheet("""
-            QSplashScreen {
-                background-color: white;
-                border: 2px solid #3498db;
-                border-radius: 10px;
-            }
-        """)
-        
-    def update_status(self, message: str):
-        """Update the status text on splash screen"""
-        self.status_label.setText(message)
-        self.repaint()  # Force immediate repaint
+        if gif_path:
+            self.movie_label = QLabel(self)
+            self.movie_label.setGeometry(150, 50, 200, 150)  # Centered GIF area
+            self.movie_label.setAlignment(Qt.AlignCenter)
+            
+            self.movie = QMovie(gif_path)
+            if self.movie.isValid():
+                self.movie_label.setMovie(self.movie)
+                self.movie.start()
+                self.has_gif = True
+            else:
+                print(f"Failed to load GIF from {gif_path}")
+                self.movie_label.hide()
+
+    def set_title(self, title):
+        self.title = title
+        self.repaint()
+
+    def update_status(self, message):
+        self.status = message
+        self.repaint()
+    
+    def set_progress(self, value):
+        """Set progress bar value (0-100)"""
+        self.progress_bar.setValue(value)
+
+    def drawContents(self, painter: QPainter):
+        painter.setPen(Qt.black)
+
+        # Draw title near the top
+        painter.setFont(QFont("Segoe UI Semibold", 16))
+        title_rect = QRect(0, 10, self.width(), 30)
+        painter.drawText(title_rect, Qt.AlignCenter, self.title)
+
+        # Draw status below progress bar
+        painter.setFont(QFont("Segoe UI", 11))
+        status_rect = QRect(0, 260, self.width(), 60)
+        painter.drawText(status_rect, Qt.AlignCenter | Qt.TextWordWrap, self.status)
