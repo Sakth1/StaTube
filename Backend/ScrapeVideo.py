@@ -7,6 +7,10 @@ from utils.AppState import app_state
 
 def download_img(url, save_path):
     try:
+        # Fix malformed URLs
+        if url.startswith("https:https://"):
+            url = url.replace("https:https://", "https://", 1)
+
         response = requests.get(url, timeout=15.0, stream=True)
         response.raise_for_status()
         with open(save_path, "wb") as f:
@@ -18,6 +22,7 @@ def download_img(url, save_path):
         import traceback
         traceback.print_exc()
         return False
+
 
 class VideoWorker(QObject):
     progress_updated = Signal(str)
@@ -129,17 +134,13 @@ class VideoWorker(QObject):
                             total_videos_scraped += 1
                             # Now update the UI (only after success)
                             self.progress_updated.emit(
-                                f"✔ Saved {video_type.title()}: {title[:50]}..."
+                                f"Progress: {total_videos_scraped}/{total_available_videos} videos saved\nSaved {video_type.title()}: {title[:50]}..."
                             )
 
                             if total_available_videos > 0:
                                 progress_percent = 15 + int((total_videos_scraped / total_available_videos) * 80)
                                 self.progress_percentage.emit(progress_percent)
 
-                            if total_videos_scraped % 5 == 0:
-                                self.progress_updated.emit(
-                                    f"Progress: {total_videos_scraped}/{total_available_videos} videos saved"
-                                )
                         else:
                             self.progress_updated.emit(f"⚠ Failed to download thumbnail for {title[:50]}...")
 
