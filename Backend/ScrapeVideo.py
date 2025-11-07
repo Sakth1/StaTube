@@ -38,13 +38,13 @@ class VideoWorker(QObject):
     def fetch_video_urls(self):
         """
         Fetch video URLs and metadata for a YouTube channel.
-        Downloads thumbnails.
+        Downloads thumbnails and writes data to DB.
+        Only after successful insert and image save, update UI.
         """
         try:
             self.progress_updated.emit("Initializing...")
             self.progress_percentage.emit(0)
             
-            # yt_dlp options
             ydl_opts = {
                 'extract_flat': True,
                 'skip_download': True,
@@ -65,7 +65,7 @@ class VideoWorker(QObject):
                 channel_name = info.get('title')
                 entries = info.get('entries')
 
-                # Count total videos first
+                # Count total videos
                 self.progress_updated.emit("Counting videos...")
                 self.progress_percentage.emit(10)
                 total_available_videos = 0
@@ -78,15 +78,13 @@ class VideoWorker(QObject):
                         if video_entries:
                             total_available_videos += len(video_entries)
 
+                total_videos_scraped = 0
                 self.progress_updated.emit(f"Found {total_available_videos} videos to process")
                 self.progress_percentage.emit(15)
 
                 # Process videos
-                total_videos_scraped = 0
                 for entry in entries:
                     entry_name = entry.get('title')
-
-                    # Determine video type
                     if entry_name == f'{channel_name} - Videos':
                         video_type = 'video'
                     elif entry_name == f'{channel_name} - Shorts':
@@ -100,50 +98,52 @@ class VideoWorker(QObject):
                     if not video_entries:
                         continue
 
-                    total_content = 0
-                    for i in video_entries:
-                        total_content += 1
-
                     for i, video_entry in enumerate(video_entries):
                         video_id = video_entry.get('id')
                         title = video_entry.get('title')
                         url = video_entry.get('url')
                         views = video_entry.get('view_count')
                         duration = video_entry.get('duration')
-
-                        self.progress_updated.emit(f"Processing: ( {i+1}/{total_content} ) videos\nVideo: {title[:50]}...")
+                        thumbnail_url = video_entry.get("thumbnails")[-1].get("url")
 
                         # Download thumbnail
-                        thumbnail_url = video_entry.get("thumbnails")[-1].get("url")
                         os.makedirs(f"{self.db.thumbnail_dir}/{self.channel_id}", exist_ok=True)
-                        profile_save_path = rf"{self.db.thumbnail_dir}/{self.channel_id}/{video_id}.png"
-                        download_img(thumbnail_url, profile_save_path)
+                        save_path = rf"{self.db.thumbnail_dir}/{self.channel_id}/{video_id}.png"
+                        downloaded = download_img(thumbnail_url, save_path)
 
-                        # Insert into DB
-                        self.db.insert("VIDEO", {
-                            "video_id": video_id,
-                            "channel_id": self.channel_id,
-                            "video_type": video_type,
-                            "video_url": url,
-                            "title": title,
-                            "desc": video_entry.get("description"),
-                            "duration": duration,
-                            "view_count": views,
-                            "like_count": video_entry.get("like_count"),
-                            "pub_date": video_entry.get("upload_date"),
-                        })
+                        # Only insert and update progress if download successful
+                        if downloaded:
+                            self.db.insert("VIDEO", {
+                                "video_id": video_id,
+                                "channel_id": self.channel_id,
+                                "video_type": video_type,
+                                "video_url": url,
+                                "title": title,
+                                "desc": video_entry.get("description"),
+                                "duration": duration,
+                                "view_count": views,
+                                "like_count": video_entry.get("like_count"),
+                                "pub_date": video_entry.get("upload_date"),
+                            })
 
-                        total_videos_scraped += 1
-                        
-                        # Calculate progress (15% to 95% for video processing)
-                        if total_available_videos > 0:
-                            progress_percent = 15 + int((total_videos_scraped / total_available_videos) * 80)
-                            self.progress_percentage.emit(progress_percent)
-                        
-                        if total_videos_scraped % 5 == 0:
-                            self.progress_updated.emit(f"Progress: {total_videos_scraped}/{total_available_videos} videos processed")
+                            total_videos_scraped += 1
+                            # Now update the UI (only after success)
+                            self.progress_updated.emit(
+                                f"✔ Saved {video_type.title()}: {title[:50]}..."
+                            )
 
-            self.progress_updated.emit(f"Completed! Processed {total_videos_scraped} videos")
+                            if total_available_videos > 0:
+                                progress_percent = 15 + int((total_videos_scraped / total_available_videos) * 80)
+                                self.progress_percentage.emit(progress_percent)
+
+                            if total_videos_scraped % 5 == 0:
+                                self.progress_updated.emit(
+                                    f"Progress: {total_videos_scraped}/{total_available_videos} videos saved"
+                                )
+                        else:
+                            self.progress_updated.emit(f"⚠ Failed to download thumbnail for {title[:50]}...")
+
+            self.progress_updated.emit(f"Completed! {total_videos_scraped}/{total_available_videos} videos saved successfully.")
             self.progress_percentage.emit(100)
             self.finished.emit()
             return

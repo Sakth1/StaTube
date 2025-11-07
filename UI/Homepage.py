@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QStackedWidget, QWidge
                                QLineEdit, QListWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                QPushButton, QListWidgetItem, QCompleter, QGridLayout)
 from PySide6.QtCore import Qt, QStringListModel, QSize
-from PySide6.QtGui import QPixmap, QIcon
+from PySide6.QtGui import QPixmap, QIcon, QPalette, QColor
 import threading
 import time
 import traceback
@@ -162,7 +162,7 @@ class Home(QWidget):
                 profile_pic = row.get("profile_pic")
 
             icon = QIcon(profile_pic) if profile_pic else QIcon()
-            text_label = f'\n{channel_name}\n{sub_count}\n'
+            text_label = f'{channel_name}\n{sub_count}'
             item = QListWidgetItem(icon, text_label)
             item.setData(Qt.UserRole, {
                 "channel_id": channel_id,
