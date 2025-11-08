@@ -1,5 +1,7 @@
 from PySide6 import QtCore
-from PySide6.QtWidgets import QWidget, QLabel, QGridLayout, QStyle, QPushButton, QListView, QVBoxLayout, QAbstractItemView, QStyledItemDelegate
+from PySide6.QtWidgets import (QWidget, QLabel, QGridLayout, QStyle, QPushButton,
+                               QListView, QVBoxLayout, QAbstractItemView, QStyledItemDelegate,
+                               QButtonGroup, QHBoxLayout)
 from PySide6.QtCore import QThread, Qt, QSize, QRect
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QPainter, QFont, QColor
 import os
@@ -116,11 +118,48 @@ class Video(QWidget):
         self.splash = None
         self.worker_thread = None
         self.worker = None
+        self.video_page = QWidget()
+        self.main_layout = QGridLayout()
+
+        # Create buttons
+        self.grid_button = QPushButton("Grid")
+        self.grid_button.setCheckable(True)
+        self.list_button = QPushButton("List")
+        self.list_button.setCheckable(True)
+
+        # Create a button group and make it exclusive
+        self.segmented_button = QButtonGroup(self)
+        self.segmented_button.addButton(self.grid_button)
+        self.segmented_button.addButton(self.list_button)
+        self.segmented_button.setExclusive(True)  # ensures only one stays checked
+
+        # Set default checked button
+        self.grid_button.setChecked(True)
+        
+        button_container = QWidget()
+        button_layout = QHBoxLayout(button_container)
+        button_layout.addWidget(self.grid_button)
+        button_layout.addWidget(self.list_button)
+        button_layout.setSpacing(0)
+        button_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.addWidget(button_container, 0, 0, 1, 1)
 
         self.channel_label = QLabel()
         self.scrap_video_button = QPushButton("Scrape Videos")
         self.scrap_video_button.clicked.connect(self.scrape_videos)
+        self.main_layout.addWidget(self.channel_label, 0, 1, 1, 2)
+        self.main_layout.addWidget(self.scrap_video_button, 0, 3, 1, 1)
+        self.select_button = QPushButton("Select")
+        self.main_layout.addWidget(self.select_button, 10, 0, 1, 4)
 
+        self.setup_grid_video_view()
+        
+        self.setLayout(self.main_layout)
+
+        app_state.channel_name_changed.connect(self.update_channel_label)
+        self.update_channel_label(app_state.channel_name)
+
+    def setup_grid_video_view(self):
         self.video_view = QListView()
         self.video_view.setViewMode(QListView.IconMode)
         self.video_view.setResizeMode(QListView.Adjust)
@@ -134,18 +173,7 @@ class Video(QWidget):
         self.video_delegate = YouTubeVideoDelegate(self.video_view)
         self.video_view.setItemDelegate(self.video_delegate)
 
-        layout = QVBoxLayout()
-        header_layout = QGridLayout()
-        header_layout.addWidget(self.channel_label, 0, 0, alignment=QtCore.Qt.AlignLeft)
-        header_layout.addWidget(self.scrap_video_button, 0, 1, alignment=QtCore.Qt.AlignRight)
-
-        layout.addLayout(header_layout)
-        layout.addWidget(self.video_view)
-
-        self.setLayout(layout)
-
-        app_state.channel_name_changed.connect(self.update_channel_label)
-        self.update_channel_label(app_state.channel_name)
+        self.main_layout.addWidget(self.video_view, 1, 0, 1, 4)
 
     def update_channel_label(self, name=None):
         self.channel_label.setText(f"Selected channel: {name or 'None'}")
