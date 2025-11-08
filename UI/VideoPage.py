@@ -21,7 +21,7 @@ class YouTubeVideoItem:
 
 
 class YouTubeVideoDelegate(QStyledItemDelegate):
-    """Custom delegate for drawing YouTube video and Shorts with distinct layouts."""
+    """Custom delegate for drawing YouTube videos and Shorts with grid and list layouts."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -31,80 +31,184 @@ class YouTubeVideoDelegate(QStyledItemDelegate):
         if not data:
             return
 
+        painter.save()
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.fillRect(option.rect, QColor("#0f0f0f"))  # YouTube's dark background
+
+        view = option.widget
+        is_list_mode = view.viewMode() == QListView.ListMode
+
         thumbnail = data.thumbnail
         title = getattr(data, "title", "")
         duration = getattr(data, "duration", "")
         views = getattr(data, "views", "")
         video_type = getattr(data, "video_type", "video").lower()
 
-        painter.save()
-        painter.setRenderHint(QPainter.Antialiasing)
-        painter.fillRect(option.rect, QColor("#121212"))
+        if is_list_mode:
+            # === LIST MODE (Bigger text) ===
+            # Use same height for all video types, calculate width proportionally
+            target_height = 100
+            if isinstance(thumbnail, QPixmap) and not thumbnail.isNull():
+                original_width = thumbnail.width()
+                original_height = thumbnail.height()
+                if original_height > 0:
+                    target_width = int((original_width / original_height) * target_height)
+                else:
+                    target_width = 178  # YouTube list thumbnail width
+            else:
+                target_width = 178
+                target_height = 100
+            
+            margin = 12  # Increased margin for better spacing
 
-        # Thumbnail layout
-        if video_type == "shorts":
-            thumb_w, thumb_h = 256, 456  # proportional to 405x720 but smaller
-        else:
-            thumb_w, thumb_h = 256, 144  # 16:9
+            # Thumbnail rectangle
+            thumb_x = option.rect.x() + margin
+            thumb_y = option.rect.y() + (option.rect.height() - target_height) // 2
+            thumb_rect = QRect(thumb_x, thumb_y, target_width, target_height)
 
-        # Center horizontally
-        thumb_x = option.rect.x() + (option.rect.width() - thumb_w) // 2
-        thumb_y = option.rect.y() + 8
-        thumb_rect = QRect(thumb_x, thumb_y, thumb_w, thumb_h)
+            # Draw proportionally scaled thumbnail
+            if isinstance(thumbnail, QPixmap) and not thumbnail.isNull():
+                scaled = thumbnail.scaled(target_width, target_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                x_offset = thumb_rect.x() + (thumb_rect.width() - scaled.width()) // 2
+                y_offset = thumb_rect.y() + (thumb_rect.height() - scaled.height()) // 2
+                painter.drawPixmap(x_offset, y_offset, scaled)
 
-        # Draw thumbnail
-        if isinstance(thumbnail, QPixmap):
-            scaled = thumbnail.scaled(thumb_w, thumb_h, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
-            painter.drawPixmap(thumb_rect, scaled)
+            # Text positions with proper spacing
+            text_x = thumb_rect.right() + 16  # Increased spacing from thumbnail
+            text_y = option.rect.y() + 14     # Increased top margin
+            text_w = option.rect.width() - text_x - 20  # Right margin
+            text_h = option.rect.height() - 24
 
-        # Duration overlay
-        if duration:
-            duration_text = str(duration)
-            painter.setFont(QFont("Segoe UI", 8))
+            # === Title (Bigger font for list mode) ===
+            painter.setFont(QFont("Segoe UI", 11, QFont.Bold))  # Increased from 9 to 11
             painter.setPen(Qt.white)
-            metrics = painter.fontMetrics()
-            text_w = metrics.horizontalAdvance(duration_text)
-            text_h = metrics.height()
-            duration_rect = QRect(
-                thumb_rect.right() - text_w - 10,
-                thumb_rect.bottom() - text_h - 6,
-                text_w + 6,
-                text_h + 2,
+            title_rect = QRect(text_x, text_y, text_w, 44)  # Increased height for bigger text
+            # Draw text with proper spacing - clip to prevent overflow
+            painter.drawText(title_rect, Qt.TextWordWrap | Qt.AlignLeft | Qt.AlignTop, title)
+
+            # === Views + Duration inline ===
+            painter.setFont(QFont("Segoe UI", 9))  # Increased from 8 to 9
+            painter.setPen(QColor("#AAAAAA"))
+
+            # Views text
+            try:
+                views_num = int(float(views))
+                views_text = f"{views_num:,} views"
+            except (ValueError, TypeError):
+                views_text = f"{views} views"
+
+            # Compose single line: "views_text • duration"
+            combined_text = f"{views_text}"
+            if duration and duration != "--:--":
+                combined_text += f" • {duration}"
+
+            views_rect = QRect(text_x, title_rect.bottom() + 4, text_w, 20)  # Added spacing
+            painter.drawText(views_rect, Qt.AlignLeft, combined_text)
+
+        else:
+            # === GRID MODE (Slightly bigger text) ===
+            # Use same height for all video types, calculate width proportionally
+            target_height = 144  # Normal video height
+            if isinstance(thumbnail, QPixmap) and not thumbnail.isNull():
+                original_width = thumbnail.width()
+                original_height = thumbnail.height()
+                if original_height > 0:
+                    target_width = int((original_width / original_height) * target_height)
+                else:
+                    target_width = 256
+            else:
+                target_width = 256
+                target_height = 144
+            
+            # Ensure minimum and maximum reasonable widths
+            target_width = max(200, min(target_width, 360))  # Constrained for better grid layout
+
+            # Thumbnail with horizontal centering and top spacing
+            thumb_x = option.rect.x() + (option.rect.width() - target_width) // 2
+            thumb_y = option.rect.y() + 10  # Increased top spacing
+            thumb_rect = QRect(thumb_x, thumb_y, target_width, target_height)
+
+            if isinstance(thumbnail, QPixmap) and not thumbnail.isNull():
+                scaled = thumbnail.scaled(target_width, target_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                x_offset = thumb_rect.x() + (thumb_rect.width() - scaled.width()) // 2
+                y_offset = thumb_rect.y() + (thumb_rect.height() - scaled.height()) // 2
+                painter.drawPixmap(x_offset, y_offset, scaled)
+
+            # Duration overlay
+            if duration:
+                painter.setFont(QFont("Segoe UI", 9))  # Slightly bigger
+                painter.setPen(Qt.white)
+                metrics = painter.fontMetrics()
+                text_w = metrics.horizontalAdvance(duration)
+                text_h = metrics.height()
+                duration_rect = QRect(
+                    thumb_rect.right() - text_w - 8,  # Adjusted positioning
+                    thumb_rect.bottom() - text_h - 6,
+                    text_w + 8,  # Slightly bigger background
+                    text_h + 2,
+                )
+                painter.fillRect(duration_rect, QColor(0, 0, 0, 200))  # Darker background
+                painter.drawText(duration_rect, Qt.AlignCenter, duration)
+
+            # Title with side spacing
+            painter.setFont(QFont("Segoe UI", 11, QFont.Bold))  # Increased from 10 to 11
+            painter.setPen(Qt.white)
+            # Title rect with left and right margins
+            title_left_margin = 8
+            title_right_margin = 8
+            title_rect = QRect(
+                thumb_rect.left() + title_left_margin, 
+                thumb_rect.bottom() + 12,  # Increased spacing from thumbnail
+                thumb_rect.width() - title_left_margin - title_right_margin, 
+                42  # Increased height for bigger text
             )
-            painter.fillRect(duration_rect, QColor(0, 0, 0, 180))
-            painter.drawText(duration_rect, Qt.AlignCenter, duration_text)
+            painter.drawText(title_rect, Qt.TextWordWrap | Qt.AlignLeft | Qt.AlignTop, title)
 
-        # Title text
-        painter.setFont(QFont("Segoe UI", 10, QFont.Bold))
-        painter.setPen(Qt.white)
-        title_rect = QRect(thumb_rect.left(), thumb_rect.bottom() + 8, thumb_rect.width(), 40)
-        painter.drawText(title_rect, Qt.TextWordWrap | Qt.AlignLeft, title)
-
-        # Views text
-        try:
-            views_num = int(float(views))
-            views_text = f"{views_num:,} views"
-        except (ValueError, TypeError):
-            views_text = f"{views} views"
-
-        painter.setFont(QFont("Segoe UI", 9))
-        painter.setPen(QColor("#AAAAAA"))
-        views_rect = QRect(thumb_rect.left(), title_rect.bottom() + 2, thumb_rect.width(), 20)
-        painter.drawText(views_rect, Qt.AlignLeft, views_text)
+            # Views with side spacing
+            painter.setFont(QFont("Segoe UI", 10))  # Increased from 9 to 10
+            painter.setPen(QColor("#AAAAAA"))
+            try:
+                views_num = int(float(views))
+                views_text = f"{views_num:,} views"
+            except (ValueError, TypeError):
+                views_text = f"{views} views"
+            
+            views_left_margin = 8
+            views_right_margin = 8
+            views_rect = QRect(
+                thumb_rect.left() + views_left_margin, 
+                title_rect.bottom() + 4,  # Increased spacing from title
+                thumb_rect.width() - views_left_margin - views_right_margin, 
+                20
+            )
+            painter.drawText(views_rect, Qt.AlignLeft, views_text)
 
         painter.restore()
 
     def sizeHint(self, option, index):
-        data = index.data(Qt.UserRole)
-        if not data:
-            return QSize(256, 200)
-
-        video_type = getattr(data, "video_type", "video").lower()
-        if video_type == "shorts":
-            # Taller vertical layout
-            return QSize(256, 520)
+        """Adjusted sizes for better spacing."""
+        view = option.widget
+        if view.viewMode() == QListView.ListMode:
+            return QSize(option.rect.width(), 120)  # Increased height for bigger text
         else:
-            return QSize(256, 210)
+            data = index.data(Qt.UserRole)
+            if not data:
+                return QSize(280, 240)  # Slightly bigger default
+            
+            # For grid mode, calculate width based on thumbnail aspect ratio
+            thumbnail = getattr(data, "thumbnail", None)
+            if isinstance(thumbnail, QPixmap) and not thumbnail.isNull():
+                original_width = thumbnail.width()
+                original_height = thumbnail.height()
+                if original_height > 0:
+                    target_width = int((original_width / original_height) * 144)
+                    target_width = max(200, min(target_width, 360))  # Adjusted constraints
+                else:
+                    target_width = 280
+            else:
+                target_width = 280
+            
+            return QSize(target_width, 240)  # Increased height for bigger text and spacing
 
 
 class Video(QWidget):
@@ -192,9 +296,11 @@ class Video(QWidget):
             self.grid_btn.setChecked(False)
             self.video_view.setViewMode(QListView.ListMode)
             self.video_view.setFlow(QListView.TopToBottom)
+            self.video_view.setSpacing(4)  # compact spacing
         else:
             self.list_btn.setChecked(True)
         print("List view selected")
+
 
     def on_grid_clicked(self):
         if self.grid_btn.isChecked():
