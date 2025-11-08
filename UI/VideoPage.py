@@ -33,7 +33,12 @@ class YouTubeVideoDelegate(QStyledItemDelegate):
 
         painter.save()
         painter.setRenderHint(QPainter.Antialiasing)
-        painter.fillRect(option.rect, QColor("#0f0f0f"))  # YouTube's dark background
+        
+        # Highlight selected items
+        if option.state & QStyle.State_Selected:
+            painter.fillRect(option.rect, QColor("#263238"))  # Highlight color
+        else:
+            painter.fillRect(option.rect, QColor("#0f0f0f"))  # YouTube's dark background
 
         view = option.widget
         is_list_mode = view.viewMode() == QListView.ListMode
@@ -211,6 +216,130 @@ class YouTubeVideoDelegate(QStyledItemDelegate):
             return QSize(target_width, 240)  # Increased height for bigger text and spacing
 
 
+class SelectableListView(QListView):
+    """Custom QListView with smooth scrolling and drag selection."""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setMouseTracking(True)
+        self.drag_start_index = None
+        self.is_dragging = False
+        self.auto_scroll_timer = QtCore.QTimer(self)
+        self.auto_scroll_timer.timeout.connect(self._auto_scroll)
+        self.scroll_direction = 0
+        self.last_mouse_pos = None
+        
+        # Enable smooth scrolling
+        self.verticalScrollBar().setSingleStep(5)
+        self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+        
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            index = self.indexAt(event.pos())
+            modifiers = event.modifiers()
+            
+            if index.isValid():
+                if modifiers == Qt.ShiftModifier:
+                    # Shift+Click: Select range
+                    current_indexes = self.selectedIndexes()
+                    if current_indexes:
+                        # Get first selected index
+                        first_index = min(current_indexes, key=lambda x: x.row())
+                        self._select_range(first_index, index)
+                    else:
+                        super().mousePressEvent(event)
+                elif modifiers == Qt.ControlModifier:
+                    # Ctrl+Click: Toggle selection
+                    super().mousePressEvent(event)
+                else:
+                    # Normal click: Start drag selection
+                    self.drag_start_index = index
+                    self.is_dragging = True
+                    self.clearSelection()
+                    self.selectionModel().select(index, QtCore.QItemSelectionModel.Select)
+            else:
+                self.clearSelection()
+                
+        super().mousePressEvent(event)
+    
+    def mouseMoveEvent(self, event):
+        self.last_mouse_pos = event.pos()
+        
+        if self.is_dragging and self.drag_start_index is not None:
+            current_index = self.indexAt(event.pos())
+            if current_index.isValid():
+                self._select_range(self.drag_start_index, current_index)
+            
+            # Check if we need to auto-scroll
+            viewport_rect = self.viewport().rect()
+            margin = 50  # Pixels from edge to trigger scroll
+            
+            if event.pos().y() < margin:
+                # Near top
+                self.scroll_direction = -1
+                if not self.auto_scroll_timer.isActive():
+                    self.auto_scroll_timer.start(16)  # ~60 FPS
+            elif event.pos().y() > viewport_rect.height() - margin:
+                # Near bottom
+                self.scroll_direction = 1
+                if not self.auto_scroll_timer.isActive():
+                    self.auto_scroll_timer.start(16)
+            else:
+                self.scroll_direction = 0
+                self.auto_scroll_timer.stop()
+        
+        super().mouseMoveEvent(event)
+    
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.is_dragging = False
+            self.drag_start_index = None
+            self.auto_scroll_timer.stop()
+            self.scroll_direction = 0
+        super().mouseReleaseEvent(event)
+    
+    def _select_range(self, start_index, end_index):
+        """Select all items between start and end index."""
+        self.clearSelection()
+        start_row = min(start_index.row(), end_index.row())
+        end_row = max(start_index.row(), end_index.row())
+        
+        selection = QtCore.QItemSelection()
+        for row in range(start_row, end_row + 1):
+            index = self.model().index(row, 0)
+            selection.select(index, index)
+        
+        self.selectionModel().select(selection, QtCore.QItemSelectionModel.Select)
+    
+    def _auto_scroll(self):
+        """Smoothly scroll the view when dragging near edges."""
+        if self.scroll_direction == 0:
+            return
+        
+        scroll_bar = self.verticalScrollBar()
+        current_value = scroll_bar.value()
+        
+        # Smooth scrolling with variable speed
+        if self.last_mouse_pos:
+            viewport_rect = self.viewport().rect()
+            if self.scroll_direction < 0:
+                # Scrolling up
+                distance = max(1, 50 - self.last_mouse_pos.y())
+                speed = int(distance / 5) + 1
+                scroll_bar.setValue(current_value - speed)
+            else:
+                # Scrolling down
+                distance = max(1, self.last_mouse_pos.y() - (viewport_rect.height() - 50))
+                speed = int(distance / 5) + 1
+                scroll_bar.setValue(current_value + speed)
+        
+        # Continue drag selection while scrolling
+        if self.is_dragging and self.drag_start_index is not None and self.last_mouse_pos:
+            current_index = self.indexAt(self.last_mouse_pos)
+            if current_index.isValid():
+                self._select_range(self.drag_start_index, current_index)
+
+
 class Video(QWidget):
     videos: dict = None
 
@@ -232,17 +361,20 @@ class Video(QWidget):
         self.scrap_video_button = QPushButton("Scrape Videos")
         self.scrap_video_button.clicked.connect(self.scrape_videos)
 
+        self.select_button = QPushButton("Select")
+        self.select_button.clicked.connect(self.select_videos)
         # === Segmented Control (List / Grid) ===
         self._create_segmented_control()
 
         # === Video list ===
-        self.video_view = QListView()
+        self.video_view = SelectableListView()
         self.video_view.setViewMode(QListView.IconMode)
         self.video_view.setResizeMode(QListView.Adjust)
         self.video_view.setFlow(QListView.LeftToRight)
         self.video_view.setWrapping(True)
         self.video_view.setSpacing(20)
-        self.video_view.setSelectionMode(QAbstractItemView.NoSelection)
+        self.video_view.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.video_view.setSelectionBehavior(QAbstractItemView.SelectRows)
 
         self.model = QStandardItemModel()
         self.video_view.setModel(self.model)
@@ -254,6 +386,7 @@ class Video(QWidget):
         self.main_layout.addWidget(self.channel_label, 0, 1, 1, 2, alignment=Qt.AlignCenter)
         self.main_layout.addWidget(self.scrap_video_button, 0, 3, 1, 1)
         self.main_layout.addWidget(self.video_view, 1, 0, 1, 4)
+        self.main_layout.addWidget(self.select_button, 2, 0, 1, 4)
 
         app_state.channel_name_changed.connect(self.update_channel_label)
         self.update_channel_label(app_state.channel_name)
@@ -301,8 +434,29 @@ class Video(QWidget):
             self.list_btn.setChecked(True)
         print("List view selected")
 
+    def select_videos(self):
+        selected_indexes = self.video_view.selectedIndexes()
+        if not selected_indexes:
+            print("No videos selected")
+            return
+        
+        selected_videos = []
+        for index in selected_indexes:
+            data = index.data(Qt.UserRole)
+            if data:
+                selected_videos.append({
+                    'title': data.title,
+                    'views': data.views,
+                    'duration': data.duration,
+                    'type': data.video_type
+                })
+        
+        print(f"Selected {len(selected_videos)} video(s):")
+        for video in selected_videos:
+            print(f"  - {video['title']}")
 
     def on_grid_clicked(self):
+        
         if self.grid_btn.isChecked():
             self.list_btn.setChecked(False)
             self.video_view.setViewMode(QListView.IconMode)
