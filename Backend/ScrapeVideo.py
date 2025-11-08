@@ -44,12 +44,12 @@ class VideoWorker(QObject):
         """
         Fetch video URLs and metadata for a YouTube channel.
         Downloads thumbnails and writes data to DB.
-        Only after successful insert and image save, update UI.
+        Updates existing videos and skips re-downloading thumbnails if present.
         """
         try:
             self.progress_updated.emit("Initializing...")
             self.progress_percentage.emit(0)
-            
+
             ydl_opts = {
                 'extract_flat': True,
                 'skip_download': True,
@@ -76,9 +76,11 @@ class VideoWorker(QObject):
                 total_available_videos = 0
                 for entry in entries:
                     entry_name = entry.get('title')
-                    if any(x in entry_name for x in [f'{channel_name} - Videos', 
-                                                    f'{channel_name} - Shorts', 
-                                                    f'{channel_name} - Live']):
+                    if any(x in entry_name for x in [
+                        f'{channel_name} - Videos',
+                        f'{channel_name} - Shorts',
+                        f'{channel_name} - Live'
+                    ]):
                         video_entries = entry.get('entries')
                         if video_entries:
                             total_available_videos += len(video_entries)
@@ -111,12 +113,24 @@ class VideoWorker(QObject):
                         duration = video_entry.get('duration')
                         thumbnail_url = video_entry.get("thumbnails")[-1].get("url")
 
-                        # Download thumbnail
-                        os.makedirs(f"{self.db.thumbnail_dir}/{self.channel_id}", exist_ok=True)
-                        save_path = rf"{self.db.thumbnail_dir}/{self.channel_id}/{video_id}.png"
-                        downloaded = download_img(thumbnail_url, save_path)
+                        # Prepare thumbnail directory
+                        channel_thumb_dir = os.path.join(self.db.thumbnail_dir, str(self.channel_id))
+                        os.makedirs(channel_thumb_dir, exist_ok=True)
+                        thumb_path = os.path.join(channel_thumb_dir, f"{video_id}.png")
 
-                        # Only insert and update progress if download successful
+                        # Check if video exists
+                        existing_videos = self.db.fetch("VIDEO", "video_id = ?", (video_id,))
+                        video_exists = len(existing_videos) > 0
+
+                        # Download thumbnail only if not already on disk
+                        if not os.path.exists(thumb_path):
+                            downloaded = download_img(thumbnail_url, thumb_path)
+                            if not downloaded:
+                                self.progress_updated.emit(f"⚠ Failed to download thumbnail for {title[:50]}...")
+                        else:
+                            downloaded = True  # Skip redownload
+
+                        # Insert/update DB even if thumbnail skipped (to refresh metadata)
                         if downloaded:
                             self.db.insert("VIDEO", {
                                 "video_id": video_id,
@@ -132,22 +146,19 @@ class VideoWorker(QObject):
                             })
 
                             total_videos_scraped += 1
-                            # Now update the UI (only after success)
+                            msg_prefix = "Updated" if video_exists else "Added"
                             self.progress_updated.emit(
-                                f"Progress: {total_videos_scraped}/{total_available_videos} videos saved\nSaved {video_type.title()}: {title[:50]}..."
+                                f"Progress: ({total_videos_scraped}/{total_available_videos})\n{msg_prefix}: {title[:60]}..."
                             )
 
                             if total_available_videos > 0:
                                 progress_percent = 15 + int((total_videos_scraped / total_available_videos) * 80)
                                 self.progress_percentage.emit(progress_percent)
 
-                        else:
-                            self.progress_updated.emit(f"⚠ Failed to download thumbnail for {title[:50]}...")
-
-            self.progress_updated.emit(f"Completed! {total_videos_scraped}/{total_available_videos} videos saved successfully.")
-            self.progress_percentage.emit(100)
-            self.finished.emit()
-            return
+                self.progress_updated.emit(f"Completed! {total_videos_scraped}/{total_available_videos} videos processed successfully.")
+                self.progress_percentage.emit(100)
+                self.finished.emit()
+                return
 
         except Exception as e:
             import traceback
@@ -158,3 +169,4 @@ class VideoWorker(QObject):
             self.progress_percentage.emit(0)
             self.finished.emit()
             return {}
+
