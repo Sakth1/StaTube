@@ -195,3 +195,61 @@ QSplashScreen {
     background-color: #1e1e1e;
     color: #e0e0e0;
 }
+
+/* === Segmented Control (Flat Unified) === */
+QPushButton[segment="left"],
+QPushButton[segment="right"] {
+    background-color: #2b2b2b;
+    color: #ccc;
+    border: 1px solid #444;
+    border-radius: 0;             
+    padding: 2px 10px;            
+    font-size: 12px;
+    font-weight: 500;
+    margin: 0;
+    min-height: 22px;               /* smaller thickness */
+    outline: none;
+}
+
+/* Remove spacing artifacts (visually joined) */
+QPushButton[segment="right"] {
+    border-left: none;              /* remove dividing line */
+}
+
+/* Left-most and right-most rounded edges only */
+QPushButton[segment="left"] {
+    border-top-left-radius: 6px;
+    border-bottom-left-radius: 6px;
+}
+
+QPushButton[segment="right"] {
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+}
+
+/* Hover feedback */
+QPushButton[segment="left"]:hover:!checked,
+QPushButton[segment="right"]:hover:!checked {
+    background-color: #3a3a3a;
+}
+
+/* Checked (active) state */
+QPushButton[segment="left"]:checked,
+QPushButton[segment="right"]:checked {
+    background-color: #2d89ef;
+    color: white;
+    border-color: #2d89ef;
+}
+
+/* Pressed */
+QPushButton[segment="left"]:pressed,
+QPushButton[segment="right"]:pressed {
+    background-color: #1b6ac9;
+}
+
+QPushButton[segment="left"]:checked,
+QPushButton[segment="right"]:checked {
+    border: 1px solid #007aff;
+    background-color: #2d89ef;
+    color: white;
+}

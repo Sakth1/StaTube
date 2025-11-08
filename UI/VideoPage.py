@@ -1,9 +1,9 @@
 from PySide6 import QtCore
 from PySide6.QtWidgets import (QWidget, QLabel, QGridLayout, QStyle, QPushButton,
                                QListView, QVBoxLayout, QAbstractItemView, QStyledItemDelegate,
-                               QButtonGroup, QHBoxLayout)
-from PySide6.QtCore import QThread, Qt, QSize, QRect
-from PySide6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QPainter, QFont, QColor
+                               QButtonGroup, QHBoxLayout, QFrame)
+from PySide6.QtCore import QThread, Qt, QSize, QRect, Property
+from PySide6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QPainter, QFont, QColor, QIcon
 import os
 
 from Backend.ScrapeVideo import VideoWorker
@@ -118,48 +118,20 @@ class Video(QWidget):
         self.splash = None
         self.worker_thread = None
         self.worker = None
-        self.video_page = QWidget()
-        self.main_layout = QGridLayout()
 
-        # Create buttons
-        self.grid_button = QPushButton("Grid")
-        self.grid_button.setCheckable(True)
-        self.list_button = QPushButton("List")
-        self.list_button.setCheckable(True)
+        # === Main layout ===
+        self.main_layout = QGridLayout(self)
+        self.setLayout(self.main_layout)
 
-        # Create a button group and make it exclusive
-        self.segmented_button = QButtonGroup(self)
-        self.segmented_button.addButton(self.grid_button)
-        self.segmented_button.addButton(self.list_button)
-        self.segmented_button.setExclusive(True)  # ensures only one stays checked
-
-        # Set default checked button
-        self.grid_button.setChecked(True)
-        
-        button_container = QWidget()
-        button_layout = QHBoxLayout(button_container)
-        button_layout.addWidget(self.grid_button)
-        button_layout.addWidget(self.list_button)
-        button_layout.setSpacing(0)
-        button_layout.setContentsMargins(0, 0, 0, 0)
-        self.main_layout.addWidget(button_container, 0, 0, 1, 1)
-
+        # === Channel Info ===
         self.channel_label = QLabel()
         self.scrap_video_button = QPushButton("Scrape Videos")
         self.scrap_video_button.clicked.connect(self.scrape_videos)
-        self.main_layout.addWidget(self.channel_label, 0, 1, 1, 2)
-        self.main_layout.addWidget(self.scrap_video_button, 0, 3, 1, 1)
-        self.select_button = QPushButton("Select")
-        self.main_layout.addWidget(self.select_button, 10, 0, 1, 4)
 
-        self.setup_grid_video_view()
-        
-        self.setLayout(self.main_layout)
+        # === Segmented Control (List / Grid) ===
+        self._create_segmented_control()
 
-        app_state.channel_name_changed.connect(self.update_channel_label)
-        self.update_channel_label(app_state.channel_name)
-
-    def setup_grid_video_view(self):
+        # === Video list ===
         self.video_view = QListView()
         self.video_view.setViewMode(QListView.IconMode)
         self.video_view.setResizeMode(QListView.Adjust)
@@ -173,11 +145,71 @@ class Video(QWidget):
         self.video_delegate = YouTubeVideoDelegate(self.video_view)
         self.video_view.setItemDelegate(self.video_delegate)
 
+        # === Header layout ===
+        self.main_layout.addWidget(self.segment_container, 0, 0, 1, 1, alignment=Qt.AlignLeft)
+        self.main_layout.addWidget(self.channel_label, 0, 1, 1, 2, alignment=Qt.AlignCenter)
+        self.main_layout.addWidget(self.scrap_video_button, 0, 3, 1, 1)
         self.main_layout.addWidget(self.video_view, 1, 0, 1, 4)
 
+        app_state.channel_name_changed.connect(self.update_channel_label)
+        self.update_channel_label(app_state.channel_name)
+
+    # === Segmented Control Creation ===
+    def _create_segmented_control(self):
+        self.segment_container = QFrame()
+        layout = QHBoxLayout(self.segment_container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        list_icon = QIcon(os.path.join(self.mainwindow.base_dir, "assets", "icon", "light", "light_list.ico"))
+        grid_icon = QIcon(os.path.join(self.mainwindow.base_dir, "assets", "icon", "light", "light_grid.ico"))
+
+        self.list_btn = QPushButton()
+        self.list_btn.setIcon(list_icon)
+        self.list_btn.setToolTip("List View")
+        self.list_btn.setCheckable(True)
+        self.list_btn.setChecked(True)
+        self.list_btn.setProperty("segment", "left")
+        self.list_btn.clicked.connect(self.on_list_clicked)
+
+        self.grid_btn = QPushButton()
+        self.grid_btn.setIcon(grid_icon)
+        self.grid_btn.setToolTip("Grid View")
+        self.grid_btn.setCheckable(True)
+        self.grid_btn.setProperty("segment", "right")
+        self.grid_btn.clicked.connect(self.on_grid_clicked)
+        
+        self.grid_btn.setChecked(True)
+        self.list_btn.setChecked(False)
+
+        layout.addWidget(self.list_btn)
+        layout.addWidget(self.grid_btn)
+        self.segment_container.setFixedHeight(32)
+
+    # === Segmented control handlers ===
+    def on_list_clicked(self):
+        if self.list_btn.isChecked():
+            self.grid_btn.setChecked(False)
+            self.video_view.setViewMode(QListView.ListMode)
+            self.video_view.setFlow(QListView.TopToBottom)
+        else:
+            self.list_btn.setChecked(True)
+        print("List view selected")
+
+    def on_grid_clicked(self):
+        if self.grid_btn.isChecked():
+            self.list_btn.setChecked(False)
+            self.video_view.setViewMode(QListView.IconMode)
+            self.video_view.setFlow(QListView.LeftToRight)
+        else:
+            self.grid_btn.setChecked(True)
+        print("Grid view selected")
+
+    # === Channel label ===
     def update_channel_label(self, name=None):
         self.channel_label.setText(f"Selected channel: {name or 'None'}")
 
+    # === Video scraping ===
     def scrape_videos(self):
         channel_name = app_state.channel_name
         channel_id = app_state.channel_id
@@ -189,7 +221,7 @@ class Video(QWidget):
 
         self.show_splash_screen()
 
-        self.worker_thread = QThread()
+        self.worker_thread = QtCore.QThread()
         self.worker = VideoWorker(channel_id, channel_url)
         self.worker.moveToThread(self.worker_thread)
 
@@ -223,21 +255,19 @@ class Video(QWidget):
         if self.splash:
             self.splash.close()
             self.splash = None
-
         print("Video scraping completed!")
         self.load_videos_from_db()
 
+    # === Load videos ===
     def load_videos_from_db(self):
         channel_id = app_state.channel_id
         videos = self.db.fetch("VIDEO", "channel_id = ?", (channel_id,))
-
         self.model.clear()
 
         for video in videos:
             thumb_path = os.path.join(self.db.thumbnail_dir, str(channel_id), f"{video['video_id']}.png")
             if not os.path.exists(thumb_path):
                 continue
-
             pixmap = QPixmap(thumb_path)
             if pixmap.isNull():
                 continue
@@ -255,12 +285,11 @@ class Video(QWidget):
 
         print(f"Loaded {self.model.rowCount()} videos for channel {channel_id}")
 
-    # --- Helper for formatting duration ---
     def _format_duration(self, seconds):
         try:
             if seconds is None or seconds == "":
                 return "--:--"
-            seconds = int(float(seconds))  # handles "1027.0" or float values
+            seconds = int(float(seconds))
             minutes, sec = divmod(seconds, 60)
             hours, minutes = divmod(minutes, 60)
             if hours:
@@ -273,9 +302,9 @@ class Video(QWidget):
         try:
             views = int(views)
             if views >= 1_000_000:
-                return f"{views/1_000_000:.1f}M"
+                return f"{views / 1_000_000:.1f}M"
             elif views >= 1_000:
-                return f"{views/1_000:.1f}K"
+                return f"{views / 1_000:.1f}K"
             return str(views)
         except Exception:
             return "0"
