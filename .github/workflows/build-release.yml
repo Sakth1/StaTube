@@ -42,9 +42,9 @@ jobs:
         python -c "import PySide6; print('PySide6 version:', PySide6.__version__)" || echo "PySide6 not installed"
         python -c "import yt_dlp; print('yt-dlp version:', yt_dlp.version.__version__)" || echo "yt-dlp not installed"
 
-    - name: Build with Nuitka (Fixed paths)
+    - name: Build with Nuitka (Fixed with assume-yes flag)
       run: |
-        python -m nuitka --standalone --enable-plugin=pyside6 --windows-console-mode=disable --include-package=yt_dlp --include-module=yt_dlp.utils --nofollow-import-to=yt_dlp.extractor.lazy_extractors --include-data-dir=assets=assets --include-data-dir=UI=UI main.py
+        python -m nuitka --standalone --enable-plugin=pyside6 --windows-console-mode=disable --include-package=yt_dlp --include-module=yt_dlp.utils --nofollow-import-to=yt_dlp.extractor.lazy_extractors --include-data-dir=assets=assets --include-data-dir=UI=UI --assume-yes-for-downloads main.py
 
     - name: Test executable
       run: |
