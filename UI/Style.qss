@@ -253,3 +253,24 @@ QPushButton[segment="right"]:checked {
     background-color: #2d89ef;
     color: white;
 }
+
+/* Splash Screen */
+QSplashScreen {
+    background-color: #1e1e1e;
+}
+
+QSplashScreen QProgressBar {
+    background-color: #2d2d2d;
+    border: none;
+    border-radius: 4px;
+    text-align: center;
+}
+
+QSplashScreen QProgressBar::chunk {
+    background-color: #0d7377;
+    border-radius: 4px;
+}
+
+QSplashScreen QLabel {
+    background-color: transparent;
+}
