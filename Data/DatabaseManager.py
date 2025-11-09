@@ -69,10 +69,11 @@ class DatabaseManager:
             title TEXT,
             desc TEXT,
             duration TEXT,
-            view_count TEXT,
-            like_count TEXT,
-            pub_date DATETIME,
-            status TEXT,
+            duration_in_seconds INTEGER,
+            thumbnail_path TEXT,
+            view_count INTEGER,
+            time_since_published TEXT,
+            upload_timestamp INTEGER,
             FOREIGN KEY(channel_id) REFERENCES CHANNEL(channel_id)
         );
 
@@ -129,11 +130,14 @@ class DatabaseManager:
             else:
                 raise
 
-    def fetch(self, table: str, where: Optional[str] = None, params: Tuple = ()) -> List[Dict[str, Any]]:
+    def fetch(self, table: str, where: Optional[str] = None, order_by: Optional[str] = None,
+               params: Tuple = ()) -> List[Dict[str, Any]]:
         conn = self._get_connection()
         query = f"SELECT * FROM {table}"
         if where:
             query += f" WHERE {where}"
+        if order_by:
+            query += f" ORDER BY {order_by}"
         cursor = conn.cursor()
         cursor.execute(query, params)
         rows = cursor.fetchall()
