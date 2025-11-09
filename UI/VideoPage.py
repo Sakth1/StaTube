@@ -1,219 +1,107 @@
 from PySide6 import QtCore
 from PySide6.QtWidgets import (QWidget, QLabel, QGridLayout, QStyle, QPushButton,
                                QListView, QVBoxLayout, QAbstractItemView, QStyledItemDelegate,
-                               QButtonGroup, QHBoxLayout, QFrame)
+                               QButtonGroup, QHBoxLayout, QFrame, QComboBox)
 from PySide6.QtCore import QThread, Qt, QSize, QRect, Property
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QPainter, QFont, QColor, QIcon
 import os
 
+from Data.DatabaseManager import DatabaseManager
 from Backend.ScrapeVideo import VideoWorker
 from UI.SplashScreen import SplashScreen
 from utils.AppState import app_state
 
 
 class YouTubeVideoItem:
-    def __init__(self, thumbnail: QPixmap, title: str, duration: str, views: str, video_type: str):
+    def __init__(self, thumbnail: QPixmap, title: str, duration: str, views: str,
+                 video_type: str, time_since_published: str = ""):
         self.thumbnail = thumbnail
         self.title = title
         self.duration = duration
         self.views = views
         self.video_type = video_type
-
+        self.time_since_published = time_since_published
 
 class YouTubeVideoDelegate(QStyledItemDelegate):
     """Custom delegate for drawing YouTube videos and Shorts with grid and list layouts."""
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
-    def paint(self, painter, option, index):
+    def paint(self, painter: QPainter, option, index):
         data = index.data(Qt.UserRole)
         if not data:
             return
 
         painter.save()
         painter.setRenderHint(QPainter.Antialiasing)
-        
+
         # Highlight selected items
-        if option.state & QStyle.State_Selected:
-            painter.fillRect(option.rect, QColor("#263238"))  # Highlight color
-        else:
-            painter.fillRect(option.rect, QColor("#0f0f0f"))  # YouTube's dark background
+        painter.fillRect(option.rect, QColor("#263238") if option.state & QStyle.State_Selected else QColor("#0f0f0f"))
 
         view = option.widget
         is_list_mode = view.viewMode() == QListView.ListMode
 
         thumbnail = data.thumbnail
-        title = getattr(data, "title", "")
-        duration = getattr(data, "duration", "")
-        views = getattr(data, "views", "")
-        video_type = getattr(data, "video_type", "video").lower()
+        title = data.title
+        duration = data.duration
+        views = data.views
+        time_since_published = data.time_since_published
 
+        # === LIST MODE ===
         if is_list_mode:
-            # === LIST MODE (Bigger text) ===
-            # Use same height for all video types, calculate width proportionally
             target_height = 100
-            if isinstance(thumbnail, QPixmap) and not thumbnail.isNull():
-                original_width = thumbnail.width()
-                original_height = thumbnail.height()
-                if original_height > 0:
-                    target_width = int((original_width / original_height) * target_height)
-                else:
-                    target_width = 178  # YouTube list thumbnail width
-            else:
-                target_width = 178
-                target_height = 100
-            
-            margin = 12  # Increased margin for better spacing
+            target_width = 178
 
-            # Thumbnail rectangle
-            thumb_x = option.rect.x() + margin
-            thumb_y = option.rect.y() + (option.rect.height() - target_height) // 2
-            thumb_rect = QRect(thumb_x, thumb_y, target_width, target_height)
-
-            # Draw proportionally scaled thumbnail
             if isinstance(thumbnail, QPixmap) and not thumbnail.isNull():
                 scaled = thumbnail.scaled(target_width, target_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-                x_offset = thumb_rect.x() + (thumb_rect.width() - scaled.width()) // 2
-                y_offset = thumb_rect.y() + (thumb_rect.height() - scaled.height()) // 2
-                painter.drawPixmap(x_offset, y_offset, scaled)
+                painter.drawPixmap(option.rect.x() + 12, option.rect.y() + 10, scaled)
 
-            # Text positions with proper spacing
-            text_x = thumb_rect.right() + 16  # Increased spacing from thumbnail
-            text_y = option.rect.y() + 14     # Increased top margin
-            text_w = option.rect.width() - text_x - 20  # Right margin
-            text_h = option.rect.height() - 24
-
-            # === Title (Bigger font for list mode) ===
-            painter.setFont(QFont("Segoe UI", 11, QFont.Bold))  # Increased from 9 to 11
+            # Text
+            text_x = option.rect.x() + target_width + 24
+            painter.setFont(QFont("Segoe UI", 11, QFont.Bold))
             painter.setPen(Qt.white)
-            title_rect = QRect(text_x, text_y, text_w, 44)  # Increased height for bigger text
-            # Draw text with proper spacing - clip to prevent overflow
-            painter.drawText(title_rect, Qt.TextWordWrap | Qt.AlignLeft | Qt.AlignTop, title)
+            painter.drawText(QRect(text_x, option.rect.y() + 12, option.rect.width() - text_x, 40),
+                             Qt.TextWordWrap, title)
 
-            # === Views + Duration inline ===
-            painter.setFont(QFont("Segoe UI", 9))  # Increased from 8 to 9
+            painter.setFont(QFont("Segoe UI", 9))
             painter.setPen(QColor("#AAAAAA"))
+            painter.drawText(QRect(text_x, option.rect.y() + 60, option.rect.width() - text_x, 20),
+                             Qt.AlignLeft, f"{views} views • {time_since_published}")
 
-            # Views text
-            try:
-                views_num = int(float(views))
-                views_text = f"{views_num:,} views"
-            except (ValueError, TypeError):
-                views_text = f"{views} views"
-
-            # Compose single line: "views_text • duration"
-            combined_text = f"{views_text}"
-            if duration and duration != "--:--":
-                combined_text += f" • {duration}"
-
-            views_rect = QRect(text_x, title_rect.bottom() + 4, text_w, 20)  # Added spacing
-            painter.drawText(views_rect, Qt.AlignLeft, combined_text)
-
+        # === GRID MODE ===
         else:
-            # === GRID MODE (Slightly bigger text) ===
-            # Use same height for all video types, calculate width proportionally
-            target_height = 144  # Normal video height
-            if isinstance(thumbnail, QPixmap) and not thumbnail.isNull():
-                original_width = thumbnail.width()
-                original_height = thumbnail.height()
-                if original_height > 0:
-                    target_width = int((original_width / original_height) * target_height)
-                else:
-                    target_width = 256
-            else:
-                target_width = 256
-                target_height = 144
-            
-            # Ensure minimum and maximum reasonable widths
-            target_width = max(200, min(target_width, 360))  # Constrained for better grid layout
-
-            # Thumbnail with horizontal centering and top spacing
+            target_height = 144
+            target_width = 256
             thumb_x = option.rect.x() + (option.rect.width() - target_width) // 2
-            thumb_y = option.rect.y() + 10  # Increased top spacing
+            thumb_y = option.rect.y() + 8
             thumb_rect = QRect(thumb_x, thumb_y, target_width, target_height)
 
             if isinstance(thumbnail, QPixmap) and not thumbnail.isNull():
                 scaled = thumbnail.scaled(target_width, target_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-                x_offset = thumb_rect.x() + (thumb_rect.width() - scaled.width()) // 2
-                y_offset = thumb_rect.y() + (thumb_rect.height() - scaled.height()) // 2
-                painter.drawPixmap(x_offset, y_offset, scaled)
+                painter.drawPixmap(thumb_x, thumb_y, scaled)
 
             # Duration overlay
             if duration:
-                painter.setFont(QFont("Segoe UI", 9))  # Slightly bigger
+                painter.setFont(QFont("Segoe UI", 9))
                 painter.setPen(Qt.white)
-                metrics = painter.fontMetrics()
-                text_w = metrics.horizontalAdvance(duration)
-                text_h = metrics.height()
-                duration_rect = QRect(
-                    thumb_rect.right() - text_w - 8,  # Adjusted positioning
-                    thumb_rect.bottom() - text_h - 6,
-                    text_w + 8,  # Slightly bigger background
-                    text_h + 2,
-                )
-                painter.fillRect(duration_rect, QColor(0, 0, 0, 200))  # Darker background
-                painter.drawText(duration_rect, Qt.AlignCenter, duration)
+                painter.fillRect(thumb_rect.right() - 50, thumb_rect.bottom() - 22, 45, 18, QColor(0, 0, 0, 180))
+                painter.drawText(QRect(thumb_rect.right() - 50, thumb_rect.bottom() - 22, 45, 18),
+                                 Qt.AlignCenter, duration)
 
-            # Title with side spacing
-            painter.setFont(QFont("Segoe UI", 11, QFont.Bold))  # Increased from 10 to 11
+            # Title and views
+            painter.setFont(QFont("Segoe UI", 10, QFont.Bold))
             painter.setPen(Qt.white)
-            # Title rect with left and right margins
-            title_left_margin = 8
-            title_right_margin = 8
-            title_rect = QRect(
-                thumb_rect.left() + title_left_margin, 
-                thumb_rect.bottom() + 12,  # Increased spacing from thumbnail
-                thumb_rect.width() - title_left_margin - title_right_margin, 
-                42  # Increased height for bigger text
-            )
-            painter.drawText(title_rect, Qt.TextWordWrap | Qt.AlignLeft | Qt.AlignTop, title)
-
-            # Views with side spacing
-            painter.setFont(QFont("Segoe UI", 10))  # Increased from 9 to 10
+            painter.drawText(QRect(thumb_x, thumb_rect.bottom() + 8, target_width, 40),
+                             Qt.TextWordWrap, title)
+            painter.setFont(QFont("Segoe UI", 9))
             painter.setPen(QColor("#AAAAAA"))
-            try:
-                views_num = int(float(views))
-                views_text = f"{views_num:,} views"
-            except (ValueError, TypeError):
-                views_text = f"{views} views"
-            
-            views_left_margin = 8
-            views_right_margin = 8
-            views_rect = QRect(
-                thumb_rect.left() + views_left_margin, 
-                title_rect.bottom() + 4,  # Increased spacing from title
-                thumb_rect.width() - views_left_margin - views_right_margin, 
-                20
-            )
-            painter.drawText(views_rect, Qt.AlignLeft, views_text)
+            painter.drawText(QRect(thumb_x, thumb_rect.bottom() + 48, target_width, 20),
+                             Qt.AlignLeft, f"{views} views")
 
         painter.restore()
 
     def sizeHint(self, option, index):
-        """Adjusted sizes for better spacing."""
-        view = option.widget
-        if view.viewMode() == QListView.ListMode:
-            return QSize(option.rect.width(), 120)  # Increased height for bigger text
-        else:
-            data = index.data(Qt.UserRole)
-            if not data:
-                return QSize(280, 240)  # Slightly bigger default
-            
-            # For grid mode, calculate width based on thumbnail aspect ratio
-            thumbnail = getattr(data, "thumbnail", None)
-            if isinstance(thumbnail, QPixmap) and not thumbnail.isNull():
-                original_width = thumbnail.width()
-                original_height = thumbnail.height()
-                if original_height > 0:
-                    target_width = int((original_width / original_height) * 144)
-                    target_width = max(200, min(target_width, 360))  # Adjusted constraints
-                else:
-                    target_width = 280
-            else:
-                target_width = 280
-            
-            return QSize(target_width, 240)  # Increased height for bigger text and spacing
+        if option.widget.viewMode() == QListView.ListMode:
+            return QSize(option.rect.width(), 120)
+        return QSize(280, 240)
 
 
 class SelectableListView(QListView):
@@ -341,12 +229,12 @@ class SelectableListView(QListView):
 
 
 class Video(QWidget):
-    videos: dict = None
+    """YouTube video browser and scraper widget."""
 
     def __init__(self, parent=None):
         super(Video, self).__init__(parent)
         self.mainwindow = parent
-        self.db = app_state.db
+        self.db: DatabaseManager = app_state.db
 
         self.splash = None
         self.worker_thread = None
@@ -356,18 +244,26 @@ class Video(QWidget):
         self.main_layout = QGridLayout(self)
         self.setLayout(self.main_layout)
 
-        # === Channel Info ===
+        # === Header controls ===
         self.channel_label = QLabel()
         self.scrap_video_button = QPushButton("Scrape Videos")
         self.scrap_video_button.clicked.connect(self.scrape_videos)
 
         self.select_button = QPushButton("Select")
         self.select_button.clicked.connect(self.select_videos)
-        # === Segmented Control (List / Grid) ===
+
+        self.filter_combo = QComboBox()
+        self.filter_combo.addItems(["All", "Live", "Shorts", "Videos"])
+        self.sort_combo = QComboBox()
+        self.sort_combo.addItems(["Longest", "Shortest", "Newest", "Oldest", "Most Viewed", "Least Viewed"])
+        self.filter_combo.currentIndexChanged.connect(self.on_combo_changed)
+        self.sort_combo.currentIndexChanged.connect(self.on_combo_changed)
+
+        # === Segmented Control ===
         self._create_segmented_control()
 
         # === Video list ===
-        self.video_view = SelectableListView()
+        self.video_view = QListView()
         self.video_view.setViewMode(QListView.IconMode)
         self.video_view.setResizeMode(QListView.Adjust)
         self.video_view.setFlow(QListView.LeftToRight)
@@ -381,22 +277,24 @@ class Video(QWidget):
         self.video_delegate = YouTubeVideoDelegate(self.video_view)
         self.video_view.setItemDelegate(self.video_delegate)
 
-        # === Header layout ===
+        # === Layout ===
         self.main_layout.addWidget(self.segment_container, 0, 0, 1, 1, alignment=Qt.AlignLeft)
         self.main_layout.addWidget(self.channel_label, 0, 1, 1, 2, alignment=Qt.AlignCenter)
-        self.main_layout.addWidget(self.scrap_video_button, 0, 3, 1, 1)
-        self.main_layout.addWidget(self.video_view, 1, 0, 1, 4)
-        self.main_layout.addWidget(self.select_button, 2, 0, 1, 4)
+        self.main_layout.addWidget(self.filter_combo, 0, 3, 1, 1)
+        self.main_layout.addWidget(self.sort_combo, 0, 4, 1, 1)
+        self.main_layout.addWidget(self.scrap_video_button, 0, 5, 1, 1)
+        self.main_layout.addWidget(self.video_view, 1, 0, 1, 6)
+        self.main_layout.addWidget(self.select_button, 2, 0, 1, 6)
 
+        # === Signals ===
         app_state.channel_name_changed.connect(self.update_channel_label)
         self.update_channel_label(app_state.channel_name)
 
-    # === Segmented Control Creation ===
+    # --- Segmented Control ---
     def _create_segmented_control(self):
         self.segment_container = QFrame()
         layout = QHBoxLayout(self.segment_container)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
 
         list_icon = QIcon(os.path.join(self.mainwindow.base_dir, "assets", "icon", "light", "light_list.ico"))
         grid_icon = QIcon(os.path.join(self.mainwindow.base_dir, "assets", "icon", "light", "light_grid.ico"))
@@ -405,58 +303,30 @@ class Video(QWidget):
         self.list_btn.setIcon(list_icon)
         self.list_btn.setToolTip("List View")
         self.list_btn.setCheckable(True)
-        self.list_btn.setChecked(True)
-        self.list_btn.setProperty("segment", "left")
         self.list_btn.clicked.connect(self.on_list_clicked)
 
         self.grid_btn = QPushButton()
         self.grid_btn.setIcon(grid_icon)
         self.grid_btn.setToolTip("Grid View")
         self.grid_btn.setCheckable(True)
-        self.grid_btn.setProperty("segment", "right")
-        self.grid_btn.clicked.connect(self.on_grid_clicked)
-        
         self.grid_btn.setChecked(True)
-        self.list_btn.setChecked(False)
+        self.grid_btn.clicked.connect(self.on_grid_clicked)
 
         layout.addWidget(self.list_btn)
         layout.addWidget(self.grid_btn)
-        self.segment_container.setFixedHeight(32)
 
-    # === Segmented control handlers ===
+    # --- UI Actions ---
     def on_list_clicked(self):
         if self.list_btn.isChecked():
             self.grid_btn.setChecked(False)
             self.video_view.setViewMode(QListView.ListMode)
             self.video_view.setFlow(QListView.TopToBottom)
-            self.video_view.setSpacing(4)  # compact spacing
+            self.video_view.setSpacing(6)
         else:
             self.list_btn.setChecked(True)
         print("List view selected")
 
-    def select_videos(self):
-        selected_indexes = self.video_view.selectedIndexes()
-        if not selected_indexes:
-            print("No videos selected")
-            return
-        
-        selected_videos = []
-        for index in selected_indexes:
-            data = index.data(Qt.UserRole)
-            if data:
-                selected_videos.append({
-                    'title': data.title,
-                    'views': data.views,
-                    'duration': data.duration,
-                    'type': data.video_type
-                })
-        
-        print(f"Selected {len(selected_videos)} video(s):")
-        for video in selected_videos:
-            print(f"  - {video['title']}")
-
     def on_grid_clicked(self):
-        
         if self.grid_btn.isChecked():
             self.list_btn.setChecked(False)
             self.video_view.setViewMode(QListView.IconMode)
@@ -465,11 +335,7 @@ class Video(QWidget):
             self.grid_btn.setChecked(True)
         print("Grid view selected")
 
-    # === Channel label ===
-    def update_channel_label(self, name=None):
-        self.channel_label.setText(f"Selected channel: {name or 'None'}")
-
-    # === Video scraping ===
+    # --- Scraping ---
     def scrape_videos(self):
         channel_name = app_state.channel_name
         channel_id = app_state.channel_id
@@ -492,14 +358,13 @@ class Video(QWidget):
         self.worker.finished.connect(self.worker_thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.worker_thread.finished.connect(self.worker_thread.deleteLater)
-
         self.worker_thread.start()
 
     def show_splash_screen(self):
         cwd = os.getcwd()
         gif_path = os.path.join(cwd, "assets", "gif", "loading.gif")
-        self.splash = SplashScreen(gif_path=gif_path)
-        self.splash.set_title("Scraping Videos...")
+        self.splash = SplashScreen(parent=self.mainwindow, gif_path=gif_path)
+        self.splash.set_title("Scraping Videos (Videos, Shorts, Live)...")
         self.splash.update_status("Starting...")
         self.splash.show()
 
@@ -515,13 +380,18 @@ class Video(QWidget):
         if self.splash:
             self.splash.close()
             self.splash = None
-        print("Video scraping completed!")
+        print("✅ Video scraping completed!")
         self.load_videos_from_db()
 
-    # === Load videos ===
-    def load_videos_from_db(self):
+    # --- Loading videos ---
+    def load_videos_from_db(self, where=None, order_by=None):
         channel_id = app_state.channel_id
-        videos = self.db.fetch("VIDEO", "channel_id = ?", (channel_id,))
+        videos = self.db.fetch(
+            table="VIDEO",
+            where=f"channel_id=? AND {where}" if where else "channel_id=?",
+            order_by=order_by,
+            params=(channel_id,)
+        )
         self.model.clear()
 
         for video in videos:
@@ -536,8 +406,9 @@ class Video(QWidget):
             views = self._format_views(video.get("view_count"))
             title = video.get("title", "Untitled")
             video_type = video.get("video_type", "video").lower()
+            time_since_published = video.get("time_since_published")
 
-            item_data = YouTubeVideoItem(pixmap, title, duration, views, video_type)
+            item_data = YouTubeVideoItem(pixmap, title, duration, views, video_type, time_since_published)
             item = QStandardItem()
             item.setData(item_data, Qt.UserRole)
             item.setEditable(False)
@@ -545,16 +416,12 @@ class Video(QWidget):
 
         print(f"Loaded {self.model.rowCount()} videos for channel {channel_id}")
 
-    def _format_duration(self, seconds):
+    # --- Helpers ---
+    def _format_duration(self, duration):
+        if not duration:
+            return "--:--"
         try:
-            if seconds is None or seconds == "":
-                return "--:--"
-            seconds = int(float(seconds))
-            minutes, sec = divmod(seconds, 60)
-            hours, minutes = divmod(minutes, 60)
-            if hours:
-                return f"{hours}:{minutes:02}:{sec:02}"
-            return f"{minutes}:{sec:02}"
+            return duration if ":" in str(duration) else f"{int(duration)//60}:{int(duration)%60:02}"
         except Exception:
             return "--:--"
 
@@ -568,3 +435,35 @@ class Video(QWidget):
             return str(views)
         except Exception:
             return "0"
+
+    def on_combo_changed(self):
+        sort = self.sort_combo.currentText()
+        filter = self.filter_combo.currentText()
+
+        where = None if filter == "All" else f"video_type = '{filter.lower()}'"
+        order_by = None
+        if sort == "Longest":
+            order_by = "duration_in_seconds DESC"
+        elif sort == "Shortest":
+            order_by = "duration_in_seconds ASC"
+        elif sort == "Newest":
+            order_by = "time_since_upload DESC"
+        elif sort == "Oldest":
+            order_by = "time_since_upload ASC"
+        elif sort == "Most Viewed":
+            order_by = "view_count DESC"
+        elif sort == "Least Viewed":
+            order_by = "view_count ASC"
+
+        self.load_videos_from_db(where, order_by)
+
+    def select_videos(self):
+        selected_indexes = self.video_view.selectedIndexes()
+        if not selected_indexes:
+            print("No videos selected")
+            return
+        selected = [index.data(Qt.UserRole).title for index in selected_indexes if index.data(Qt.UserRole)]
+        print(f"Selected {len(selected)} video(s): {selected}")
+
+    def update_channel_label(self, name=None):
+        self.channel_label.setText(f"Selected channel: {name or 'None'}")

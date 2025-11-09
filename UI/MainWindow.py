@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QToolButton
 )
 from PySide6.QtGui import QIcon
-from PySide6.QtCore import Qt, QSize, QThread
+from PySide6.QtCore import Qt, QSize, QThread, QEvent
 import threading
 import os, sys
 
@@ -37,10 +37,11 @@ class MainWindow(QMainWindow):
         self.setGeometry(500, 200, 500, 300)
         
         # Show splash screen
-        self.splash = SplashScreen()
+        self.splash = SplashScreen(parent=self)
         self.splash.set_title("StaTube - YouTube Data Analysis Tool")
         self.splash.update_status("Initializing ...")
         self.splash.show()
+        
         self.initialize()
 
     def load_stylesheet(self):

@@ -7,7 +7,7 @@ class SplashScreen(QDialog):
         super().__init__(parent)
         
         # Set up as a frameless dialog that follows parent
-        self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+        self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setModal(True)  # Makes it block parent interaction
         
