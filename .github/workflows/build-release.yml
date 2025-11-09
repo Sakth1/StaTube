@@ -3,10 +3,9 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*'  # matches v1.0.0, v1.0.1, etc.
-      - 'v*.*'  # matches v1.0, v2.1, etc.
+      - 'v*'
   release:
-    types: [published, created]  # Also trigger when release is created in UI
+    types: [published, created]
 
 jobs:
   build:
@@ -16,14 +15,18 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # Fetch all history for proper version detection
+        fetch-depth: 0
 
-    - name: Debug Info
+    - name: Debug - List directory structure
       run: |
-        echo "Git Ref: ${{ github.ref }}"
-        echo "Git Ref Name: ${{ github.ref_name }}"
-        echo "Event Name: ${{ github.event_name }}"
-        echo "Workflow Triggered By: ${{ github.actor }}"
+        echo "Current directory structure:"
+        Get-ChildItem -Recurse | ForEach-Object { 
+          if ($_.PSIsContainer) { 
+            echo "DIR: $($_.FullName)" 
+          } else { 
+            echo "FILE: $($_.FullName)" 
+          }
+        }
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -36,23 +39,28 @@ jobs:
         python -m pip install --upgrade pip
         pip install nuitka pyside6 yt_dlp
         # Verify installations
-        python -c "import PySide6; print('PySide6 version:', PySide6.__version__)"
-        python -c "import yt_dlp; print('yt-dlp version:', yt_dlp.version.__version__)"
+        python -c "import PySide6; print('PySide6 version:', PySide6.__version__)" || echo "PySide6 not installed"
+        python -c "import yt_dlp; print('yt-dlp version:', yt_dlp.version.__version__)" || echo "yt-dlp not installed"
 
-    - name: Build with Nuitka
+    - name: Build with Nuitka (Fixed paths)
       run: |
-        python -m nuitka --standalone --enable-plugin=pyside6 --windows-console-mode=disable --include-package=yt_dlp --include-module=yt_dlp.utils --nofollow-import-to=yt_dlp.extractor.lazy_extractors --include-data-dir=src/assets=assets --include-data-dir=src/UI=UI main.py
+        python -m nuitka --standalone --enable-plugin=pyside6 --windows-console-mode=disable --include-package=yt_dlp --include-module=yt_dlp.utils --nofollow-import-to=yt_dlp.extractor.lazy_extractors --include-data-dir=assets=assets --include-data-dir=UI=UI main.py
 
     - name: Test executable
       run: |
         if (Test-Path "main.dist\main.exe") {
           echo "✅ Executable created successfully"
-          # Get file size
           $file = Get-Item "main.dist\main.exe"
           echo "Executable size: $($file.Length) bytes"
+          # List contents of dist folder
+          echo "Contents of main.dist:"
+          Get-ChildItem "main.dist" -Recurse | ForEach-Object { echo "  $($_.FullName)" }
         } else {
           echo "❌ Executable not found!"
-          Get-ChildItem -Recurse | Where-Object { $_.Name -like "*.exe" } | ForEach-Object { echo "Found exe: $($_.FullName)" }
+          echo "Current directory contents:"
+          Get-ChildItem
+          echo "Looking for any .exe files:"
+          Get-ChildItem -Recurse -Filter "*.exe" | ForEach-Object { echo "Found: $($_.FullName)" }
           exit 1
         }
 
@@ -64,8 +72,8 @@ jobs:
         }
         echo "Creating ZIP for version: $version"
         Compress-Archive -Path "main.dist\*" -DestinationPath "MyApp-$version.zip"
-        # List created files
-        Get-ChildItem *.zip
+        echo "Created files:"
+        Get-ChildItem *.zip, *.exe -Recurse
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
@@ -80,7 +88,7 @@ jobs:
     needs: build
     runs-on: windows-latest
     permissions:
-      contents: write  # This is crucial for releasing
+      contents: write
     
     steps:
     - name: Download build artifacts
@@ -88,11 +96,6 @@ jobs:
       with:
         pattern: build-artifacts-*
         merge-multiple: true
-
-    - name: Display structure
-      run: |
-        echo "Artifacts structure:"
-        Get-ChildItem -Recurse
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
