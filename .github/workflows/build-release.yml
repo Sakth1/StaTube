@@ -126,7 +126,9 @@ jobs:
           $innoContent | Out-File -FilePath "installer.iss" -Encoding UTF8
 
       - name: Compile installer
-        run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss'
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
 
       #######################################
       # UPLOAD ARTIFACTS
