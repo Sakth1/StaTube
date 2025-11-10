@@ -30,6 +30,7 @@ jobs:
       # A) BUILD STANDALONE (FOR INSTALLER)
       #######################################
       - name: Build standalone (folder-based)
+        shell: cmd
         run: |
           python -m nuitka ^
             --standalone ^
@@ -54,6 +55,7 @@ jobs:
       # B) BUILD ONEFILE PORTABLE
       #######################################
       - name: Build portable onefile exe
+        shell: cmd
         run: |
           python -m nuitka ^
             --onefile ^
