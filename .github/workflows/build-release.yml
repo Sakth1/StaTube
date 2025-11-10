@@ -38,42 +38,40 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install nuitka pyside6 yt_dlp
-        # Verify installations
-        python -c "import PySide6; print('PySide6 version:', PySide6.__version__)" || echo "PySide6 not installed"
-        python -c "import yt_dlp; print('yt-dlp version:', yt_dlp.version.__version__)" || echo "yt-dlp not installed"
+        python -c "import PySide6; print('PySide6 version:', PySide6.__version__)"
+        python -c "import yt_dlp; print('yt-dlp version:', yt_dlp.version.__version__)"
 
-    - name: Build with Nuitka (Fixed with assume-yes flag)
+    - name: Build with Nuitka
       run: |
         python -m nuitka --standalone --enable-plugin=pyside6 --windows-console-mode=disable --include-package=yt_dlp --include-module=yt_dlp.utils --nofollow-import-to=yt_dlp.extractor.lazy_extractors --include-data-dir=assets=assets --include-data-dir=UI=UI --assume-yes-for-downloads main.py
 
-    - name: Test executable
-      run: |
-        if (Test-Path "main.dist\main.exe") {
-          echo "✅ Executable created successfully"
-          $file = Get-Item "main.dist\main.exe"
-          echo "Executable size: $($file.Length) bytes"
-          # List contents of dist folder
-          echo "Contents of main.dist:"
-          Get-ChildItem "main.dist" -Recurse | ForEach-Object { echo "  $($_.FullName)" }
-        } else {
-          echo "❌ Executable not found!"
-          echo "Current directory contents:"
-          Get-ChildItem
-          echo "Looking for any .exe files:"
-          Get-ChildItem -Recurse -Filter "*.exe" | ForEach-Object { echo "Found: $($_.FullName)" }
-          exit 1
-        }
-
-    - name: Create ZIP package
+    - name: Rename executable to StaTube-[version].exe
       run: |
         $version = "${{ github.ref_name }}"
-        if ($version.StartsWith("v")) {
-          $version = $version.Substring(1)
+        if ($version.StartsWith("v")) { $version = $version.Substring(1) }
+
+        $oldExe = "main.dist/main.exe"
+        $newExe = "main.dist/StaTube-$version.exe"
+
+        if (Test-Path $oldExe) {
+            Rename-Item -Path $oldExe -NewName "StaTube-$version.exe"
+            echo "Renamed executable to StaTube-$version.exe"
+        } else {
+            echo "main.exe not found"
+            exit 1
         }
-        echo "Creating ZIP for version: $version"
-        Compress-Archive -Path "main.dist\*" -DestinationPath "MyApp-$version.zip"
-        echo "Created files:"
-        Get-ChildItem *.zip, *.exe -Recurse
+
+    - name: Create ZIP package (StaTube-[version].zip)
+      run: |
+        $version = "${{ github.ref_name }}"
+        if ($version.StartsWith("v")) { $version = $version.Substring(1) }
+
+        $zipName = "StaTube-$version.zip"
+
+        Compress-Archive -Path "main.dist\*" -DestinationPath $zipName
+
+        echo "Created ZIP: $zipName"
+        Get-ChildItem *.zip
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
@@ -106,11 +104,11 @@ jobs:
           Automatic build for ${{ github.ref_name }}
           
           **Assets included:**
-          - Main executable (main.exe)
+          - StaTube executable
           - Portable ZIP package
         files: |
-          *.zip
-          main.dist/main.exe
+          StaTube-*.zip
+          main.dist/StaTube-*.exe
         generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
