@@ -31,34 +31,7 @@ jobs:
           pip install nuitka pyside6 yt_dlp
       
       #######################################
-      # A) BUILD STANDALONE (FOR INSTALLER)
-      #######################################
-      - name: Build standalone (folder-based)
-        shell: cmd
-        run: |
-          python -m nuitka ^
-            --standalone ^
-            --enable-plugin=pyside6 ^
-            --windows-console-mode=disable ^
-            --windows-icon-from-ico=assets/icon/youtube.ico ^
-            --include-package=yt_dlp ^
-            --include-module=yt_dlp.utils ^
-            --nofollow-import-to=yt_dlp.extractor.lazy_extractors ^
-            --include-data-dir=assets=assets ^
-            --include-data-dir=UI=UI ^
-            --assume-yes-for-downloads ^
-            main.py
-      
-      - name: Rename standalone exe
-        shell: pwsh
-        run: |
-          $version = "${{ github.ref_name }}"
-          if ($version.StartsWith("v")) { $version = $version.Substring(1) }
-          if (!(Test-Path "main.dist\main.exe")) { throw "Standalone exe not found" }
-          Rename-Item "main.dist\main.exe" "StaTube-$version.exe"
-      
-      #######################################
-      # B) BUILD ONEFILE PORTABLE
+      # BUILD ONEFILE PORTABLE
       #######################################
       - name: Build portable onefile exe
         shell: cmd
@@ -77,66 +50,14 @@ jobs:
             --assume-yes-for-downloads ^
             main.py
       
-      - name: Move portable exe
+      - name: Rename and prepare portable exe
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}"
           if ($version.StartsWith("v")) { $version = $version.Substring(1) }
           if (!(Test-Path ".\main.exe")) { throw "Onefile portable exe not found" }
-          New-Item -ItemType Directory -Force -Path portables | Out-Null
-          Move-Item ".\main.exe" ".\portables\StaTube-$version-portable.exe" -Force
-      
-      #######################################
-      # C) BUILD INSTALLER (INNO SETUP)
-      #######################################
-      - name: Install Inno Setup
-        run: choco install innosetup -y
-
-      - name: Generate InnoSetup script
-        shell: pwsh
-        run: |
-          $version = "${{ github.ref_name }}"
-          if ($version.StartsWith("v")) { $version = $version.Substring(1) }
-          $guid = "1F4E8E6B-7B8F-4C3C-9E7D-9F9F5B8D21B1"
-          $innoContent = @'
-[Setup]
-AppId={$guid}
-AppName=StaTube
-AppVersion=$version
-AppVerName=StaTube $version
-DefaultDirName={autopf}\StaTube
-DefaultGroupName=StaTube
-DisableDirPage=no
-OutputDir=installers
-OutputBaseFilename=StaTube-$version-installer
-Compression=lzma
-SolidCompression=yes
-ArchitecturesInstallIn64BitMode=x64
-PrivilegesRequired=admin
-SetupIconFile=assets\icon\youtube.ico
-UninstallDisplayIcon={app}\StaTube-$version.exe
-
-[Files]
-Source: "main.dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
-
-[Icons]
-Name: "{group}\StaTube"; Filename: "{app}\StaTube-$version.exe"
-Name: "{group}\Uninstall StaTube"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\StaTube"; Filename: "{app}\StaTube-$version.exe"; Tasks: desktopicon
-
-[Tasks]
-Name: "desktopicon"; Description: "Create a &desktop icon"; GroupDescription: "Additional icons:"; Flags: unchecked
-
-[Run]
-Filename: "{app}\StaTube-$version.exe"; Description: "Launch StaTube"; Flags: nowait postinstall skipifsilent
-'@
-          $innoContent = $innoContent -replace '\$version', $version -replace '\$guid', $guid
-          $innoContent | Out-File -FilePath "installer.iss" -Encoding UTF8
-
-      - name: Compile installer
-        shell: pwsh
-        run: |
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+          New-Item -ItemType Directory -Force -Path releases | Out-Null
+          Move-Item ".\main.exe" ".\releases\StaTube-$version-portable.exe" -Force
       
       #######################################
       # UPLOAD ARTIFACTS
@@ -145,9 +66,7 @@ Filename: "{app}\StaTube-$version.exe"; Description: "Launch StaTube"; Flags: no
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ github.ref_name }}
-          path: |
-            portables/StaTube-*-portable.exe
-            installers/StaTube-*-installer.exe
+          path: releases/StaTube-*-portable.exe
           retention-days: 7
 
   #######################################
@@ -173,12 +92,10 @@ Filename: "{app}\StaTube-$version.exe"; Description: "Launch StaTube"; Flags: no
           name: Release ${{ github.ref_name }}
           body: |
             Automatic build for ${{ github.ref_name }}
+            
             **Included:**
-            - Portable single EXE (portables/)
-            - Installer (installers/)
-          files: |
-            portables/StaTube-*-portable.exe
-            installers/StaTube-*-installer.exe
+            - Portable single EXE (StaTube-${{ github.ref_name }}-portable.exe)
+          files: StaTube-*-portable.exe
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
