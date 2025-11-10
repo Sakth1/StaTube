@@ -82,8 +82,8 @@ jobs:
 
           if (!(Test-Path ".\main.exe")) { throw "Onefile portable exe not found" }
 
-          New-Item -ItemType Directory -Force -Path porables | Out-Null
-          Move-Item ".\main.exe" ".\porables\StaTube-$version-portable.exe" -Force
+          New-Item -ItemType Directory -Force -Path portables | Out-Null
+          Move-Item ".\main.exe" ".\portables\StaTube-$version-portable.exe" -Force
 
       #######################################
       # C) BUILD INSTALLER (INNO SETUP)
@@ -98,7 +98,7 @@ jobs:
           if ($version.StartsWith("v")) { $version = $version.Substring(1) }
           $guid = "1F4E8E6B-7B8F-4C3C-9E7D-9F9F5B8D21B1"
 
-          @"
+          $innoScript = @"
 [Setup]
 AppId={{{$guid}}}
 AppName=StaTube
@@ -128,7 +128,8 @@ Name: "desktopicon"; Description: "Create a &desktop icon"; GroupDescription: "A
 
 [Run]
 Filename: "{app}\StaTube-$version.exe"; Description: "Launch StaTube"; Flags: nowait postinstall skipifsilent
-"@ | Set-Content -Path installer.iss -Encoding UTF8
+"@
+          $innoScript | Set-Content -Path installer.iss -Encoding UTF8
 
       - name: Compile installer
         run: '"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss'
@@ -141,10 +142,9 @@ Filename: "{app}\StaTube-$version.exe"; Description: "Launch StaTube"; Flags: no
         with:
           name: build-${{ github.ref_name }}
           path: |
-            porables/StaTube-*-portable.exe
+            portables/StaTube-*-portable.exe
             installers/StaTube-*-installer.exe
           retention-days: 7
-
 
   #######################################
   # RELEASE JOB
@@ -171,10 +171,10 @@ Filename: "{app}\StaTube-$version.exe"; Description: "Launch StaTube"; Flags: no
             Automatic build for ${{ github.ref_name }}
 
             **Included:**
-            - Portable single EXE (porables/)
+            - Portable single EXE (portables/)
             - Installer (installers/)
           files: |
-            porables/StaTube-*-portable.exe
+            portables/StaTube-*-portable.exe
             installers/StaTube-*-installer.exe
           generate_release_notes: true
         env:
