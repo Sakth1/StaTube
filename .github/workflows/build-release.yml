@@ -92,36 +92,36 @@ jobs:
           $guid = "1F4E8E6B-7B8F-4C3C-9E7D-9F9F5B8D21B1"
           
           $innoContent = @"
-          [Setup]
-          AppId={{{$guid}}}
-          AppName=StaTube
-          AppVersion=$version
-          DefaultDirName={pf}\StaTube
-          DefaultGroupName=StaTube
-          DisableDirPage=no
-          OutputDir=installers
-          OutputBaseFilename=StaTube-$version-installer
-          Compression=lzma
-          SolidCompression=yes
-          ArchitecturesInstallIn64BitMode=x64
-          PrivilegesRequired=admin
-          SetupIconFile=assets\icon\youtube.ico
-          UninstallDisplayIcon={app}\StaTube-$version.exe
+[Setup]
+AppId={{$guid}
+AppName=StaTube
+AppVersion=$version
+DefaultDirName={{pf}\StaTube
+DefaultGroupName=StaTube
+DisableDirPage=no
+OutputDir=installers
+OutputBaseFilename=StaTube-$version-installer
+Compression=lzma
+SolidCompression=yes
+ArchitecturesInstallIn64BitMode=x64
+PrivilegesRequired=admin
+SetupIconFile=assets\icon\youtube.ico
+UninstallDisplayIcon={{app}\StaTube-$version.exe
 
-          [Files]
-          Source: "main.dist\*"; DestDir: "{app}"; Flags: recursesubdirs
+[Files]
+Source: "main.dist\*"; DestDir: "{{app}"; Flags: recursesubdirs
 
-          [Icons]
-          Name: "{group}\StaTube"; Filename: "{app}\StaTube-$version.exe"
-          Name: "{group}\Uninstall StaTube"; Filename: "{uninstallexe}"
-          Name: "{autodesktop}\StaTube"; Filename: "{app}\StaTube-$version.exe"; Tasks: desktopicon
+[Icons]
+Name: "{{group}\StaTube"; Filename: "{{app}\StaTube-$version.exe"
+Name: "{{group}\Uninstall StaTube"; Filename: "{{uninstallexe}"
+Name: "{{autodesktop}\StaTube"; Filename: "{{app}\StaTube-$version.exe"; Tasks: desktopicon
 
-          [Tasks]
-          Name: "desktopicon"; Description: "Create a &desktop icon"; GroupDescription: "Additional icons:"; Flags: unchecked
+[Tasks]
+Name: "desktopicon"; Description: "Create a &desktop icon"; GroupDescription: "Additional icons:"; Flags: unchecked
 
-          [Run]
-          Filename: "{app}\StaTube-$version.exe"; Description: "Launch StaTube"; Flags: nowait postinstall skipifsilent
-          "@
+[Run]
+Filename: "{{app}\StaTube-$version.exe"; Description: "Launch StaTube"; Flags: nowait postinstall skipifsilent
+"@
           
           $innoContent | Out-File -FilePath "installer.iss" -Encoding UTF8
 
