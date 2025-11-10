@@ -26,6 +26,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install nuitka pyside6 yt_dlp
+      
       #######################################
       # A) BUILD STANDALONE (FOR INSTALLER)
       #######################################
@@ -44,6 +45,7 @@ jobs:
             --include-data-dir=UI=UI ^
             --assume-yes-for-downloads ^
             main.py
+
       - name: Rename standalone exe
         shell: pwsh
         run: |
@@ -51,6 +53,7 @@ jobs:
           if ($version.StartsWith("v")) { $version = $version.Substring(1) }
           if (!(Test-Path "main.dist\main.exe")) { throw "Standalone exe not found" }
           Rename-Item "main.dist\main.exe" "StaTube-$version.exe"
+      
       #######################################
       # B) BUILD ONEFILE PORTABLE
       #######################################
@@ -70,6 +73,7 @@ jobs:
             --include-data-dir=UI=UI ^
             --assume-yes-for-downloads ^
             main.py
+
       - name: Move portable exe
         shell: pwsh
         run: |
@@ -78,6 +82,7 @@ jobs:
           if (!(Test-Path ".\main.exe")) { throw "Onefile portable exe not found" }
           New-Item -ItemType Directory -Force -Path portables | Out-Null
           Move-Item ".\main.exe" ".\portables\StaTube-$version-portable.exe" -Force
+      
       #######################################
       # C) BUILD INSTALLER (INNO SETUP)
       #######################################
@@ -93,10 +98,11 @@ jobs:
           
           $innoContent = @"
 [Setup]
-AppId={{$guid}
+AppId={$guid}
 AppName=StaTube
 AppVersion=$version
-DefaultDirName={{pf}\StaTube
+AppVerName=StaTube $version
+DefaultDirName={autopf}\StaTube
 DefaultGroupName=StaTube
 DisableDirPage=no
 OutputDir=installers
@@ -106,21 +112,21 @@ SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64
 PrivilegesRequired=admin
 SetupIconFile=assets\icon\youtube.ico
-UninstallDisplayIcon={{app}\StaTube-$version.exe
+UninstallDisplayIcon={app}\StaTube-$version.exe
 
 [Files]
-Source: "main.dist\*"; DestDir: "{{app}"; Flags: recursesubdirs
+Source: "main.dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 
 [Icons]
-Name: "{{group}\StaTube"; Filename: "{{app}\StaTube-$version.exe"
-Name: "{{group}\Uninstall StaTube"; Filename: "{{uninstallexe}"
-Name: "{{autodesktop}\StaTube"; Filename: "{{app}\StaTube-$version.exe"; Tasks: desktopicon
+Name: "{group}\StaTube"; Filename: "{app}\StaTube-$version.exe"
+Name: "{group}\Uninstall StaTube"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\StaTube"; Filename: "{app}\StaTube-$version.exe"; Tasks: desktopicon
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop icon"; GroupDescription: "Additional icons:"; Flags: unchecked
 
 [Run]
-Filename: "{{app}\StaTube-$version.exe"; Description: "Launch StaTube"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\StaTube-$version.exe"; Description: "Launch StaTube"; Flags: nowait postinstall skipifsilent
 "@
           
           $innoContent | Out-File -FilePath "installer.iss" -Encoding UTF8
@@ -129,7 +135,7 @@ Filename: "{{app}\StaTube-$version.exe"; Description: "Launch StaTube"; Flags: n
         shell: pwsh
         run: |
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
-
+      
       #######################################
       # UPLOAD ARTIFACTS
       #######################################
