@@ -1,34 +1,30 @@
 name: Build and Release
-
 on:
   push:
     tags: ['v*']
   release:
     types: [published, created]
-
 jobs:
   #######################################
   # BUILD JOB
   #######################################
   build:
     runs-on: windows-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
           cache: 'pip'
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install nuitka pyside6 yt_dlp
+          pip install -r requirements.txt
+          pip install nuitka
       
       #######################################
       # BUILD ONEFILE PORTABLE
@@ -43,6 +39,7 @@ jobs:
             --windows-icon-from-ico=assets/icon/youtube.ico ^
             --include-package=yt_dlp ^
             --include-module=yt_dlp.utils ^
+            --include-package=scrapetube ^
             --nofollow-import-to=yt_dlp.extractor.lazy_extractors ^
             --include-data-dir=assets=assets ^
             --include-data-dir=UI=UI ^
@@ -67,7 +64,6 @@ jobs:
           name: build-${{ github.ref_name }}
           path: releases/StaTube-*-portable.exe
           retention-days: 7
-
   #######################################
   # RELEASE JOB
   #######################################
@@ -76,14 +72,12 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: write
-
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: build-*
           merge-multiple: true
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
