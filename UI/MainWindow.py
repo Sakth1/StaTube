@@ -47,10 +47,15 @@ class MainWindow(QMainWindow):
     def load_stylesheet(self):
         """Load and apply QSS stylesheet"""
         try:
-            # Get the directory where mainwindow.py is located
-            base_dir = os.getcwd()
-            # Go up one level to project root
-            #base_dir = os.path.dirname(base_dir)
+            # For Nuitka onefile builds, use __file__ to get the correct path
+            if getattr(sys, 'frozen', False):
+                # Running as compiled executable
+                base_dir = os.path.dirname(sys.argv[0])
+            else:
+                # Running as script
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                base_dir = os.path.dirname(base_dir)  # Go up to project root
+            
             qss_path = os.path.join(base_dir, "UI", "Style.qss")
             
             with open(qss_path, "r", encoding="utf-8") as f:
