@@ -43,6 +43,7 @@ jobs:
             --nofollow-import-to=yt_dlp.extractor.lazy_extractors ^
             --include-data-dir=assets=assets ^
             --include-data-dir=UI=UI ^
+            --include-data-file=UI/Style.qss=UI/Style.qss ^
             --assume-yes-for-downloads ^
             main.py
       
