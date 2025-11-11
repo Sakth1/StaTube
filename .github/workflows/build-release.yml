@@ -40,7 +40,6 @@ jobs:
             --onefile ^
             --onefile-tempdir-spec="%CACHE_DIR%" ^
             --enable-plugin=pyside6 ^
-            --windows-console-mode=disable ^
             --windows-icon-from-ico=assets/icon/youtube.ico ^
             --include-package=yt_dlp ^
             --include-module=yt_dlp.utils ^
