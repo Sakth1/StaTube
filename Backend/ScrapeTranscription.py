@@ -1,106 +1,80 @@
-import yt_dlp
-import webvtt
-import os
+from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound
 import json
-from pathlib import Path
-from Data.DatabaseManager import DatabaseManager  # new DB reference
+import os
 
+class SimpleYouTubeTranscriptFetcher:
+    """
+    A simplified class to fetch YouTube video transcripts using youtube-transcript-api.
+    """
+    
+    def __init__(self, output_dir="transcripts"):
+        self.output_dir = output_dir
+        os.makedirs(self.output_dir, exist_ok=True)
 
-class Transcription:
-    def __init__(self, db: DatabaseManager, base_dir=None):
+    def fetch_transcript(self, video_id, languages=('en',)):
         """
-        Handles downloading, parsing, and saving YouTube video transcripts.
-        Stores transcript files in the AppData directory.
+        Fetches a transcript for a single YouTube video.
+        
+        Args:
+            video_id (str): The YouTube video ID.
+            languages (tuple): A tuple of language codes to try (e.g., ('en', 'es')).
+            
+        Returns:
+            dict: The transcript data and metadata, or None if failed.
         """
-        self.db:DatabaseManager = db
-
-        self.base_dir = self.db.base_dir
-        self.transcripts_dir = self.db.transcript_dir
-
-    def get_transcripts(self, urls: list[str], channel_id: str, lang: str = "en") -> dict:
-        """
-        Downloads transcripts for a list of YouTube video URLs,
-        saves them into JSON files under Transcripts/,
-        and inserts file references into the database.
-        """
-        all_transcripts = {
-            "channel_id": channel_id,
-            "language": lang,
-            "videos": []
-        }
-
-        ydl_opts = {
-            "writesubtitles": True,
-            "writeautomaticsub": True,
-            "subtitlesformat": "vtt",
-            "subtitleslangs": [lang],
-            "skip_download": True,
-            "outtmpl": "%(id)s.%(ext)s",
-            "quiet": True,
-        }
-
         try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                for url in urls:
-                    try:
-                        info_dict = ydl.extract_info(url, download=True)
-                        video_id = info_dict.get("id")
-                        title = info_dict.get("title", "Unknown Title")
-
-                        # Find VTT file in working dir
-                        vtt_filename = next(
-                            (f for f in os.listdir() if f.endswith(".vtt") and video_id in f),
-                            None
-                        )
-                        if not vtt_filename:
-                            print(f"[WARN] No VTT subtitle found for {url}")
-                            continue
-
-                        # Parse transcript
-                        video_transcript = {
-                            "video_id": video_id,
-                            "title": title,
-                            "url": url,
-                            "captions": []
-                        }
-
-                        for caption in webvtt.read(vtt_filename):
-                            video_transcript["captions"].append({
-                                "start": caption.start,
-                                "end": caption.end,
-                                "text": caption.text
-                            })
-
-                        all_transcripts["videos"].append(video_transcript)
-
-                        # Save per-video transcript JSON
-                        video_file = self.transcripts_dir / f"{video_id}_transcript.json"
-                        with open(video_file, "w", encoding="utf-8") as vf:
-                            json.dump(video_transcript, vf, indent=2, ensure_ascii=False)
-
-                        # Insert reference in DB
-                        self.db.insert_transcript_reference(
-                            channel_id=channel_id,
-                            video_id=video_id,
-                            transcript_path=str(video_file)
-                        )
-
-                        # Clean up .vtt
-                        os.remove(vtt_filename)
-
-                        print(f"[INFO] Transcript saved: {video_file}")
-
-                    except Exception as ve:
-                        print(f"[ERROR] Failed to fetch transcript for {url}: {ve}")
-
-            # Save combined transcripts (optional)
-            combined_file = self.transcripts_dir / f"{channel_id}_all_transcripts.json"
-            with open(combined_file, "w", encoding="utf-8") as f:
-                json.dump(all_transcripts, f, indent=2, ensure_ascii=False)
-
-            print(f"[INFO] All transcripts saved to: {combined_file}")
-            return all_transcripts
-
+            transcript_list = YouTubeTranscriptApi().list(video_id=video_id)
+            
+            # Try to get a manual transcript first, fall back to generated
+            try:
+                transcript = transcript_list.find_manually_created_transcript(languages)
+            except NoTranscriptFound:
+                transcript = transcript_list.find_generated_transcript(languages)
+            
+            transcript_data = transcript.fetch()
+            transcript_data = transcript_data.to_raw_data()
+            print(transcript_data)
+            
+            # Structure the result
+            result = {
+                'video_id': video_id,
+                'transcript': transcript_data,
+                'language': transcript.language_code,
+                'is_generated': transcript.is_generated
+            }
+            return result
+            
         except Exception as e:
-            print(f"[ERROR] Transcription process failed: {e}")
-            return {}
+            import traceback
+            traceback.print_exc()
+            print(f"Error fetching transcript for {video_id}: {e}")
+            return None
+
+    def save_transcript(self, transcript_data):
+        """Saves transcript data to a JSON file."""
+        if not transcript_data:
+            return False
+            
+        video_id = transcript_data['video_id']
+        filename = f"{video_id}.json"
+        filepath = os.path.join(self.output_dir, filename)
+        
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(transcript_data, f, indent=2, ensure_ascii=False)
+            print(f"Transcript saved to: {filepath}")
+            return True
+        except Exception as e:
+            print(f"Error saving transcript for {video_id}: {e}")
+            return False
+
+# Example usage
+if __name__ == "__main__":
+    fetcher = SimpleYouTubeTranscriptFetcher()
+    
+    # Test with a video ID
+    video_id = "dQw4w9WgXcQ"
+    transcript = fetcher.fetch_transcript(video_id)
+    
+    if transcript:
+        fetcher.save_transcript(transcript)
