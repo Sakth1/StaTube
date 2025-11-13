@@ -4,7 +4,7 @@ aiohttp==3.13.1
 aiosignal==1.4.0
 appdirs==1.4.4
 attrs==25.4.0
-certifi==2025.8.3
+certifi==2025.10.5
 charset-normalizer==3.4.3
 frozenlist==1.7.0
 idna==3.10
