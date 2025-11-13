@@ -10,7 +10,6 @@ import traceback
 
 from Data.DatabaseManager import DatabaseManager
 from Backend.ScrapeChannel import Search
-from Backend.ScrapeTranscription import Transcription
 from utils.AppState import app_state
 from UI.SplashScreen import SplashScreen
 import os
@@ -59,7 +58,6 @@ class Home(QWidget):
         self.search_thread_instance = None
         self.channels = None
         self.search_channel_button = QPushButton("Search")
-        self.scrape_transcription_button = QPushButton("scrape transcription")
 
         self.search_timer.setSingleShot(True)
         self.search_timer.timeout.connect(lambda: self.search_keyword(self.searchbar.text()))
@@ -70,7 +68,6 @@ class Home(QWidget):
         self.completer.activated.connect(self.on_completer_activated)
         
         self.search_channel_button.clicked.connect(self.search_channel)
-        self.scrape_transcription_button.clicked.connect(self.scrape_transcription)
         
         # Connect signals to slots
         self.results_ready.connect(self.update_results)
@@ -106,12 +103,13 @@ class Home(QWidget):
 
     def select_channel(self):
         item = self.channel_list.currentItem()
+        channel_info = {}
         if item:
             data = item.data(Qt.UserRole)
-            app_state.channel_name = data['channel_name']
-            app_state.channel_id = data['channel_id']
-            print(f'{data["channel_url"]}')
-            app_state.channel_url = data['channel_url']
+            channel_info['channel_name'] = data['channel_name']
+            channel_info['channel_id'] = data['channel_id']
+            channel_info['channel_url'] = data['channel_url']
+            app_state.channel_info = channel_info
 
     def reset_search_timer(self):
         if not self.completer_active:
@@ -175,18 +173,18 @@ class Home(QWidget):
         # Create a copy of channels to avoid iteration issues
         channels_copy = self.channels.copy()
         
-        for channel_id, channel_info in channels_copy.items():
+        for channel_id, info in channels_copy.items():
             inf = self.db.fetch(table="CHANNEL", where="channel_id=?", params=(channel_id,))
             if not inf:
                 # No DB row found — use sensible defaults and warn
-                print(f"[WARN] No DB entry for channel_id={channel_id}")
+                print(f"[WARN] No DB entry for channel {channel_name}")
                 sub_count = 0
-                channel_name = channel_info.get("title", "Unknown")
+                channel_name = info.get("title", "Unknown")
                 profile_pic = None
             else:
                 row = inf[0]
                 sub_count = row.get("sub_count") or 0
-                channel_name = row.get("name") or channel_info.get("title", "Unknown")
+                channel_name = row.get("name") or info.get("title", "Unknown")
                 profile_pic = row.get("profile_pic")
 
             icon = QIcon(profile_pic) if profile_pic else QIcon()
@@ -195,7 +193,7 @@ class Home(QWidget):
             item.setData(Qt.UserRole, {
                 "channel_id": channel_id,
                 "channel_name": channel_name,
-                "channel_url": channel_info.get('url'),
+                "channel_url": info.get('url'),
                 "sub_count": sub_count
             })
             self.channel_list.addItem(item)
@@ -304,28 +302,3 @@ class Home(QWidget):
 
         # --- Now run the final search with fresh data ---
         self.search_keyword(query=query, final=True)
-        
-    def scrape_transcription(self):
-        """
-        Scrape transcription for the first video in self.video_url
-        and store it as JSON in Data/.
-        """
-        if not self.video_url:
-            print("No video URL available. Please scrape videos first.")
-            return
-
-        try:
-            video_url = self.video_url[:1]  # Take the first video for now
-            print(f"Fetching transcript for: {video_url}")
-
-            transcription = Transcription(self.db)
-            transcript_data = transcription.get_transcripts(video_url, app_state.channel_id, lang="en")
-
-            if transcript_data:
-                print(f"Transcript fetched and saved")
-            else:
-                print("Failed to fetch transcript.")
-
-        except Exception as e:
-            traceback.print_exc()
-            print(f"Error while scraping transcription: {e}")

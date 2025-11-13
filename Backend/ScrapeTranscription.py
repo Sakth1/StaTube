@@ -10,7 +10,7 @@ class TranscriptFetcher:
     """
     A simplified class to fetch YouTube video transcripts using youtube-transcript-api.
     """
-    def __init__(self, output_dir="transcripts"):
+    def __init__(self):
         self.db: DatabaseManager = app_state.db
         self.video_transcripts: dict = None
 

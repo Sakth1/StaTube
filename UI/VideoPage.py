@@ -14,13 +14,15 @@ from utils.AppState import app_state
 
 class YouTubeVideoItem:
     def __init__(self, thumbnail: QPixmap, title: str, duration: str, views: str,
-                 video_type: str, time_since_published: str = ""):
+                 video_type: str, time_since_published: str = "", video_id: str = ""):
         self.thumbnail = thumbnail
         self.title = title
         self.duration = duration
         self.views = views
         self.video_type = video_type
         self.time_since_published = time_since_published
+        self.video_id = video_id  # Added video_id for selection
+
 
 class YouTubeVideoDelegate(QStyledItemDelegate):
     """Custom delegate for drawing YouTube videos and Shorts with grid and list layouts."""
@@ -213,13 +215,13 @@ class SelectableListView(QListView):
             if self.scroll_direction < 0:
                 # Scrolling up
                 distance = max(1, 50 - self.last_mouse_pos.y())
-                speed = int(distance / 5) + 1
-                scroll_bar.setValue(current_value - speed)
+                speed = (distance / 2) + 1
+                scroll_bar.setValue(int(current_value - speed))
             else:
                 # Scrolling down
                 distance = max(1, self.last_mouse_pos.y() - (viewport_rect.height() - 50))
-                speed = int(distance / 5) + 1
-                scroll_bar.setValue(current_value + speed)
+                speed = (distance / 2) + 1
+                scroll_bar.setValue(int(current_value + speed))
         
         # Continue drag selection while scrolling
         if self.is_dragging and self.drag_start_index is not None and self.last_mouse_pos:
@@ -262,8 +264,8 @@ class Video(QWidget):
         # === Segmented Control ===
         self._create_segmented_control()
 
-        # === Video list ===
-        self.video_view = QListView()
+        # === Video list - Use SelectableListView instead of QListView ===
+        self.video_view = SelectableListView()
         self.video_view.setViewMode(QListView.IconMode)
         self.video_view.setResizeMode(QListView.Adjust)
         self.video_view.setFlow(QListView.LeftToRight)
@@ -287,8 +289,8 @@ class Video(QWidget):
         self.main_layout.addWidget(self.select_button, 2, 0, 1, 6)
 
         # === Signals ===
-        app_state.channel_name_changed.connect(self.update_channel_label)
-        self.update_channel_label(app_state.channel_name)
+        app_state.channel_info_changed.connect(self.update_channel_label)
+        self.update_channel_label(app_state.channel_info)
 
     # --- Segmented Control ---
     def _create_segmented_control(self):
@@ -331,20 +333,23 @@ class Video(QWidget):
             self.list_btn.setChecked(False)
             self.video_view.setViewMode(QListView.IconMode)
             self.video_view.setFlow(QListView.LeftToRight)
+            self.video_view.setSpacing(20)
         else:
             self.grid_btn.setChecked(True)
         print("Grid view selected")
 
     # --- Scraping ---
     def scrape_videos(self):
-        channel_name = app_state.channel_name
-        channel_id = app_state.channel_id
-        channel_url = app_state.channel_url
+        channel_info = app_state.channel_info
 
-        if not channel_name or not channel_id or not channel_url:
+        if not channel_info:
             print("No channel selected")
             return
 
+        else:
+            channel_name = channel_info.get("channel_name")
+            channel_id = channel_info.get("channel_id")
+            channel_url = channel_info.get("channel_url")
         self.show_splash_screen()
 
         self.worker_thread = QtCore.QThread()
@@ -385,7 +390,7 @@ class Video(QWidget):
 
     # --- Loading videos ---
     def load_videos_from_db(self, where=None, order_by=None):
-        channel_id = app_state.channel_id
+        channel_id = app_state.channel_info.get("channel_id")
         videos = self.db.fetch(
             table="VIDEO",
             where=f"channel_id=? AND {where}" if where else "channel_id=?",
@@ -407,8 +412,9 @@ class Video(QWidget):
             title = video.get("title", "Untitled")
             video_type = video.get("video_type", "video").lower()
             time_since_published = video.get("time_since_published")
+            video_id = video.get("video_id")
 
-            item_data = YouTubeVideoItem(pixmap, title, duration, views, video_type, time_since_published)
+            item_data = YouTubeVideoItem(pixmap, title, duration, views, video_type, time_since_published, video_id)
             item = QStandardItem()
             item.setData(item_data, Qt.UserRole)
             item.setEditable(False)
@@ -447,9 +453,9 @@ class Video(QWidget):
         elif sort == "Shortest":
             order_by = "duration_in_seconds ASC"
         elif sort == "Newest":
-            order_by = "time_since_upload DESC"
+            order_by = "upload_timestamp DESC"
         elif sort == "Oldest":
-            order_by = "time_since_upload ASC"
+            order_by = "upload_timestamp ASC"
         elif sort == "Most Viewed":
             order_by = "view_count DESC"
         elif sort == "Least Viewed":
@@ -462,8 +468,22 @@ class Video(QWidget):
         if not selected_indexes:
             print("No videos selected")
             return
-        selected = [index.data(Qt.UserRole).title for index in selected_indexes if index.data(Qt.UserRole)]
-        print(f"Selected {len(selected)} video(s): {selected}")
+        
+        channel_id = app_state.channel_info.get("channel_id")
+        video_ids = []
+        
+        for index in selected_indexes:
+            item_data = index.data(Qt.UserRole)
+            if item_data and item_data.video_id:
+                video_ids.append(item_data.video_id)
+        
+        video_list = {channel_id: video_ids}
+        app_state.video_list = video_list
+        
+        print(f"Selected {len(video_ids)} video(s) for channel {channel_id}")
 
-    def update_channel_label(self, name=None):
+    def update_channel_label(self, channel_info: dict = None):
+        name = None
+        if channel_info is not None:
+            name = channel_info.get("channel_name")
         self.channel_label.setText(f"Selected channel: {name or 'None'}")
