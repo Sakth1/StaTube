@@ -21,4 +21,5 @@ typing_extensions==4.15.0
 urllib3==2.5.0
 webvtt-py==0.5.1
 yarl==1.22.0
+youtube_transcript_api==1.2.3
 yt-dlp==2025.9.23
