@@ -88,20 +88,23 @@ class MainWindow(QMainWindow):
         # Add pages
         self.homepage = Home(self)
         self.video_page = Video(self)
-        self.comment_page = Comment(self)
         self.transcript_page = Transcript(self)
+        self.comment_page = Comment(self)
         self.settings_page = Settings(self)
 
         # Add to stacked layout
         self.stack.addWidget(self.homepage)
         self.stack.addWidget(self.video_page)
-        self.stack.addWidget(self.comment_page)
         self.stack.addWidget(self.transcript_page)
+        self.stack.addWidget(self.comment_page)
         self.stack.addWidget(self.settings_page)
 
         # Default page
         self.switch_page(0)
         self.sidebar_buttons[0].setChecked(True)
+
+        self.homepage.home_page_scrape_video_signal.connect(self.switch_and_scrape_video)
+        self.video_page.video_page_scrape_transcript_signal.connect(self.switch_and_scrape_transcripts)
     
     # Sidebar navigation logic
     def switch_page(self, index):
@@ -123,21 +126,27 @@ class MainWindow(QMainWindow):
         side_layout.setSpacing(25)
 
         # Icons path
-
         icon_path = os.path.join(self.base_dir, "assets", "icon", "light")
 
-        icons = [
-            ("light_home.ico", "Home"),
-            ("light_video.ico", "Videos"),
-            ("light_transcript.ico", "Transcription Analysis"),
-            ("light_comment.ico", "Comment Analysis"),
-            ("light_settings.ico", "Settings")
+        # Create buttons individually
+        self.home_btn = QToolButton()
+        self.video_btn = QToolButton()
+        self.transcript_btn = QToolButton()
+        self.comment_btn = QToolButton()
+        self.settings_btn = QToolButton()
+
+        # Store in list with their configurations
+        buttons_config = [
+            (self.home_btn, "light_home.ico", "Home"),
+            (self.video_btn, "light_video.ico", "Videos"),
+            (self.transcript_btn, "light_transcript.ico", "Transcription Analysis"),
+            (self.comment_btn, "light_comment.ico", "Comment Analysis"),
+            (self.settings_btn, "light_settings.ico", "Settings")
         ]
 
-        # Create sidebar buttons
+        # Configure all buttons using loop
         self.sidebar_buttons = []
-        for i, (filename, tooltip) in enumerate(icons):
-            btn = QToolButton()
+        for i, (btn, filename, tooltip) in enumerate(buttons_config):
             btn.setIcon(QIcon(os.path.join(icon_path, filename)))
             btn.setIconSize(QSize(28, 28))
             btn.setToolTip(tooltip)
@@ -154,7 +163,18 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         """Handle window close event"""
         pass
+    
+    def switch_and_scrape_video(self):
+        self.sidebar_buttons[0].setChecked(False)
+        self.sidebar_buttons[1].setChecked(True)
+        self.switch_page(1)
+        self.video_page.video_page_scrape_video_signal.emit()
 
+    def switch_and_scrape_transcripts(self):
+        self.sidebar_buttons[1].setChecked(False)
+        self.sidebar_buttons[2].setChecked(True)
+        self.switch_page(2)
+        self.transcript_page.transcript_page_scrape_transcripts_signal.emit()
 
 # Entry Point
 if __name__ == "__main__":

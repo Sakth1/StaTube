@@ -1,4 +1,4 @@
-from PySide6 import QtCore
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (QWidget, QLabel, QVBoxLayout, QGridLayout, QPushButton,
                                QComboBox)
 
@@ -6,11 +6,14 @@ from Backend.ScrapeTranscription import TranscriptFetcher
 from utils.AppState import app_state
 
 class Transcript(QWidget):
+    transcript_page_scrape_transcripts_signal = Signal()
+
     def __init__(self, parent=None):
         super(Transcript, self).__init__(parent)
 
         self.db = app_state.db
         self.transcript_fetcher = TranscriptFetcher()
+        self.transcript_page_scrape_transcripts_signal.connect(self.scrape_transcript)
 
         self.main_layout = QGridLayout(self)
         self.setLayout(self.main_layout)
@@ -21,7 +24,6 @@ class Transcript(QWidget):
 
         self.language_selection = QComboBox()
         self.language_selection.addItems(["en", "es"])
-        
     
     def scrape_transcript(self):
         video_list = app_state.video_list

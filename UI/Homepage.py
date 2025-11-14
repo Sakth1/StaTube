@@ -5,7 +5,6 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QStackedWidget, QWidge
 from PySide6.QtCore import Qt, QStringListModel, QSize, Signal
 from PySide6.QtGui import QPixmap, QIcon, QPalette, QColor
 import threading
-import time
 import traceback
 
 from Data.DatabaseManager import DatabaseManager
@@ -20,6 +19,7 @@ class Home(QWidget):
     progress_update = Signal(int, str)  # New signal for progress updates
     show_splash_signal = Signal()  # Signal to show splash
     close_splash_signal = Signal()  # Signal to close splash
+    home_page_scrape_video_signal = Signal()
     
     videos = {}
     video_url = []
@@ -41,11 +41,11 @@ class Home(QWidget):
         
         # Replace ComboBox with LineEdit and ListWidget
         self.searchbar = QLineEdit()
-        self.select_button = QPushButton("Select")
+        self.select_scrape_button = QPushButton("Select and scrape info")
         self.channel_list = QListWidget()
         self.model = QStringListModel()
         self.completer = QCompleter(self.model, self.searchbar)
-        self.select_button.clicked.connect(self.select_channel)
+        self.select_scrape_button.clicked.connect(self.select_channel)
         self.completer.setCompletionMode(QCompleter.UnfilteredPopupCompletion)
         self.searchbar.setCompleter(self.completer)
         self.searchbar.mousePressEvent = lambda event, e=self.searchbar.mousePressEvent: (e(event), self.completer.complete())
@@ -98,7 +98,7 @@ class Home(QWidget):
         self.top_panel.setLayout(self.top_layout)
         self.top_layout.addWidget(self.searchbar, 0, 0, alignment=Qt.AlignTop)
         self.top_layout.addWidget(self.search_channel_button, 0, 1)
-        self.top_layout.addWidget(self.select_button, 2, 0, 1, 2, alignment=Qt.AlignBottom)
+        self.top_layout.addWidget(self.select_scrape_button, 2, 0, 1, 2, alignment=Qt.AlignBottom)
         self.top_panel.show()
 
     def select_channel(self):
@@ -110,6 +110,8 @@ class Home(QWidget):
             channel_info['channel_id'] = data['channel_id']
             channel_info['channel_url'] = data['channel_url']
             app_state.channel_info = channel_info
+        
+        self.home_page_scrape_video_signal.emit()
 
     def reset_search_timer(self):
         if not self.completer_active:

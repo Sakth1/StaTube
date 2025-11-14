@@ -1,8 +1,8 @@
-from PySide6 import QtCore
 from PySide6.QtWidgets import (QWidget, QLabel, QGridLayout, QStyle, QPushButton,
                                QListView, QVBoxLayout, QAbstractItemView, QStyledItemDelegate,
                                QButtonGroup, QHBoxLayout, QFrame, QComboBox)
-from PySide6.QtCore import QThread, Qt, QSize, QRect, Property
+from PySide6.QtCore import (QThread, Qt, QSize, QRect, Property, QItemSelectionModel,
+                            QItemSelection, QTimer, Signal)
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QPainter, QFont, QColor, QIcon
 import os
 
@@ -114,7 +114,7 @@ class SelectableListView(QListView):
         self.setMouseTracking(True)
         self.drag_start_index = None
         self.is_dragging = False
-        self.auto_scroll_timer = QtCore.QTimer(self)
+        self.auto_scroll_timer = QTimer(self)
         self.auto_scroll_timer.timeout.connect(self._auto_scroll)
         self.scroll_direction = 0
         self.last_mouse_pos = None
@@ -146,7 +146,7 @@ class SelectableListView(QListView):
                     self.drag_start_index = index
                     self.is_dragging = True
                     self.clearSelection()
-                    self.selectionModel().select(index, QtCore.QItemSelectionModel.Select)
+                    self.selectionModel().select(index, QItemSelectionModel.Select)
             else:
                 self.clearSelection()
                 
@@ -194,12 +194,12 @@ class SelectableListView(QListView):
         start_row = min(start_index.row(), end_index.row())
         end_row = max(start_index.row(), end_index.row())
         
-        selection = QtCore.QItemSelection()
+        selection = QItemSelection()
         for row in range(start_row, end_row + 1):
             index = self.model().index(row, 0)
             selection.select(index, index)
         
-        self.selectionModel().select(selection, QtCore.QItemSelectionModel.Select)
+        self.selectionModel().select(selection, QItemSelectionModel.Select)
     
     def _auto_scroll(self):
         """Smoothly scroll the view when dragging near edges."""
@@ -232,6 +232,8 @@ class SelectableListView(QListView):
 
 class Video(QWidget):
     """YouTube video browser and scraper widget."""
+    video_page_scrape_video_signal = Signal()
+    video_page_scrape_transcript_signal = Signal()
 
     def __init__(self, parent=None):
         super(Video, self).__init__(parent)
@@ -241,6 +243,7 @@ class Video(QWidget):
         self.splash = None
         self.worker_thread = None
         self.worker = None
+        self.video_page_scrape_video_signal.connect(self.scrape_videos)
 
         # === Main layout ===
         self.main_layout = QGridLayout(self)
@@ -248,11 +251,11 @@ class Video(QWidget):
 
         # === Header controls ===
         self.channel_label = QLabel()
-        self.scrap_video_button = QPushButton("Scrape Videos")
-        self.scrap_video_button.clicked.connect(self.scrape_videos)
+        #self.scrap_video_button = QPushButton("Scrape Videos")
+        #self.scrap_video_button.clicked.connect(self.scrape_videos)
 
-        self.select_button = QPushButton("Select")
-        self.select_button.clicked.connect(self.select_videos)
+        self.scrape_info_button = QPushButton("select and scrape info")
+        self.scrape_info_button.clicked.connect(self.select_videos)
 
         self.filter_combo = QComboBox()
         self.filter_combo.addItems(["All", "Live", "Shorts", "Videos"])
@@ -284,9 +287,9 @@ class Video(QWidget):
         self.main_layout.addWidget(self.channel_label, 0, 1, 1, 2, alignment=Qt.AlignCenter)
         self.main_layout.addWidget(self.filter_combo, 0, 3, 1, 1)
         self.main_layout.addWidget(self.sort_combo, 0, 4, 1, 1)
-        self.main_layout.addWidget(self.scrap_video_button, 0, 5, 1, 1)
+        #self.main_layout.addWidget(self.scrap_video_button, 0, 5, 1, 1)
         self.main_layout.addWidget(self.video_view, 1, 0, 1, 6)
-        self.main_layout.addWidget(self.select_button, 2, 0, 1, 6)
+        self.main_layout.addWidget(self.scrape_info_button, 2, 0, 1, 6)
 
         # === Signals ===
         app_state.channel_info_changed.connect(self.update_channel_label)
@@ -352,7 +355,7 @@ class Video(QWidget):
             channel_url = channel_info.get("channel_url")
         self.show_splash_screen()
 
-        self.worker_thread = QtCore.QThread()
+        self.worker_thread = QThread()
         self.worker = VideoWorker(channel_id, channel_url)
         self.worker.moveToThread(self.worker_thread)
 
@@ -481,6 +484,8 @@ class Video(QWidget):
         app_state.video_list = video_list
         
         print(f"Selected {len(video_ids)} video(s) for channel {channel_id}")
+        self.video_page_scrape_transcript_signal.emit()
+        
 
     def update_channel_label(self, channel_info: dict = None):
         name = None
