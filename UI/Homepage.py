@@ -109,6 +109,7 @@ class Home(QWidget):
             channel_info['channel_name'] = data['channel_name']
             channel_info['channel_id'] = data['channel_id']
             channel_info['channel_url'] = data['channel_url']
+            channel_info['profile_pic'] = data['profile_pic']
             app_state.channel_info = channel_info
         
         self.home_page_scrape_video_signal.emit()
@@ -196,6 +197,7 @@ class Home(QWidget):
                 "channel_id": channel_id,
                 "channel_name": channel_name,
                 "channel_url": info.get('url'),
+                "profile_pic": profile_pic,
                 "sub_count": sub_count
             })
             self.channel_list.addItem(item)

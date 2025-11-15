@@ -31,18 +31,31 @@ class TranscriptFetcher:
                 'video_id': video_id,
                 'filepath': filepath,
                 'language': transcript.language_code,
-                'is_generated': transcript.is_generated
+                'is_generated': transcript.is_generated,
+                'remarks': None
             }
         
         except TranscriptsDisabled:
             print(f"Transcripts disabled for {video_id}")
-            result = None
+            result = {
+                'video_id': video_id,
+                'filepath': None,
+                'language': None,
+                'is_generated': None,
+                'remarks': "Transcripts disabled"
+            }
 
         except Exception as e:
             import traceback
             traceback.print_exc()
             print(f"Error fetching transcript for {video_id}: {e}")
-            result = None
+            result = {
+                'video_id': video_id,
+                'filepath': None,
+                'language': None,
+                'is_generated': None,
+                'remarks': "Transcripts disabled"
+            }
 
         finally:
             return result
@@ -58,8 +71,9 @@ class TranscriptFetcher:
                 transcripts = {}
                 for id in video_id_list:
                     result = self._fetch(id, channel_id, language_option)
-                    if result is not None:
-                        transcripts[id] = result
+                    if result.get("filepath") is None:
+                        print(result.get("remarks"))
+                    transcripts[id] = result
                 
                 self.video_transcripts[channel_id] = transcripts
 

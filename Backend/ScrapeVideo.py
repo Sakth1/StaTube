@@ -7,7 +7,7 @@ import re
 import asyncio
 import aiohttp
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, Signal, Slot, QMetaObject, Qt, Q_ARG
 from Data.DatabaseManager import DatabaseManager
 from utils.AppState import app_state
 
@@ -141,8 +141,14 @@ async def fetch_shorts_batch_async(video_ids: list, progress_callback=None, max_
             completed += 1
             
             if progress_callback:
-                # Schedule callback in main thread
-                progress_callback(completed, total)
+                # Execute callback in main thread using Qt's signal mechanism
+                QMetaObject.invokeMethod(
+                    progress_callback,
+                    "update_from_async",
+                    Qt.QueuedConnection,
+                    Q_ARG(int, completed),
+                    Q_ARG(int, total)
+                )
             
             return result
         
@@ -200,6 +206,15 @@ class VideoWorker(QObject):
             "shorts": "shorts",
             "live": "streams"
         }
+        self.current_type_counter = 0
+
+    @Slot(int, int)
+    def update_from_async(self, completed, total):
+        """Slot to receive async progress updates safely in main thread"""
+        progress_msg = f"[Shorts] Fetching metadata: {completed}/{total} shorts"
+        self.progress_updated.emit(progress_msg)
+        type_progress = int((self.current_type_counter - 1) * 33 + (completed / total) * 20)
+        self.progress_percentage.emit(min(type_progress, 95))
 
     def fetch_video_urls(self):
         """Wrapper to run async video fetching."""
@@ -244,6 +259,7 @@ class VideoWorker(QObject):
                 # === Process each content type ===
                 for vtype, ctype in self.types.items():
                     type_counter += 1
+                    self.current_type_counter = type_counter
                     self.progress_updated.emit(f"Fetching {vtype.capitalize()}...")
                     self.progress_percentage.emit(int((type_counter - 1) * 33))
 
@@ -261,16 +277,10 @@ class VideoWorker(QObject):
                         video_ids = [v.get("videoId") for v in videos if v.get("videoId")]
                         self.progress_updated.emit(f"[Shorts] Fetching metadata for {len(video_ids)} shorts (async mode)...")
                         
-                        # Progress callback for shorts fetching
-                        def shorts_progress(completed, total):
-                            progress_msg = f"[Shorts] Fetching metadata: {completed}/{total} shorts"
-                            self.progress_updated.emit(progress_msg)
-                            type_progress = int((type_counter - 1) * 33 + (completed / total) * 20)
-                            self.progress_percentage.emit(min(type_progress, 95))
-                        
+                        # Pass self as the callback target
                         shorts_metadata = await fetch_shorts_batch_async(
                             video_ids, 
-                            progress_callback=shorts_progress, 
+                            progress_callback=self,
                             max_concurrent=30
                         )
                         self.progress_updated.emit(f"[Shorts] Metadata fetched! Now processing {len(videos)} shorts...")

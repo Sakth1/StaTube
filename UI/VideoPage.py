@@ -10,6 +10,17 @@ from Data.DatabaseManager import DatabaseManager
 from Backend.ScrapeVideo import VideoWorker
 from UI.SplashScreen import SplashScreen
 from utils.AppState import app_state
+from utils.Config import const
+
+
+def clear_layout(layout):
+    while layout.count():
+        item = layout.takeAt(0)
+        widget = item.widget()
+        if widget:
+            widget.deleteLater()
+        elif item.layout():
+            clear_layout(item.layout())
 
 
 class YouTubeVideoItem:
@@ -66,7 +77,7 @@ class YouTubeVideoDelegate(QStyledItemDelegate):
             painter.setFont(QFont("Segoe UI", 9))
             painter.setPen(QColor("#AAAAAA"))
             painter.drawText(QRect(text_x, option.rect.y() + 60, option.rect.width() - text_x, 20),
-                             Qt.AlignLeft, f"{views} views • {time_since_published}")
+                             Qt.AlignLeft, f"{views} views  ●  {time_since_published}")
 
         # === GRID MODE ===
         else:
@@ -96,7 +107,7 @@ class YouTubeVideoDelegate(QStyledItemDelegate):
             painter.setFont(QFont("Segoe UI", 9))
             painter.setPen(QColor("#AAAAAA"))
             painter.drawText(QRect(thumb_x, thumb_rect.bottom() + 48, target_width, 20),
-                             Qt.AlignLeft, f"{views} views")
+                             Qt.AlignLeft, f"{views} views  ●  {time_since_published}")
 
         painter.restore()
 
@@ -250,9 +261,7 @@ class Video(QWidget):
         self.setLayout(self.main_layout)
 
         # === Header controls ===
-        self.channel_label = QLabel()
-        #self.scrap_video_button = QPushButton("Scrape Videos")
-        #self.scrap_video_button.clicked.connect(self.scrape_videos)
+        self.channel_label_layout = QHBoxLayout()
 
         self.scrape_info_button = QPushButton("select and scrape info")
         self.scrape_info_button.clicked.connect(self.select_videos)
@@ -263,6 +272,14 @@ class Video(QWidget):
         self.sort_combo.addItems(["Longest", "Shortest", "Newest", "Oldest", "Most Viewed", "Least Viewed"])
         self.filter_combo.currentIndexChanged.connect(self.on_combo_changed)
         self.sort_combo.currentIndexChanged.connect(self.on_combo_changed)
+
+        filter_sort_layout = QHBoxLayout()
+        filter_sort_layout.addWidget(self.filter_combo)
+        filter_sort_layout.addWidget(self.sort_combo)
+
+        self.lang_combo = QComboBox()
+        self.lang_combo.addItems([f'{name} ({code})' for code, name in const.YOUTUBE_LANGUAGE_CODES.items()])
+        self.lang_combo.setCurrentText(f'English (en)')
 
         # === Segmented Control ===
         self._create_segmented_control()
@@ -284,12 +301,11 @@ class Video(QWidget):
 
         # === Layout ===
         self.main_layout.addWidget(self.segment_container, 0, 0, 1, 1, alignment=Qt.AlignLeft)
-        self.main_layout.addWidget(self.channel_label, 0, 1, 1, 2, alignment=Qt.AlignCenter)
-        self.main_layout.addWidget(self.filter_combo, 0, 3, 1, 1)
-        self.main_layout.addWidget(self.sort_combo, 0, 4, 1, 1)
-        #self.main_layout.addWidget(self.scrap_video_button, 0, 5, 1, 1)
+        self.main_layout.addLayout(filter_sort_layout, 0, 1, 1, 1, alignment=Qt.AlignLeft)
+        self.main_layout.addLayout(self.channel_label_layout, 0, 2, 1, 2, alignment=Qt.AlignCenter)
+        self.main_layout.addWidget(self.lang_combo, 0, 4, 1, 2, alignment=Qt.AlignRight)
         self.main_layout.addWidget(self.video_view, 1, 0, 1, 6)
-        self.main_layout.addWidget(self.scrape_info_button, 2, 0, 1, 6)
+        self.main_layout.addWidget(self.scrape_info_button, 2, 2, 1, 4, alignment=Qt.AlignCenter)
 
         # === Signals ===
         app_state.channel_info_changed.connect(self.update_channel_label)
@@ -485,10 +501,15 @@ class Video(QWidget):
         
         print(f"Selected {len(video_ids)} video(s) for channel {channel_id}")
         self.video_page_scrape_transcript_signal.emit()
-        
 
     def update_channel_label(self, channel_info: dict = None):
-        name = None
+        name = "None"
+        clear_layout(self.channel_label_layout)
+        self.channel_label_layout.addWidget(QLabel("Selected Channel: "), alignment=Qt.AlignLeft | Qt.AlignVCenter)
         if channel_info is not None:
-            name = channel_info.get("channel_name")
-        self.channel_label.setText(f"Selected channel: {name or 'None'}")
+            name = f' {channel_info.get("channel_name")}'
+            img_label = QLabel()
+            pix = QPixmap(channel_info.get("profile_pic")).scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            img_label.setPixmap(pix)
+            self.channel_label_layout.addWidget(img_label, alignment=Qt.AlignLeft | Qt.AlignVCenter)
+        self.channel_label_layout.addWidget(QLabel(name), alignment=Qt.AlignLeft | Qt.AlignVCenter)
