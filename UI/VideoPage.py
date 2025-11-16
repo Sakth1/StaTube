@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (QWidget, QLabel, QGridLayout, QStyle, QPushButton,
                                QListView, QVBoxLayout, QAbstractItemView, QStyledItemDelegate,
-                               QButtonGroup, QHBoxLayout, QFrame, QComboBox)
+                               QCheckBox, QHBoxLayout, QFrame, QComboBox)
 from PySide6.QtCore import (QThread, Qt, QSize, QRect, Property, QItemSelectionModel,
                             QItemSelection, QTimer, Signal)
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QPixmap, QPainter, QFont, QColor, QIcon
@@ -21,6 +21,15 @@ def clear_layout(layout):
             widget.deleteLater()
         elif item.layout():
             clear_layout(item.layout())
+
+
+def extend_unique(base_list, new_items):
+    seen = set(base_list)
+    for item in new_items:
+        if item not in seen:
+            base_list.append(item)
+            seen.add(item)
+    return base_list
 
 
 class YouTubeVideoItem:
@@ -263,8 +272,15 @@ class Video(QWidget):
         # === Header controls ===
         self.channel_label_layout = QHBoxLayout()
 
-        self.scrape_info_button = QPushButton("select and scrape info")
-        self.scrape_info_button.clicked.connect(self.select_videos)
+        bottom_layout = QHBoxLayout()
+        self.add_to_list_button = QPushButton("Add to list")
+        self.add_to_list_button.clicked.connect(self.add_to_list)
+        self.scrape_transcript_button = QPushButton("Scrape Transcript")
+        self.scrape_transcript_button.clicked.connect(self.scrape_transcript)
+        self.scrape_comments_button = QPushButton("Scrape Comments")
+        bottom_layout.addWidget(self.scrape_transcript_button)
+        bottom_layout.addWidget(self.add_to_list_button, stretch=2)
+        bottom_layout.addWidget(self.scrape_comments_button)
 
         self.filter_combo = QComboBox()
         self.filter_combo.addItems(["All", "Live", "Shorts", "Videos"])
@@ -272,6 +288,9 @@ class Video(QWidget):
         self.sort_combo.addItems(["Longest", "Shortest", "Newest", "Oldest", "Most Viewed", "Least Viewed"])
         self.filter_combo.currentIndexChanged.connect(self.on_combo_changed)
         self.sort_combo.currentIndexChanged.connect(self.on_combo_changed)
+
+        self.scrape_shorts_checkbox = QCheckBox("Scrape Shorts")
+        self.scrape_shorts_checkbox.setChecked(False)
 
         filter_sort_layout = QHBoxLayout()
         filter_sort_layout.addWidget(self.filter_combo)
@@ -302,10 +321,11 @@ class Video(QWidget):
         # === Layout ===
         self.main_layout.addWidget(self.segment_container, 0, 0, 1, 1, alignment=Qt.AlignLeft)
         self.main_layout.addLayout(filter_sort_layout, 0, 1, 1, 1, alignment=Qt.AlignLeft)
-        self.main_layout.addLayout(self.channel_label_layout, 0, 2, 1, 2, alignment=Qt.AlignCenter)
-        self.main_layout.addWidget(self.lang_combo, 0, 4, 1, 2, alignment=Qt.AlignRight)
-        self.main_layout.addWidget(self.video_view, 1, 0, 1, 6)
-        self.main_layout.addWidget(self.scrape_info_button, 2, 2, 1, 4, alignment=Qt.AlignCenter)
+        self.main_layout.addLayout(self.channel_label_layout, 0, 2, 1, 3, alignment=Qt.AlignCenter)
+        self.main_layout.addWidget(self.scrape_shorts_checkbox, 0, 5, 1, 1, alignment=Qt.AlignRight)
+        self.main_layout.addWidget(self.lang_combo, 0, 6, 1, 1, alignment=Qt.AlignRight)
+        self.main_layout.addWidget(self.video_view, 1, 0, 1, 7)
+        self.main_layout.addLayout(bottom_layout, 2, 1, 1, 4, alignment=Qt.AlignCenter)
 
         # === Signals ===
         app_state.channel_info_changed.connect(self.update_channel_label)
@@ -375,7 +395,8 @@ class Video(QWidget):
         self.worker = VideoWorker(channel_id, channel_url)
         self.worker.moveToThread(self.worker_thread)
 
-        self.worker_thread.started.connect(self.worker.fetch_video_urls)
+        self.worker_thread.started.connect(lambda:
+                                           self.worker.fetch_video_urls(self.scrape_shorts_checkbox.isChecked()))
         self.worker.progress_updated.connect(self.update_splash_progress)
         self.worker.progress_percentage.connect(self.update_splash_percentage)
         self.worker.finished.connect(self.on_worker_finished)
@@ -404,7 +425,7 @@ class Video(QWidget):
         if self.splash:
             self.splash.close()
             self.splash = None
-        print("✅ Video scraping completed!")
+        print("Video scraping completed!")
         self.load_videos_from_db()
 
     # --- Loading videos ---
@@ -497,9 +518,20 @@ class Video(QWidget):
                 video_ids.append(item_data.video_id)
         
         video_list = {channel_id: video_ids}
+        return video_list
+
+    def add_to_list(self):
+        existing_video_list = app_state.video_list
+        video_list = self.select_videos()
+        if existing_video_list is not None:
+            for key in list(existing_video_list.keys()):
+                if key in list(video_list.keys()):
+                    video_list[key] = extend_unique(existing_video_list[key], video_list[key])
+
         app_state.video_list = video_list
-        
-        print(f"Selected {len(video_ids)} video(s) for channel {channel_id}")
+
+    def scrape_transcript(self):
+        print(app_state.video_list)
         self.video_page_scrape_transcript_signal.emit()
 
     def update_channel_label(self, channel_info: dict = None):

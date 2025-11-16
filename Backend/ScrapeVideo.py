@@ -216,12 +216,12 @@ class VideoWorker(QObject):
         type_progress = int((self.current_type_counter - 1) * 33 + (completed / total) * 20)
         self.progress_percentage.emit(min(type_progress, 95))
 
-    def fetch_video_urls(self):
+    def fetch_video_urls(self, scrape_shorts: bool = False):
         """Wrapper to run async video fetching."""
         try:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(self._fetch_video_urls_async())
+            loop.run_until_complete(self._fetch_video_urls_async(scrape_shorts=scrape_shorts))
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -236,11 +236,13 @@ class VideoWorker(QObject):
             except Exception:
                 pass
 
-    async def _fetch_video_urls_async(self):
+    async def _fetch_video_urls_async(self, scrape_shorts: bool):
         """
         Fetch and process videos by type (videos, shorts, live) using scrapetube.
         Downloads thumbnails asynchronously and updates DB in batches.
         """
+        if not scrape_shorts:
+            self.types.pop("shorts")
         try:
             self.progress_updated.emit("Starting scrapetube scraping...")
             self.progress_percentage.emit(0)

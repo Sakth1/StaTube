@@ -164,7 +164,7 @@ class MainWindow(QMainWindow):
         """Handle window close event"""
         pass
     
-    def switch_and_scrape_video(self):
+    def switch_and_scrape_video(self, scrape_shorts: bool = False):
         self.sidebar_buttons[0].setChecked(False)
         self.sidebar_buttons[1].setChecked(True)
         self.switch_page(1)
