@@ -35,9 +35,8 @@ class Home(QWidget):
         self.search = Search()
         self.splash = None
 
-        self.top_panel = QWidget()
+        self.widget_panel = QWidget()
         self.central_layout = QVBoxLayout()
-        self.central_widget = QStackedWidget()
         
         # Replace ComboBox with LineEdit and ListWidget
         self.searchbar = QLineEdit()
@@ -78,7 +77,7 @@ class Home(QWidget):
 
         self.setupUi()
         self.setLayout(self.central_layout)
-        self.central_layout.addWidget(self.top_panel)
+        self.central_layout.addWidget(self.widget_panel)
 
     def on_completer_activated(self, text):
         """Handle completer selection"""
@@ -91,15 +90,17 @@ class Home(QWidget):
         """
         Set up the user interface of the main window.
         """
-        self.setuptop()
+        self.widget_layout = QGridLayout()
+        self.widget_panel.setLayout(self.widget_layout)
+        top_layout = QHBoxLayout()
+        top_layout.addWidget(self.searchbar, stretch=2)
+        top_layout.addWidget(self.search_channel_button)
+        self.widget_layout.addLayout(top_layout, 0, 2, 1, 2)
 
-    def setuptop(self):
-        self.top_layout = QGridLayout()
-        self.top_panel.setLayout(self.top_layout)
-        self.top_layout.addWidget(self.searchbar, 0, 0, alignment=Qt.AlignTop)
-        self.top_layout.addWidget(self.search_channel_button, 0, 1)
-        self.top_layout.addWidget(self.select_scrape_button, 2, 0, 1, 2, alignment=Qt.AlignBottom)
-        self.top_panel.show()
+        bottom_layout = QHBoxLayout()
+        bottom_layout.addWidget(self.select_scrape_button, stretch=2)
+        self.widget_layout.addLayout(bottom_layout, 999, 2, 1, 2, alignment=Qt.AlignBottom)
+        self.widget_panel.show()
 
     def select_channel(self):
         item = self.channel_list.currentItem()
@@ -204,8 +205,8 @@ class Home(QWidget):
 
         self.channel_list.setIconSize(QSize(32, 32))
         # add widget to layout only if not already present
-        if self.top_layout.itemAtPosition(1, 0) is None:
-            self.top_layout.addWidget(self.channel_list, 1, 0, 1, 2)
+        if self.widget_layout.itemAtPosition(1, 0) is None:
+            self.widget_layout.addWidget(self.channel_list, 1, 0, 1, 2)
 
     def search_keyword(self, query, final=False):
         try:
