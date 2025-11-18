@@ -10,18 +10,25 @@ from utils.AppState import app_state
 class CommentFetcher:
     """
     A class to fetch YouTube video comments with threads using yt-dlp.
+    
+    Attributes:
+        db (DatabaseManager): The database manager instance.
+        video_comments (dict): A dictionary storing the fetched comments.
     """
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Initializes the CommentFetcher instance.
+        """
         self.db: DatabaseManager = app_state.db
-        self.video_comments: dict = {}
+        self.video_comments: Dict[str, List[Dict[str, str]]] = {}
 
-    def _fetch(self, video_id: str, channel_id: str) -> Dict:
+    def _fetch(self, video_id: str, channel_id: str) -> Dict[str, str]:
         """
         Fetch comments for a single video including replies (threads).
         
         Args:
-            video_id: YouTube video ID
-            channel_id: Channel ID for organizing storage
+            video_id (str): YouTube video ID
+            channel_id (str): Channel ID for organizing storage
             
         Returns:
             Dictionary with video_id, filepath, comment_count, and remarks
@@ -54,7 +61,7 @@ class CommentFetcher:
                 all_comments = []
                 comments_dict = {}  # To track parent comments
                 
-                # First pass: organize comments by ID
+                # First pass: comments by ID
                 for comment in info['comments']:
                     comment_data = {
                         'comment_id': comment.get('id'),
@@ -132,12 +139,12 @@ class CommentFetcher:
         finally:
             return result
 
-    def fetch_comments(self, video_details: Dict[str, List[str]]) -> Dict:
+    def fetch_comments(self, video_details: Dict[str, List[str]]) -> Dict[str, List[Dict[str, str]]]:
         """
         Fetch comments for multiple videos organized by channel.
         
         Args:
-            video_details: Dictionary with channel_id as key and list of video_ids as value
+            video_details (Dict[str, List[str]]): Dictionary with channel_id as key and list of video_ids as value
             
         Returns:
             Dictionary with channel_id as key and video comments as value
@@ -161,14 +168,14 @@ class CommentFetcher:
             print(f"Error fetching comments: {e}")
             return None
 
-    def save_comments(self, comments_data: List[Dict], channel_id: str, filename: str) -> str:
+    def save_comments(self, comments_data: List[Dict[str, str]], channel_id: str, filename: str) -> str:
         """
         Saves comment data to a JSON file.
         
         Args:
-            comments_data: List of comment dictionaries
-            channel_id: Channel ID for organizing storage
-            filename: Name of the file to save
+            comments_data (List[Dict[str, str]]): List of comment dictionaries
+            channel_id (str): Channel ID for organizing storage
+            filename (str): Name of the file to save
             
         Returns:
             Filepath if successful, False otherwise
@@ -187,4 +194,4 @@ class CommentFetcher:
         
         except Exception as e:
             print(f"Error saving comments for {filename}: {e}")
-            return False    
+            return False

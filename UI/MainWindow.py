@@ -22,7 +22,13 @@ from utils.AppState import app_state
 
 
 class MainWindow(QMainWindow):
+    """
+    Main window of the application.
+    """
     def __init__(self):
+        """
+        Initializes the main window.
+        """
         super().__init__()
         self.load_stylesheet()
         
@@ -30,7 +36,7 @@ class MainWindow(QMainWindow):
         self.base_dir = os.path.dirname(base_dir)
         icon_path = os.path.join(self.base_dir, "icon", "youtube.ico")
         
-        db = DatabaseManager()
+        db: DatabaseManager = DatabaseManager()
         app_state.db = db
         self.setWindowTitle("StaTube - YouTube Data Analysis Tool")
         self.setWindowIcon(QIcon(icon_path))
@@ -45,7 +51,9 @@ class MainWindow(QMainWindow):
         self.initialize()
 
     def load_stylesheet(self):
-        """Load and apply QSS stylesheet"""
+        """
+        Load and apply QSS stylesheet.
+        """
         try:
             # For Nuitka onefile builds, use __file__ to get the correct path
             if getattr(sys, 'frozen', False):
@@ -68,13 +76,18 @@ class MainWindow(QMainWindow):
             print(f"Error loading stylesheet: {e}")
 
     def initialize(self):
+        """
+        Initialization complete! Launching app...
+        """
         self.splash.update_status("Initialization complete! Launching app...")
         self.splash.close()
         self.setup_ui()
         print("[DEBUG] Main UI initialized successfully")
 
     def setup_ui(self):
-        """Setup the main UI"""
+        """
+        Setup the main UI.
+        """
         # Setup Main UI
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -108,7 +121,12 @@ class MainWindow(QMainWindow):
         self.video_page.video_page_scrape_comments_signal.connect(self.switch_and_scrape_comments)
     
     # Sidebar navigation logic
-    def switch_page(self, index):
+    def switch_page(self, index: int):
+        """
+        Switches to the specified page index.
+        
+        :param index: Index of the page to switch to.
+        """
         self.stack.setCurrentIndex(max(0, index))
 
     def setupsidebar(self):
@@ -162,22 +180,35 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.stack, stretch=1)
 
     def closeEvent(self, event):
-        """Handle window close event"""
+        """
+        Handle window close event.
+        """
         pass
     
     def switch_and_scrape_video(self, scrape_shorts: bool = False):
+        """
+        Switches to the video page and scrapes videos.
+        
+        :param scrape_shorts: Whether to scrape shorts or not.
+        """
         self.sidebar_buttons[0].setChecked(False)
         self.sidebar_buttons[1].setChecked(True)
         self.switch_page(1)
-        self.video_page.video_page_scrape_video_signal.emit()
+        self.video_page.video_page_scrape_video_signal.emit(scrape_shorts)
 
     def switch_and_scrape_transcripts(self):
+        """
+        Switches to the transcript page and scrapes transcripts.
+        """
         self.sidebar_buttons[1].setChecked(False)
         self.sidebar_buttons[2].setChecked(True)
         self.switch_page(2)
         self.transcript_page.transcript_page_scrape_transcripts_signal.emit()
 
     def switch_and_scrape_comments(self):
+        """
+        Switches to the comment page and scrapes comments.
+        """
         self.sidebar_buttons[2].setChecked(False)
         self.sidebar_buttons[3].setChecked(True)
         self.switch_page(3)

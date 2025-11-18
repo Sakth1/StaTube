@@ -1,13 +1,27 @@
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (QWidget, QLabel, QVBoxLayout, QGridLayout, QPushButton)
+from typing import Optional, Dict, List
 
 from Backend.ScrapeComments import CommentFetcher
 from utils.AppState import app_state
 
 class Comment(QWidget):
-    comment_page_scrape_comments_signal = Signal()
+    """
+    A widget to display and scrape YouTube video comments.
+    """
 
-    def __init__(self, parent=None):
+    comment_page_scrape_comments_signal = Signal()
+    """
+    Emitted when the scrape comments button is clicked.
+    """
+
+    def __init__(self, parent: Optional[QWidget] = None):
+        """
+        Initializes the Comment widget.
+
+        Args:
+            parent (QWidget): The parent widget.
+        """
         super(Comment, self).__init__(parent)
 
         self.db = app_state.db
@@ -22,8 +36,14 @@ class Comment(QWidget):
         self.main_layout.addWidget(self.scrape_comments_button)
     
     def scrape_comments(self):
-        video_list = app_state.video_list
+        """
+        Fetches video comments from the video list.
+
+        Returns:
+            Dict[str, List[Dict[str, str]]]: A dictionary with video_id as key and video comments as value.
+        """
+        video_list: List[str] = app_state.video_list
         if not video_list:
             return
-        comments = self.comment_fetcher.fetch_comments(video_list)
+        comments: Dict[str, List[Dict[str, str]]] = self.comment_fetcher.fetch_comments(video_list)
         print('comments', comments)

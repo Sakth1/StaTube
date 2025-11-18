@@ -7,7 +7,19 @@ import os
 import threading
 
 class DatabaseManager:
+    """
+    A class to manage SQLite database for YTAnalysis.
+    """
+
     def __init__(self, base_dir: Optional[str] = None, db_name: str = "data.db", schema_path: str = "schema.sql"):
+        """
+        Initialize DatabaseManager instance.
+
+        :param base_dir: The base directory to store database files.
+        :param db_name: The name of the SQLite database file.
+        :param schema_path: The path to the schema.sql file.
+        """
+
         # Determine OS and set appropriate AppData directory
         system = platform.system()
         
@@ -48,15 +60,21 @@ class DatabaseManager:
         # Create tables using schema.sql
         self._create_tables()
 
-    def _get_connection(self):
-        """Get thread-specific database connection"""
+    def _get_connection(self) -> sqlite3.Connection:
+        """
+        Get thread-specific database connection.
+
+        :return: SQLite database connection.
+        """
         if not hasattr(self._local, 'conn'):
             self._local.conn = sqlite3.connect(self.db_path)
             self._local.conn.row_factory = sqlite3.Row
         return self._local.conn
 
     def _create_tables(self):
-        """Load schema.sql and execute it."""
+        """
+        Load schema.sql and execute it.
+        """
         if not self.schema_path.exists():
             print(self.schema_path)
             raise FileNotFoundError(f"Schema file not found: {self.schema_path}")
@@ -71,6 +89,13 @@ class DatabaseManager:
 
     # ---------- Core Helpers ----------
     def insert(self, table: str, data: Dict[str, Any]) -> int:
+        """
+        Insert data into the specified table.
+
+        :param table: The name of the table to insert into.
+        :param data: A dictionary containing the data to insert.
+        :return: The row ID of the inserted data.
+        """
         conn = self._get_connection()
         keys = ", ".join(data.keys())
         placeholders = ", ".join(["?"] * len(data))
@@ -102,6 +127,15 @@ class DatabaseManager:
 
     def fetch(self, table: str, where: Optional[str] = None,
               order_by: Optional[str] = None, params: Tuple = ()) -> List[Dict[str, Any]]:
+        """
+        Fetch data from the specified table.
+
+        :param table: The name of the table to fetch from.
+        :param where: An optional WHERE clause to filter results.
+        :param order_by: An optional ORDER BY column to sort results.
+        :param params: A tuple of parameters to pass to the query.
+        :return: A list of dictionaries containing the fetched data.
+        """
         conn = self._get_connection()
         query = f"SELECT * FROM {table}"
         if where:
@@ -114,6 +148,15 @@ class DatabaseManager:
         return [dict(row) for row in cursor.fetchall()]
 
     def update(self, table: str, data: Dict[str, Any], where: str, params: Tuple) -> int:
+        """
+        Update data in the specified table.
+
+        :param table: The name of the table to update.
+        :param data: A dictionary containing the data to update.
+        :param where: A WHERE clause to filter which rows to update.
+        :param params: A tuple of parameters to pass to the query.
+        :return: The number of rows affected by the update.
+        """
         conn = self._get_connection()
         set_clause = ", ".join([f"{k}=?" for k in data.keys()])
         values = tuple(data.values()) + params
@@ -125,18 +168,35 @@ class DatabaseManager:
 
     # ---------- File Helpers ----------
     def save_json_file(self, folder: Path, filename: str, data: Dict) -> Path:
+        """
+        Save data to a JSON file.
+
+        :param folder: The folder to save the file in.
+        :param filename: The name of the file to save.
+        :param data: A dictionary containing the data to save.
+        :return: The path to the saved file.
+        """
         filepath = folder / f"{filename}.json"
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
         return filepath
 
     def load_json_file(self, filepath: Path) -> Dict:
+        """
+        Load data from a JSON file.
+
+        :param filepath: The path to the JSON file to load.
+        :return: A dictionary containing the loaded data.
+        """
         if filepath.exists():
             with open(filepath, "r", encoding="utf-8") as f:
                 return json.load(f)
         return {}
 
     def close(self):
+        """
+        Close the database connection.
+        """
         if hasattr(self._local, 'conn'):
             self._local.conn.close()
             del self._local.conn

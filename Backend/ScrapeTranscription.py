@@ -14,12 +14,12 @@ class TranscriptFetcher:
         db (DatabaseManager): The database manager instance.
         video_transcripts (dict): A dictionary storing the fetched transcripts.
     """
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes the TranscriptFetcher instance."""
         self.db: DatabaseManager = app_state.db
         self.video_transcripts: dict = {}
 
-    def _fetch(self, video_id, channel_id, language_option=("en",)):
+    def _fetch(self, video_id: str, channel_id: str, language_option: tuple = ("en",)) -> dict:
         """
         Fetches a YouTube video transcript using youtube-transcript-api.
 
@@ -41,7 +41,8 @@ class TranscriptFetcher:
             
             transcript_data = transcript.fetch()
             filename = f"{video_id}.json"
-            filepath = self.save_transcript(transcript_data, channel_id, filename)            
+            filepath = self.save_transcript(transcript_data, channel_id, filename)
+            
             # Structure the result
             result = {
                 'video_id': video_id,
@@ -75,8 +76,8 @@ class TranscriptFetcher:
 
         finally:
             return result
-        
-    def fetch_transcripts(self, video_details: dict[str, list], languages: list = ["en"]):
+
+    def fetch_transcripts(self, video_details: dict[str, list], languages: list = ["en"]) -> dict:
         """
         Fetches YouTube video transcripts for a list of videos organized by channel.
 
@@ -111,7 +112,7 @@ class TranscriptFetcher:
             print(f"Error fetching transcript for {id if id else channel_id}: {e}")
             return None
 
-    def save_transcript(self, transcript_data:FetchedTranscript, channel_id:str, filename:str):
+    def save_transcript(self, transcript_data: FetchedTranscript, channel_id: str, filename: str) -> str:
         """
         Saves transcript data to a JSON file.
 

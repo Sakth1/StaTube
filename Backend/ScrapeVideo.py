@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 import re
 import asyncio
 import aiohttp
+from typing import List, Dict, Optional, Callable
 
 from PySide6.QtCore import QObject, Signal, Slot, QMetaObject, Qt, Q_ARG
 from Data.DatabaseManager import DatabaseManager
@@ -13,14 +14,18 @@ from utils.AppState import app_state
 
 
 def parse_duration(duration: str) -> int:
+    """
+    Converts a duration string from YouTube (e.g. "10:20" or "1:10:20") to an approximate number of seconds.
+    Returns 0 if parsing fails.
+    """
     try:
-        minutes, seconds = duration.split(":")
-        return int(minutes) * 60 + int(seconds)
+        minutes, seconds = map(int, duration.split(":"))
+        return minutes * 60 + seconds
     
     except ValueError:
         try:
-            hours, minutes, seconds = duration.split(":")
-            return int(hours) * 3600 + int(minutes) * 60 + int(seconds)
+            hours, minutes, seconds = map(int, duration.split(":"))
+            return hours * 3600 + minutes * 60 + seconds
         except Exception:
             return 0
     
@@ -30,35 +35,41 @@ def parse_duration(duration: str) -> int:
 def parse_time_since_published(text: str) -> int:
     """
     Converts '3 weeks ago' or '2 days ago' to an approximate Unix timestamp.
-    Returns current timestamp if parsing fails.
+
+    Parameters:
+        text (str): The text to parse.
+
+    Returns:
+        int: The parsed timestamp or the current timestamp if parsing fails.
     """
-    now = datetime.now(timezone.utc)
+    now: datetime = datetime.now(timezone.utc)
     if not text:
         return int(now.timestamp())
 
-    text = text.lower().strip()
+    text = text.strip().lower()
 
     try:
         match = re.match(r"(\d+)\s+(\w+)", text)
         if not match:
             return int(now.timestamp())
 
-        value, unit = int(match.group(1)), match.group(2)
+        value: int = int(match.group(1))
+        unit: str = match.group(2)
 
         if "minute" in unit:
-            delta = timedelta(minutes=value)
+            delta: timedelta = timedelta(minutes=value)
         elif "hour" in unit:
-            delta = timedelta(hours=value)
+            delta: timedelta = timedelta(hours=value)
         elif "day" in unit:
-            delta = timedelta(days=value)
+            delta: timedelta = timedelta(days=value)
         elif "week" in unit:
-            delta = timedelta(weeks=value)
+            delta: timedelta = timedelta(weeks=value)
         elif "month" in unit:
-            delta = timedelta(days=value * 30)
+            delta: timedelta = timedelta(days=value * 30)
         elif "year" in unit:
-            delta = timedelta(days=value * 365)
+            delta: timedelta = timedelta(days=value * 365)
         else:
-            delta = timedelta(0)
+            delta: timedelta = timedelta(0)
 
         return int((now - delta).timestamp())
 
@@ -67,9 +78,25 @@ def parse_time_since_published(text: str) -> int:
 
 
 async def download_img_async(url: str, save_path: str, session: aiohttp.ClientSession, semaphore: asyncio.Semaphore) -> bool:
-    """Download thumbnail image asynchronously."""
+    """
+    Download thumbnail image asynchronously.
+
+    Parameters:
+    url (str): The URL of the image to download.
+    save_path (str): The path where the image should be saved.
+    session (aiohttp.ClientSession): The aiohttp session to use for the request.
+    semaphore (asyncio.Semaphore): The semaphore to use for limiting concurrent requests.
+
+    Returns:
+    bool: True if the image was downloaded successfully, False otherwise.
+    """
     async with semaphore:
         try:
+            url = str(url)
+            save_path = str(save_path)
+            session = aiohttp.ClientSession(session)
+            semaphore = asyncio.Semaphore(semaphore)
+            
             if url.startswith("https:https://"):
                 url = url.replace("https:https://", "https://", 1)
             
@@ -87,6 +114,14 @@ async def download_img_async(url: str, save_path: str, session: aiohttp.ClientSe
 async def fetch_shorts_metadata_async(video_id: str, session: aiohttp.ClientSession, semaphore: asyncio.Semaphore) -> dict:
     """
     Fetch complete metadata for a short video using yt-dlp asynchronously.
+
+    Parameters:
+    video_id (str): The YouTube video ID.
+    session (aiohttp.ClientSession): The aiohttp session to use for the request.
+    semaphore (asyncio.Semaphore): The semaphore to use for limiting concurrent requests.
+
+    Returns:
+    dict: A dictionary containing the fetched metadata.
     """
     async with semaphore:
         try:
@@ -108,21 +143,33 @@ async def fetch_shorts_metadata_async(video_id: str, session: aiohttp.ClientSess
             info = await loop.run_in_executor(None, extract_info)
             
             return {
-                'video_id': video_id,
-                'duration': info.get('duration', 0),
+                'video_id': str(video_id),
+                'duration': int(info.get('duration', 0)),
                 'upload_date': info.get('upload_date'),
-                'description': info.get('description', ''),
-                'view_count': info.get('view_count', 0),
-                'title': info.get('title', 'Untitled'),
+                'description': str(info.get('description', '')),
+                'view_count': int(info.get('view_count', 0)),
+                'title': str(info.get('title', 'Untitled')),
             }
         except Exception as e:
             print(f"[ERROR] Failed to fetch metadata for {video_id}: {e}")
-            return {'video_id': video_id, 'error': True}
+            return {'video_id': str(video_id), 'error': True}
 
 
-async def fetch_shorts_batch_async(video_ids: list, progress_callback=None, max_concurrent: int = 100) -> dict:
+async def fetch_shorts_batch_async(
+    video_ids: List[str], 
+    progress_callback: Optional[Callable[[int, int], None]] = None, 
+    max_concurrent: int = 100
+) -> Dict[str, Dict]:
     """
     Fetch metadata for multiple shorts in parallel using asyncio.
+
+    Parameters:
+    video_ids (List[str]): List of YouTube video IDs to fetch metadata.
+    progress_callback (Optional[Callable[[int, int], None]]): Callback to update progress in main thread.
+    max_concurrent (int): Maximum number of concurrent requests.
+
+    Returns:
+    Dict[str, Dict]: Dictionary containing the fetched metadata, with video_id as key.
     """
     results = {}
     total = len(video_ids)
@@ -135,9 +182,9 @@ async def fetch_shorts_batch_async(video_ids: list, progress_callback=None, max_
     timeout = aiohttp.ClientTimeout(total=30)
     async with aiohttp.ClientSession(timeout=timeout) as session:
         
-        async def fetch_with_progress(video_id):
+        async def fetch_with_progress(video_id: str):
             nonlocal completed
-            result = await fetch_shorts_metadata_async(video_id, session, semaphore)
+            result = await fetch_shorts_metadata_async(str(video_id), session, semaphore)
             completed += 1
             
             if progress_callback:
@@ -153,7 +200,7 @@ async def fetch_shorts_batch_async(video_ids: list, progress_callback=None, max_
             return result
         
         # Create all tasks
-        tasks = [fetch_with_progress(vid) for vid in video_ids]
+        tasks = [fetch_with_progress(str(vid)) for vid in video_ids]
         
         # Execute all tasks concurrently
         all_results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -196,7 +243,14 @@ class VideoWorker(QObject):
     progress_percentage = Signal(int)
     finished = Signal()
 
-    def __init__(self, channel_id, channel_url):
+    def __init__(self, channel_id: str, channel_url: str):
+        """
+        Initializes the VideoWorker instance.
+
+        Args:
+            channel_id (str): The YouTube channel ID.
+            channel_url (str): The YouTube channel URL.
+        """
         super().__init__()
         self.db: DatabaseManager = app_state.db
         self.channel_id = channel_id
@@ -209,19 +263,39 @@ class VideoWorker(QObject):
         self.current_type_counter = 0
 
     @Slot(int, int)
-    def update_from_async(self, completed, total):
-        """Slot to receive async progress updates safely in main thread"""
+    def update_from_async(self, completed: int, total: int):
+        """
+        Slot to receive async progress updates safely in main thread.
+
+        Parameters:
+            completed (int): The number of completed tasks.
+            total (int): The total number of tasks.
+
+        Emits:
+            progress_updated (str): The progress message.
+            progress_percentage (int): The progress percentage.
+
+        """
         progress_msg = f"[Shorts] Fetching metadata: {completed}/{total} shorts"
         self.progress_updated.emit(progress_msg)
         type_progress = int((self.current_type_counter - 1) * 33 + (completed / total) * 20)
         self.progress_percentage.emit(min(type_progress, 95))
 
-    def fetch_video_urls(self, scrape_shorts: bool = False):
-        """Wrapper to run async video fetching."""
+    def fetch_video_urls(self, scrape_shorts: bool = False) -> None:
+        """
+        Wrapper to run async video fetching.
+
+        This function creates a new event loop and runs the `_fetch_video_urls_async` coroutine.
+        If an exception occurs, it prints the error message and emits the `progress_updated` and `progress_percentage` signals.
+        Finally, it closes the event loop.
+
+        Parameters:
+            scrape_shorts (bool): Whether to scrape shorts or not. Defaults to False.
+        """
         try:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(self._fetch_video_urls_async(scrape_shorts=scrape_shorts))
+            loop.run_until_complete(self._fetch_video_urls_async(scrape_shorts=bool(scrape_shorts)))
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -240,19 +314,23 @@ class VideoWorker(QObject):
         """
         Fetch and process videos by type (videos, shorts, live) using scrapetube.
         Downloads thumbnails asynchronously and updates DB in batches.
+
+        Parameters:
+            scrape_shorts (bool): Whether to scrape shorts or not. Defaults to False.
+
+        Returns:
+            None
         """
         if not scrape_shorts:
             self.types.pop("shorts")
         try:
             self.progress_updated.emit("Starting scrapetube scraping...")
             self.progress_percentage.emit(0)
-
             all_videos = []
             total_processed = 0
             type_counter = 0
             channel_thumb_dir = os.path.join(self.db.thumbnail_dir, str(self.channel_id))
             os.makedirs(channel_thumb_dir, exist_ok=True)
-
             # Create aiohttp session for all downloads
             timeout = aiohttp.ClientTimeout(total=30)
             async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -269,7 +347,8 @@ class VideoWorker(QObject):
                     videos = list(scrapetube.get_channel(channel_url=self.channel_url, content_type=ctype))
                     if not videos:
                         self.progress_updated.emit(f"No {vtype} found.")
-                        continue    
+                        continue
+    
 
                     self.progress_updated.emit(f"Fetched {len(videos)} {vtype}. Parsing data...")
                     all_videos.extend(videos)
@@ -366,7 +445,8 @@ class VideoWorker(QObject):
                             )
 
                             duration = (
-                                video.get("lengthText", {}).get("simpleText")
+                                video.get("lengthText", {})
+                                .get("simpleText")
                                 or video.get("lengthText", {}).get("runs", [{}])[0].get("text")
                                 or None
                             )
@@ -454,9 +534,9 @@ class VideoWorker(QObject):
                     overall_progress = int(type_counter * 33)
                     self.progress_percentage.emit(min(overall_progress, 95))
 
-            self.progress_updated.emit(f"✅ Completed scraping! Total {total_processed} videos saved.")
-            self.progress_percentage.emit(100)
-            self.finished.emit()
+                self.progress_updated.emit(f"Completed scraping! Total {total_processed} videos saved.")
+                self.progress_percentage.emit(100)
+                self.finished.emit()
 
         except Exception as e:
             import traceback
