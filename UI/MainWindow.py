@@ -105,6 +105,7 @@ class MainWindow(QMainWindow):
 
         self.homepage.home_page_scrape_video_signal.connect(self.switch_and_scrape_video)
         self.video_page.video_page_scrape_transcript_signal.connect(self.switch_and_scrape_transcripts)
+        self.video_page.video_page_scrape_comments_signal.connect(self.switch_and_scrape_comments)
     
     # Sidebar navigation logic
     def switch_page(self, index):
@@ -175,6 +176,12 @@ class MainWindow(QMainWindow):
         self.sidebar_buttons[2].setChecked(True)
         self.switch_page(2)
         self.transcript_page.transcript_page_scrape_transcripts_signal.emit()
+
+    def switch_and_scrape_comments(self):
+        self.sidebar_buttons[2].setChecked(False)
+        self.sidebar_buttons[3].setChecked(True)
+        self.switch_page(3)
+        self.comment_page.comment_page_scrape_comments_signal.emit()
 
 # Entry Point
 if __name__ == "__main__":

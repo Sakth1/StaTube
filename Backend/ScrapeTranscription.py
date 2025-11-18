@@ -8,13 +8,29 @@ from utils.AppState import app_state
 
 class TranscriptFetcher:
     """
-    A simplified class to fetch YouTube video transcripts using youtube-transcript-api.
+    A class to fetch YouTube video transcripts using youtube-transcript-api.
+
+    Attributes:
+        db (DatabaseManager): The database manager instance.
+        video_transcripts (dict): A dictionary storing the fetched transcripts.
     """
     def __init__(self):
+        """Initializes the TranscriptFetcher instance."""
         self.db: DatabaseManager = app_state.db
         self.video_transcripts: dict = {}
 
     def _fetch(self, video_id, channel_id, language_option=("en",)):
+        """
+        Fetches a YouTube video transcript using youtube-transcript-api.
+
+        Args:
+            video_id (str): The YouTube video ID.
+            channel_id (str): The channel ID for organizing storage.
+            language_option (tuple): A tuple of language codes to fetch the transcript.
+
+        Returns:
+            dict: A dictionary containing the fetched transcript data.
+        """
         # Try to get a manual transcript first, fall back to generated
         try:
             transcript_list = YouTubeTranscriptApi().list(video_id=video_id)
@@ -61,6 +77,16 @@ class TranscriptFetcher:
             return result
         
     def fetch_transcripts(self, video_details: dict[str, list], languages: list = ["en"]):
+        """
+        Fetches YouTube video transcripts for a list of videos organized by channel.
+
+        Args:
+            video_details (dict): A dictionary with channel_id as key and list of video_ids as value.
+            languages (list): A list of language codes to fetch the transcripts.
+
+        Returns:
+            dict: A dictionary containing the fetched transcripts organized by channel.
+        """
         try:                
             if len(languages) > 1:
                 language_option = tuple(l for l in languages) + (languages[0],)
@@ -86,7 +112,17 @@ class TranscriptFetcher:
             return None
 
     def save_transcript(self, transcript_data:FetchedTranscript, channel_id:str, filename:str):
-        """Saves transcript data to a JSON file."""
+        """
+        Saves transcript data to a JSON file.
+
+        Args:
+            transcript_data (FetchedTranscript): The fetched transcript data.
+            channel_id (str): The channel ID for organizing storage.
+            filename (str): The filename to save the transcript.
+
+        Returns:
+            str: The filepath of the saved transcript.
+        """
         if not transcript_data:
             return False
         

@@ -254,6 +254,7 @@ class Video(QWidget):
     """YouTube video browser and scraper widget."""
     video_page_scrape_video_signal = Signal()
     video_page_scrape_transcript_signal = Signal()
+    video_page_scrape_comments_signal = Signal()
 
     def __init__(self, parent=None):
         super(Video, self).__init__(parent)
@@ -278,6 +279,7 @@ class Video(QWidget):
         self.scrape_transcript_button = QPushButton("Scrape Transcript")
         self.scrape_transcript_button.clicked.connect(self.scrape_transcript)
         self.scrape_comments_button = QPushButton("Scrape Comments")
+        self.scrape_comments_button.clicked.connect(self.scrape_comments)
         bottom_layout.addWidget(self.scrape_transcript_button)
         bottom_layout.addWidget(self.add_to_list_button, stretch=2)
         bottom_layout.addWidget(self.scrape_comments_button)
@@ -533,6 +535,10 @@ class Video(QWidget):
     def scrape_transcript(self):
         print(app_state.video_list)
         self.video_page_scrape_transcript_signal.emit()
+
+    def scrape_comments(self):
+        print(app_state.video_list)
+        self.video_page_scrape_comments_signal.emit()
 
     def update_channel_label(self, channel_info: dict = None):
         name = "None"

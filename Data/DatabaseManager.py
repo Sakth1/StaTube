@@ -42,7 +42,8 @@ class DatabaseManager:
         self.db_path = self.db_dir / db_name
 
         # Load schema file
-        self.schema_path = Path(schema_path)
+        cwd = os.path.dirname(os.path.abspath(__file__))
+        self.schema_path = Path(os.path.join(cwd, schema_path))
 
         # Create tables using schema.sql
         self._create_tables()
@@ -57,6 +58,7 @@ class DatabaseManager:
     def _create_tables(self):
         """Load schema.sql and execute it."""
         if not self.schema_path.exists():
+            print(self.schema_path)
             raise FileNotFoundError(f"Schema file not found: {self.schema_path}")
 
         with open(self.schema_path, "r", encoding="utf-8") as f:
