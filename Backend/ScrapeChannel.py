@@ -1,20 +1,30 @@
 import scrapetube
 import requests
 import threading
-import time
-from typing import Dict, List, Callable, Optional
+import os
+from typing import Callable, Optional
 
 from utils.AppState import app_state
 
-def download_img(url, save_path):
+def download_img(url: str, save_path: str) -> bool:
+    """
+    Downloads an image from a given URL and saves it to the given save path.
+
+    Args:
+        url (str): URL of the image to download
+        save_path (str): Path where the image should be saved
+
+    Returns:
+        bool: True if the image was downloaded and saved successfully, False otherwise
+    """
     try:
         # Fix malformed URLs
         if url.startswith("https:https://"):
             url = url.replace("https:https://", "https://", 1)
 
-        response = requests.get(url, timeout=15.0, stream=True)
+        response = requests.get(str(url), timeout=15.0, stream=True)
         response.raise_for_status()
-        with open(save_path, "wb") as f:
+        with open(str(save_path), "wb") as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
         return True
@@ -25,7 +35,15 @@ def download_img(url, save_path):
         return False
 
 class Search:
+    """
+    Class to handle searching for YouTube channels.
+    
+    This class is responsible for searching and downloading profile pictures of YouTube channels.
+    """
     def __init__(self):
+        """
+        Initializes a new Search object.
+        """
         self.db = app_state.db
         self.channels = {}
         self.completed_downloads = 0
@@ -33,9 +51,24 @@ class Search:
         self.download_lock = threading.Lock()
         self.all_threads_complete = threading.Event()
 
-    def update_db(self, channel_id, title, sub_count, desc, profile_url, progress_callback=None):
+    def update_db(self, channel_id: str, title: str, sub_count: str, desc: str, profile_url: str, 
+                progress_callback: Optional[Callable] = None):
+        """
+        Updates the database with the given channel information.
+        
+        Args:
+            channel_id (str): ID of the channel to update
+            title (str): Title of the channel
+            sub_count (str): Number of subscribers of the channel
+            desc (str): Description of the channel
+            profile_url (str): URL of the channel profile picture
+            progress_callback (Optional[Callable]): A callback function to report progress
+        
+        Returns:
+            bool: True if the channel was updated successfully, False otherwise
+        """
         try:
-            profile_save_path = rf"{self.db.profile_pic_dir}/{channel_id}.png"
+            profile_save_path = os.path.join(self.db.profile_pic_dir, f"{channel_id}.png")
             success = download_img(profile_url, profile_save_path)
             
             if progress_callback and success:
@@ -84,6 +117,19 @@ class Search:
 
     def search_channel(self, name: str = None, limit: int = 6, stop_event=None, 
                       final=False, progress_callback: Optional[Callable] = None):
+        """
+        Searches for YouTube channels with the given name and limit.
+        
+        Args:
+            name (str): Name of the channel to search for
+            limit (int): Number of results to fetch
+            stop_event (Optional[threading.Event]): An event to stop the search
+            final (bool): Whether this is the final search
+            progress_callback (Optional[Callable]): A callback function to report progress
+        
+        Returns:
+            dict: A dictionary containing the search results. The keys are the channel IDs and the values are dictionaries containing the channel title, URL, number of subscribers, description, and profile picture URL.
+        """
         if not name:
             return {"None": {"title": None, "url": None}}
 

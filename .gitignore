@@ -13,6 +13,8 @@ utils/__pycache__/
 
 # Temporary or generated files
 output/
+.readmeaiignore
+ai_env
 experiments/
 
 # Notes and documentation drafts

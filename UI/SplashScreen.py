@@ -3,7 +3,17 @@ from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, Property
 from PySide6.QtGui import QPixmap, QFont, QPainter, QMovie, QColor, QPen, QLinearGradient
 
 class SplashScreen(QDialog):
+    """
+    A frameless dialog that shows a GIF/Animation while performing a task.
+    """
     def __init__(self, parent=None, gif_path=None):
+        """
+        Initializes the SplashScreen widget.
+        
+        Args:
+            parent (QWidget): The parent widget (optional).
+            gif_path (str): The path to the GIF to display.
+        """
         super().__init__(parent)
         
         # Set up as a frameless dialog that follows parent
@@ -88,7 +98,9 @@ class SplashScreen(QDialog):
         layout.addStretch()
     
     def paintEvent(self, event):
-        """Draw modern gradient background with border"""
+        """
+        Draw modern gradient background with border
+        """
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         
@@ -111,29 +123,60 @@ class SplashScreen(QDialog):
         painter.setBrush(Qt.NoBrush)
         painter.drawRoundedRect(1, 1, self.width() - 2, self.height() - 2, 12, 12)
     
-    def set_title(self, title):
+    def set_title(self, title: str):
+        """
+        Set the title of the SplashScreen dialog.
+        
+        Args:
+            title (str): The title to display.
+        """
         self.title = title
         self.title_label.setText(title)
     
-    def update_status(self, message):
+    def update_status(self, message: str):
+        """
+        Update the status message of the SplashScreen dialog.
+        
+        Args:
+            message (str): The status message to display.
+        """
         self.status = message
         self.status_label.setText(message)
     
-    def set_progress(self, value):
-        """Set progress bar value (0-100)"""
+    def set_progress(self, value: int):
+        """
+        Set the progress bar value (0-100) of the SplashScreen dialog.
+        
+        Args:
+            value (int): The progress bar value to set.
+        """
         self.progress_bar.setValue(int(value))
     
     def closeEvent(self, event):
-        """Clean up movie when closing"""
+        """
+        Clean up movie when closing
+        """
         if self.movie:
             self.movie.stop()
         super().closeEvent(event)
     
     # Opacity property for animations
-    def get_opacity(self):
+    def get_opacity(self) -> float:
+        """
+        Get the opacity of the SplashScreen dialog.
+        
+        Returns:
+            float: The opacity of the dialog.
+        """
         return self._opacity
     
-    def set_opacity(self, value):
+    def set_opacity(self, value: float):
+        """
+        Set the opacity of the SplashScreen dialog.
+        
+        Args:
+            value (float): The opacity of the dialog.
+        """
         self._opacity = value
         self.setWindowOpacity(value)
     
