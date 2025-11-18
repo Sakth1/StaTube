@@ -302,7 +302,7 @@ class Home(QWidget):
             inf = self.db.fetch(table="CHANNEL", where="channel_id=?", params=(channel_id,))
             if not inf:
                 # No DB row found — use sensible defaults and warn
-                channel_name = channel_info.get("title", "Unknown")
+                channel_name = info.get("title", "Unknown")
                 print(f"[WARN] No DB entry for channel_id={channel_id}")
                 sub_count = 0
                 profile_pic = None
