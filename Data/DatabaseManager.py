@@ -7,7 +7,7 @@ import os
 import threading
 
 class DatabaseManager:
-    def __init__(self, base_dir: Optional[str] = None, db_name: str = "data.db"):
+    def __init__(self, base_dir: Optional[str] = None, db_name: str = "data.db", schema_path: str = "schema.sql"):
         # Determine OS and set appropriate AppData directory
         system = platform.system()
         
@@ -15,9 +15,9 @@ class DatabaseManager:
             app_data_dir = Path(os.environ.get('APPDATA', Path.home() / "AppData" / "Roaming"))
         elif system == "Darwin":  # macOS
             app_data_dir = Path.home() / "Library" / "Application Support"
-        else:  # Linux and other Unix-like systems
+        else:  # Linux and others
             app_data_dir = Path.home() / ".local" / "share"
-        
+
         # Set base directory to AppData/YTAnalysis
         self.base_dir = Path(base_dir or app_data_dir / "YTAnalysis")
         self.db_dir = self.base_dir / "DB"
@@ -30,14 +30,21 @@ class DatabaseManager:
         self.video_dir = self.base_dir / "Videos"
 
         # Ensure directories exist
-        for folder in [self.db_dir, self.transcript_dir, self.comment_dir,
-                       self.proxy_dir, self.video_dir, self.channel_dir,
-                       self.profile_pic_dir, self.thumbnail_dir]:
+        for folder in [
+            self.db_dir, self.transcript_dir, self.comment_dir,
+            self.proxy_dir, self.video_dir, self.channel_dir,
+            self.profile_pic_dir, self.thumbnail_dir
+        ]:
             folder.mkdir(parents=True, exist_ok=True)
 
-        # Thread-local storage for database connections
+        # Thread-local storage
         self._local = threading.local()
         self.db_path = self.db_dir / db_name
+
+        # Load schema file
+        self.schema_path = Path(schema_path)
+
+        # Create tables using schema.sql
         self._create_tables()
 
     def _get_connection(self):
@@ -48,50 +55,16 @@ class DatabaseManager:
         return self._local.conn
 
     def _create_tables(self):
+        """Load schema.sql and execute it."""
+        if not self.schema_path.exists():
+            raise FileNotFoundError(f"Schema file not found: {self.schema_path}")
+
+        with open(self.schema_path, "r", encoding="utf-8") as f:
+            schema_sql = f.read()
+
         conn = self._get_connection()
         cursor = conn.cursor()
-
-        cursor.executescript("""
-        CREATE TABLE IF NOT EXISTS CHANNEL (
-            channel_id TEXT PRIMARY KEY,
-            name TEXT,
-            url TEXT,
-            sub_count TEXT,
-            desc TEXT,
-            profile_pic TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS VIDEO (
-            video_id TEXT PRIMARY KEY,
-            channel_id TEXT,
-            video_type TEXT,
-            video_url TEXT,
-            title TEXT,
-            desc TEXT,
-            duration TEXT,
-            duration_in_seconds INTEGER,
-            thumbnail_path TEXT,
-            view_count INTEGER,
-            time_since_published TEXT,
-            upload_timestamp INTEGER,
-            FOREIGN KEY(channel_id) REFERENCES CHANNEL(channel_id)
-        );
-
-        CREATE TABLE IF NOT EXISTS TRANSCRIPT (
-            transcript_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            video_id TEXT, 
-            file_path TEXT,
-            language TEXT,
-            FOREIGN KEY(video_id) REFERENCES VIDEO(video_id)
-        );
-
-        CREATE TABLE IF NOT EXISTS COMMENT (
-            comment_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            video_id TEXT,
-            file_path TEXT,
-            FOREIGN KEY(video_id) REFERENCES VIDEO(video_id)
-        );
-        """)
+        cursor.executescript(schema_sql)
         conn.commit()
 
     # ---------- Core Helpers ----------
@@ -108,21 +81,16 @@ class DatabaseManager:
             conn.commit()
             return cursor.lastrowid
         except sqlite3.IntegrityError as e:
-            # If it's a UNIQUE constraint error, try updating instead
             if "UNIQUE constraint failed" in str(e):
-                # Extract the primary key column name from the error or table
                 if table == "VIDEO":
                     pk_column = "video_id"
                 elif table == "CHANNEL":
                     pk_column = "channel_id"
                 else:
-                    # For other tables with auto-increment primary keys, re-raise
                     raise
-                
-                # Get the primary key value from data
+
                 if pk_column in data:
                     pk_value = data[pk_column]
-                    # Update instead of insert
                     update_data = {k: v for k, v in data.items() if k != pk_column}
                     return self.update(table, update_data, f"{pk_column}=?", (pk_value,))
                 else:
@@ -130,18 +98,18 @@ class DatabaseManager:
             else:
                 raise
 
-    def fetch(self, table: str, where: Optional[str] = None, order_by: Optional[str] = None,
-               params: Tuple = ()) -> List[Dict[str, Any]]:
+    def fetch(self, table: str, where: Optional[str] = None,
+              order_by: Optional[str] = None, params: Tuple = ()) -> List[Dict[str, Any]]:
         conn = self._get_connection()
         query = f"SELECT * FROM {table}"
         if where:
             query += f" WHERE {where}"
         if order_by:
             query += f" ORDER BY {order_by}"
+
         cursor = conn.cursor()
         cursor.execute(query, params)
-        rows = cursor.fetchall()
-        return [dict(row) for row in rows]
+        return [dict(row) for row in cursor.fetchall()]
 
     def update(self, table: str, data: Dict[str, Any], where: str, params: Tuple) -> int:
         conn = self._get_connection()
@@ -153,7 +121,7 @@ class DatabaseManager:
         conn.commit()
         return cursor.rowcount
 
-    # ---------- File Management Helpers ----------
+    # ---------- File Helpers ----------
     def save_json_file(self, folder: Path, filename: str, data: Dict) -> Path:
         filepath = folder / f"{filename}.json"
         with open(filepath, "w", encoding="utf-8") as f:
@@ -167,7 +135,6 @@ class DatabaseManager:
         return {}
 
     def close(self):
-        """Close the thread-specific connection"""
         if hasattr(self._local, 'conn'):
             self._local.conn.close()
             del self._local.conn
