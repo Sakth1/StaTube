@@ -9,6 +9,8 @@ import os
 
 from Data.DatabaseManager import DatabaseManager
 from Backend.ScrapeVideo import VideoWorker
+from Backend.ScrapeTranscription import TranscriptWorker
+from Backend.ScrapeComments import CommentWorker
 from UI.SplashScreen import SplashScreen
 from utils.AppState import app_state
 from utils.Config import const
@@ -355,7 +357,7 @@ class SelectableListView(QListView):
 
 class Video(QWidget):
     """YouTube video browser and scraper widget."""
-    video_page_scrape_video_signal = Signal()
+    video_page_scrape_video_signal = Signal(bool)
     video_page_scrape_transcript_signal = Signal()
     video_page_scrape_comments_signal = Signal()
 
@@ -378,7 +380,13 @@ class Video(QWidget):
         self.splash: Optional[SplashScreen] = None
         self.worker_thread: Optional[QThread] = None
         self.worker: Optional[VideoWorker] = None
-        self.video_page_scrape_video_signal: Signal = Signal()
+        
+        # Workers for transcript and comments
+        self.transcript_thread: Optional[QThread] = None
+        self.transcript_worker: Optional[TranscriptWorker] = None
+        self.comment_thread: Optional[QThread] = None
+        self.comment_worker: Optional[CommentWorker] = None
+
         self.video_page_scrape_video_signal.connect(self.scrape_videos)
 
         # === Main layout ===
@@ -565,7 +573,7 @@ class Video(QWidget):
         self.worker_thread.finished.connect(self.worker_thread.deleteLater)
         self.worker_thread.start()
 
-    def show_splash_screen(self, parent: Optional[QWidget] = None, gif_path: str = "") -> None:
+    def show_splash_screen(self, parent: Optional[QWidget] = None, gif_path: str = "", title: str = "Scraping Videos...") -> None:
         """
         Show a splash screen while the video scraping is in progress.
 
@@ -579,13 +587,15 @@ class Video(QWidget):
         :type parent: Optional[QWidget]
         :param gif_path: The path to the animated loading GIF (optional).
         :type gif_path: str
+        :param title: The title to display on the splash screen.
+        :type title: str
         :return None
         :rtype: None
         """
         cwd = os.getcwd()
         gif_path = os.path.join(cwd, "assets", "gif", "loading.gif") if not gif_path else gif_path
         self.splash = SplashScreen(parent=parent, gif_path=gif_path)
-        self.splash.set_title("Scraping Videos (Videos, Shorts, Live)...")
+        self.splash.set_title(title)
         self.splash.update_status("Starting...")
         self.splash.show()
 
@@ -624,6 +634,28 @@ class Video(QWidget):
             self.splash = None
         print("Video scraping completed!")
         self.load_videos_from_db()
+    
+    def on_transcript_worker_finished(self) -> None:
+        """
+        Called when the TranscriptWorker thread has finished scraping transcripts.
+        Closes the SplashScreen dialog.
+        """
+        if self.splash is not None:
+            self.splash.close()
+            self.splash = None
+        print("Transcript scraping completed!")
+        self.video_page_scrape_transcript_signal.emit()
+    
+    def on_comment_worker_finished(self) -> None:
+        """
+        Called when the CommentWorker thread has finished scraping comments.
+        Closes the SplashScreen dialog.
+        """
+        if self.splash is not None:
+            self.splash.close()
+            self.splash = None
+        print("Comment scraping completed!")
+        self.video_page_scrape_comments_signal.emit()
 
     # --- Loading videos ---
     def load_videos_from_db(
@@ -765,7 +797,7 @@ class Video(QWidget):
         video_list: Dict[int, List[str]] = {channel_id: video_ids}
         return video_list
 
-    def add_to_list(self, video_list: Dict[int, List[str]]) -> Dict[int, List[str]]:
+    def add_to_list(self) -> Dict[int, List[str]]:
         """
         Adds the selected videos to the video list stored in the application state.
 
@@ -782,6 +814,7 @@ class Video(QWidget):
         Returns:
             Dict[int, List[str]]: The updated video list stored in the application state.
         """
+        video_list: Dict[int, List[str]] = self.select_videos()
         existing_video_list: Dict[int, List[str]] = app_state.video_list
         if existing_video_list is not None:
             for key in list(existing_video_list.keys()):
@@ -804,8 +837,26 @@ class Video(QWidget):
         Returns:
             None
         """
-        print(app_state.video_list)
-        self.video_page_scrape_transcript_signal.emit()
+        video_list: Dict[int, List[str]] = app_state.video_list
+        if not video_list:
+            print("No videos in list to scrape transcripts.")
+            return
+        
+        self.show_splash_screen(title="Scraping Transcripts...")
+        
+        self.transcript_thread = QThread()
+        self.transcript_worker = TranscriptWorker(video_list)
+        self.transcript_worker.moveToThread(self.transcript_thread)
+        
+        self.transcript_thread.started.connect(self.transcript_worker.run)
+        self.transcript_worker.progress_updated.connect(self.update_splash_progress)
+        self.transcript_worker.progress_percentage.connect(self.update_splash_percentage)
+        self.transcript_worker.finished.connect(self.on_transcript_worker_finished)
+        self.transcript_worker.finished.connect(self.transcript_thread.quit)
+        self.transcript_worker.finished.connect(self.transcript_worker.deleteLater)
+        self.transcript_thread.finished.connect(self.transcript_thread.deleteLater)
+        
+        self.transcript_thread.start()
 
     def scrape_comments(self) -> None:
         """
@@ -821,8 +872,25 @@ class Video(QWidget):
             None
         """
         video_list: Dict[int, List[str]] = app_state.video_list
-        print(video_list)
-        self.video_page_scrape_comments_signal.emit()
+        if not video_list:
+            print("No videos in list to scrape comments.")
+            return
+
+        self.show_splash_screen(title="Scraping Comments...")
+
+        self.comment_thread = QThread()
+        self.comment_worker = CommentWorker(video_list)
+        self.comment_worker.moveToThread(self.comment_thread)
+
+        self.comment_thread.started.connect(self.comment_worker.run)
+        self.comment_worker.progress_updated.connect(self.update_splash_progress)
+        self.comment_worker.progress_percentage.connect(self.update_splash_percentage)
+        self.comment_worker.finished.connect(self.on_comment_worker_finished)
+        self.comment_worker.finished.connect(self.comment_thread.quit)
+        self.comment_worker.finished.connect(self.comment_worker.deleteLater)
+        self.comment_thread.finished.connect(self.comment_thread.deleteLater)
+
+        self.comment_thread.start()
 
     def update_channel_label(self, channel_info: Optional[Dict[str, Any]] = None) -> None:
         """

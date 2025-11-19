@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Tuple, Optional
 import json
 import platform
 import os
+import sys
 import threading
 
 class DatabaseManager:
@@ -54,8 +55,14 @@ class DatabaseManager:
         self.db_path = self.db_dir / db_name
 
         # Load schema file
-        cwd = os.path.dirname(os.path.abspath(__file__))
-        self.schema_path = Path(os.path.join(cwd, schema_path))
+        # For Nuitka onefile builds, use __file__ to get the correct path
+        if getattr(sys, 'frozen', False):
+            # Running as compiled executable
+            base_dir = os.path.dirname(sys.argv[0])
+        else:
+            # Running as script
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.schema_path = Path(os.path.join(base_dir, schema_path))
 
         # Create tables using schema.sql
         self._create_tables()
