@@ -1,7 +1,6 @@
 from PySide6.QtWidgets import (QWidget, QLabel, QGridLayout, QStyle, QPushButton,
                                QListView, QVBoxLayout, QAbstractItemView, QStyledItemDelegate,
-                               QCheckBox, QHBoxLayout, QFrame, QComboBox, QLayout, QStyleOptionViewItem,
-                               QModel)
+                               QCheckBox, QHBoxLayout, QFrame, QComboBox, QLayout, QStyleOptionViewItem)
 from PySide6.QtCore import (QThread, Qt, QSize, QRect, Property, QItemSelectionModel,
                             QItemSelection, QTimer, Signal, QModelIndex)
 from PySide6.QtGui import (QStandardItemModel, QStandardItem, QPixmap, QPainter, QFont, QColor, QIcon,)
