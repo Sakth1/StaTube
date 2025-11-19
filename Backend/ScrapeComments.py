@@ -2,9 +2,67 @@ import yt_dlp
 import json
 import os
 from typing import Dict, List
+from PySide6.QtCore import QObject, Signal
 
 from Data.DatabaseManager import DatabaseManager
 from utils.AppState import app_state
+
+class CommentWorker(QObject):
+    """
+    Worker thread for fetching comments to keep UI responsive.
+    """
+    progress_updated = Signal(str)
+    progress_percentage = Signal(int)
+    finished = Signal()
+
+    def __init__(self, video_details: Dict[str, List[str]]) -> None:
+        """
+        Initializes the CommentWorker.
+
+        Args:
+            video_details (Dict[str, List[str]]): Dictionary of channel IDs and video ID lists.
+        """
+        super().__init__()
+        self.video_details = video_details
+        self.fetcher = CommentFetcher()
+
+    def run(self) -> None:
+        """
+        Executes the comment fetching process.
+        """
+        try:
+            total_videos = sum(len(v_list) for v_list in self.video_details.values())
+            processed_count = 0
+            
+            self.progress_updated.emit("Starting comment scrape...")
+            self.progress_percentage.emit(0)
+
+            for channel_id, video_id_list in self.video_details.items():
+                for video_id in video_id_list:
+                    self.progress_updated.emit(f"Fetching comments for {video_id}...")
+                    
+                    # Perform fetch
+                    result = self.fetcher._fetch(video_id, channel_id)
+                    
+                    processed_count += 1
+                    percentage = int((processed_count / total_videos) * 100)
+                    self.progress_percentage.emit(percentage)
+                    
+                    if result.get("filepath"):
+                        count = result.get("comment_count", 0)
+                        self.progress_updated.emit(f"Saved {count} comments for {video_id}")
+                    else:
+                        self.progress_updated.emit(f"Skipped: {video_id} ({result.get('remarks')})")
+
+            self.progress_updated.emit("Comment scraping completed!")
+            self.progress_percentage.emit(100)
+            self.finished.emit()
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self.progress_updated.emit(f"Error: {str(e)}")
+            self.finished.emit()
 
 
 class CommentFetcher:
@@ -189,7 +247,6 @@ class CommentFetcher:
         try:
             with open(filepath, 'w', encoding='utf-8') as f:
                 json.dump(comments_data, f, indent=2, ensure_ascii=False)
-            print(f"Comments saved to: {filepath}")
             return filepath
         
         except Exception as e:

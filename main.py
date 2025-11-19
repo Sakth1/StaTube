@@ -19,8 +19,7 @@ def main():
 
     app = QApplication()
     window = MainWindow()
-    #window.showMaximized()
-    window.show()
+    window.showMaximized()
 
     try:
         app.exec()

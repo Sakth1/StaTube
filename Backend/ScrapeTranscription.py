@@ -2,9 +2,74 @@ from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, Fetc
 from youtube_transcript_api.formatters import JSONFormatter
 import json
 import os
+from PySide6.QtCore import QObject, Signal
 
 from Data.DatabaseManager import DatabaseManager
 from utils.AppState import app_state
+
+class TranscriptWorker(QObject):
+    """
+    Worker thread for fetching transcripts to keep UI responsive.
+    """
+    progress_updated = Signal(str)
+    progress_percentage = Signal(int)
+    finished = Signal()
+
+    def __init__(self, video_details: dict[str, list], languages: list = ["en"]) -> None:
+        """
+        Initializes the TranscriptWorker.
+
+        Args:
+            video_details (dict): Dictionary of channel IDs and video ID lists.
+            languages (list): List of language codes.
+        """
+        super().__init__()
+        self.video_details = video_details
+        self.languages = languages
+        self.fetcher = TranscriptFetcher()
+
+    def run(self) -> None:
+        """
+        Executes the transcript fetching process.
+        """
+        try:
+            total_videos = sum(len(v_list) for v_list in self.video_details.values())
+            processed_count = 0
+            
+            self.progress_updated.emit("Starting transcript scrape...")
+            self.progress_percentage.emit(0)
+
+            if len(self.languages) > 1:
+                language_option = tuple(l for l in self.languages) + (self.languages[0],)
+            else:
+                language_option = (self.languages[0],)
+
+            for channel_id, video_id_list in self.video_details.items():
+                for video_id in video_id_list:
+                    self.progress_updated.emit(f"Fetching transcript for {video_id}...")
+                    
+                    # Perform fetch
+                    result = self.fetcher._fetch(video_id, channel_id, language_option)
+                    
+                    processed_count += 1
+                    percentage = int((processed_count / total_videos) * 100)
+                    self.progress_percentage.emit(percentage)
+                    
+                    if result.get("filepath"):
+                        self.progress_updated.emit(f"Saved: {video_id}")
+                    else:
+                        self.progress_updated.emit(f"Skipped: {video_id} ({result.get('remarks')})")
+
+            self.progress_updated.emit("Transcript scraping completed!")
+            self.progress_percentage.emit(100)
+            self.finished.emit()
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self.progress_updated.emit(f"Error: {str(e)}")
+            self.finished.emit()
+
 
 class TranscriptFetcher:
     """
@@ -136,7 +201,6 @@ class TranscriptFetcher:
         try:
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write(formatted_transcript)
-            print(f"Transcript saved to: {filepath}")
             return filepath
         
         except Exception as e:
