@@ -45,6 +45,7 @@ jobs:
             --include-data-dir=assets=assets ^
             --include-data-dir=UI=UI ^
             --include-data-file=UI/Style.qss=UI/Style.qss ^
+            --include-data-file=Data/schema.sql=Data/schme.sql ^
             --assume-yes-for-downloads ^
             main.py
       
