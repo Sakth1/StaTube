@@ -1,20 +1,22 @@
 ; Inno Setup Template for StaTube
 [Setup]
-AppName={#emit("MyAppName")}
-AppVersion={#emit("MyAppVersion")}
-AppPublisher={#emit("MyAppPublisher")}
+AppName={#MyAppName}
+AppVersion={#MyAppVersion}
+AppPublisher={#MyAppPublisher}
 AppPublisherURL=https://example.com
-DefaultDirName={autopf}\{#emit("MyAppName")}
-DefaultGroupName={#emit("MyAppName")}
-OutputBaseFilename=StaTube-{#emit("MyAppVersion")}-setup
+DefaultDirName={autopf}\{#MyAppName}
+DefaultGroupName={#MyAppName}
+OutputDir={#OutputDir}
+OutputBaseFilename=StaTube-{#MyAppVersion}-setup
 Compression=lzma2
 SolidCompression=yes
 
 [Files]
-Source: "{#emit("SourceDir")}\\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
+Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\\{#emit("MyAppName")}"; Filename: "{app}\\{#emit("MyAppName")}.exe"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\main.exe"
+Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 
 [Run]
-Filename: "{app}\\{#emit("MyAppName")}.exe"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\main.exe"; Flags: nowait postinstall skipifsilent; Description: "Launch {#MyAppName}"
