@@ -1,121 +1,82 @@
-name: Build and Release
+name: Build and Release (Portable + Installer)
+--include-data-file=UI/Style.qss=UI/Style.qss ^
+--include-data-file=Data/schema.sql=Data/schema.sql ^
+--assume-yes-for-downloads ^
+main.py
 
-on:
-  workflow_dispatch:        # Manual trigger
-  push:
-    tags: ['v*', 'Alpha v*', 'Beta v*']
-  release:
-    types: [published, created]
 
-jobs:
-  #######################################
-  # BUILD JOB
-  #######################################
-  build:
-    runs-on: windows-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0   # Required to fetch tags
+- name: Validate standalone output
+shell: pwsh
+run: |
+# Nuitka --standalone typically produces a main.dist folder
+if (!(Test-Path "./standalone_build/main.dist")) { throw "Standalone build output not found: ./standalone_build/main.dist" }
 
-      - name: Get latest tag
-        id: get_tag
-        shell: bash
-        run: |
-          # Fetch all tags
-          git fetch --tags
 
-          # Determine tag based on trigger
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-              TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
-              echo "Manual run → using latest tag: $TAG"
-          else
-              TAG="${{ github.ref_name }}"
-              echo "Push/release event → using tag: $TAG"
-          fi
+- name: Prepare releases folder and copy standalone build
+shell: pwsh
+run: |
+$version = "${{ steps.get_tag.outputs.tag }}"
+New-Item -ItemType Directory -Force -Path $env:RELEASE_DIR | Out-Null
+$target = "./$env:RELEASE_DIR/StaTube-$version-standalone-py${{ matrix.python-version }}"
+if (Test-Path $target) { Remove-Item -Recurse -Force $target }
+New-Item -ItemType Directory -Force -Path $target | Out-Null
+Copy-Item -Recurse -Force .\standalone_build\main.dist\* $target
 
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11.9'
-          cache: 'pip'
+- name: Install Inno Setup (Chocolatey)
+shell: powershell
+run: |
+choco install innosetup -y
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install nuitka
 
-      #######################################
-      # BUILD ONEFILE PORTABLE
-      #######################################
-      - name: Build portable onefile exe
-        shell: cmd
-        run: |
-          python -m nuitka ^
-            --onefile ^
-            --onefile-tempdir-spec="%CACHE_DIR%" ^
-            --windows-console-mode=disable ^
-            --enable-plugin=pyside6 ^
-            --windows-icon-from-ico=assets/icon/youtube.ico ^
-            --include-package=yt_dlp ^
-            --include-module=yt_dlp.utils ^
-            --include-package=scrapetube ^
-            --nofollow-import-to=yt_dlp.extractor.lazy_extractors ^
-            --include-data-dir=assets=assets ^
-            --include-data-dir=UI=UI ^
-            --include-data-file=UI/Style.qss=UI/Style.qss ^
-            --include-data-file=Data/schema.sql=Data/schema.sql ^
-            --assume-yes-for-downloads ^
-            main.py
+- name: Compile Inno Setup installer
+shell: powershell
+env:
+TAG: ${{ steps.get_tag.outputs.tag }}
+OUTPUT_DIR: "${{ github.workspace }}\$RELEASE_DIR"
+run: |
+# read metadata (already exported to step outputs via $GITHUB_OUTPUT) — also safe to read file
+$metaFile = "${{ github.workspace }}\build\installer\metadata.out"
+if (!(Test-Path $metaFile)) { throw "metadata.out missing: $metaFile" }
+$meta = Get-Content $metaFile | ConvertFrom-StringData
+$appName = $meta.APP_NAME
+$appVersion = $meta.APP_VERSION
+$appPublisher = $meta.APP_PUBLISHER
+$appDesc = $meta.APP_DESCRIPTION
 
-      - name: Rename and prepare portable exe
-        shell: pwsh
-        run: |
-          $version = "${{ steps.get_tag.outputs.tag }}"
-          if (!(Test-Path ".\main.exe")) { throw "Onefile portable exe not found" }
-          New-Item -ItemType Directory -Force -Path releases | Out-Null
-          Move-Item ".\main.exe" ".\releases\StaTube-$version-portable.exe" -Force
 
-      #######################################
-      # UPLOAD ARTIFACTS
-      #######################################
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-${{ steps.get_tag.outputs.tag }}
-          path: releases/StaTube-*-portable.exe
-          retention-days: 7
+$iss = "${{ github.workspace }}\$INSTALLER_SCRIPT"
+if (!(Test-Path $iss)) { throw "Installer script not found: $iss" }
 
-  #######################################
-  # RELEASE JOB
-  #######################################
-  release:
-    needs: build
-    runs-on: windows-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: build-*
-          merge-multiple: true
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ needs.build.outputs.tag || github.ref_name }}
-          name: Release ${{ needs.build.outputs.tag || github.ref_name }}
-          body: |
-            Automatic build for tag ${{ needs.build.outputs.tag || github.ref_name }}
-            
-            **Included:**
-            - Portable EXE (StaTube-${{ needs.build.outputs.tag || github.ref_name }}-portable.exe)
-          files: StaTube-*-portable.exe
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+$source = "${{ github.workspace }}\$RELEASE_DIR\StaTube-$($env:TAG)-standalone-py${{ matrix.python-version }}"
+if (!(Test-Path $source)) { throw "Source folder for Inno Setup missing: $source" }
+
+
+$out = "${{ github.workspace }}\$RELEASE_DIR"
+
+
+$defines = "/DMyAppName=\"$appName\" /DMyAppVersion=\"$appVersion\" /DMyAppPublisher=\"$appPublisher\" /DMyAppDescription=\"$appDesc\" /DSourceDir=\"$source\" /DOutputDir=\"$out\""
+Write-Host "Running ISCC with: $defines $iss"
+
+
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" $defines $iss
+
+
+- name: Validate installer produced
+shell: pwsh
+run: |
+$version = "${{ steps.get_tag.outputs.tag }}"
+$installerName = "StaTube-$version-setup.exe"
+$installerPath = "./$env:RELEASE_DIR/$installerName"
+if (!(Test-Path $installerPath)) { throw "Installer not produced at $installerPath" }
+
+
+- name: Compute SHA256 for installer
+shell: pwsh
+run: |
+$version = "${{ steps.get_tag.outputs.tag }}"
+$installer = "./$env:RELEASE_DIR/StaTube-$version-setup.exe"
+$hash = Get-FileHash -Algorithm SHA256 -Path $installer
+$hashFile = "$installer.sha256.txt"
+"$($hash.Hash) $(Split-Path $installer -Le
