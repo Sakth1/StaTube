@@ -3,7 +3,7 @@ name: Build and Release (Portable + Installer)
 on:
   workflow_dispatch:
   push:
-    tags: ['v*', 'Alpha v*', 'Beta v*']
+    tags: ['v*', 'Alpha-v*', 'Alpha v*', 'Beta-v*', 'Beta v*']
 
 permissions:
   contents: write
