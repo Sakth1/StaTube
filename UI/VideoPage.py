@@ -643,7 +643,6 @@ class Video(QWidget):
         if self.splash is not None:
             self.splash.close()
             self.splash = None
-        print("Transcript scraping completed!")
         self.video_page_scrape_transcript_signal.emit()
     
     def on_comment_worker_finished(self) -> None:
@@ -654,7 +653,6 @@ class Video(QWidget):
         if self.splash is not None:
             self.splash.close()
             self.splash = None
-        print("Comment scraping completed!")
         self.video_page_scrape_comments_signal.emit()
 
     # --- Loading videos ---

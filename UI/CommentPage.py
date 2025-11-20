@@ -46,4 +46,3 @@ class Comment(QWidget):
         if not video_list:
             return
         comments: Dict[str, List[Dict[str, str]]] = self.comment_fetcher.fetch_comments(video_list)
-        print('comments', comments)

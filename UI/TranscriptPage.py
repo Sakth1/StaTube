@@ -51,5 +51,4 @@ class Transcript(QWidget):
         if not video_list:
             return
         languages: str = self.language_selection.currentText()
-        transcripts: Dict[str, str] = self.transcript_fetcher.fetch_transcripts(video_list)
-        print('transcripts', transcripts)
+        transcripts: Dict[str, str] = self.transcript_fetcher.fetch_transcripts(video_list, languages)
