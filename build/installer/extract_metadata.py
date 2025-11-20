@@ -26,7 +26,6 @@ patterns = {
 }
 
 values = {}
-
 for key, pattern in patterns.items():
     match = re.search(pattern, text)
     if not match:
