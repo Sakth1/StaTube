@@ -3,7 +3,7 @@ name: Build and Release (Portable + Installer)
 on:
   workflow_dispatch:
   push:
-    tags: ['v*', 'Alpha-v*', 'Alpha v*', 'Beta-v*', 'Beta v*']
+    tags: ['v*', 'Alpha-v*', 'Beta-v*']
 
 permissions:
   contents: write
@@ -206,6 +206,7 @@ jobs:
             /DMyAppVersion="$appver" `
             /DMyAppPublisher="$pub" `
             /DMyAppDescription="$desc" `
+            /DMyAppTag="$version" `
             /DSourceDir="$src" `
             /DOutputDir="$out" `
             "$iss"
