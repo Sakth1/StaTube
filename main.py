@@ -5,6 +5,11 @@ import sys
 import signal
 from utils.CheckInternet import Internet
 
+APP_NAME = "StaTube"
+APP_VERSION = "0.3.0"
+APP_PUBLISHER = "Sakthi Murugan C"
+APP_DESCRIPTION = "A Python PySide6 GUI app for analyzing YouTube video transcripts and comments."
+
 def main():
     internet = Internet()
 

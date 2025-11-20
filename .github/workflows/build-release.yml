@@ -1,40 +1,61 @@
-name: Build and Release
+name: Build and Release (Portable + Installer)
+
 on:
+  workflow_dispatch:
   push:
-    tags: ['v*']
-  release:
-    types: [published, created]
+    tags: ['v*', 'Alpha-v*', 'Beta-v*']
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_DIR: releases
+  INSTALLER_SCRIPT: build/installer/StaTube.iss
+
 jobs:
-  #######################################
-  # BUILD JOB
-  #######################################
-  build:
+  ###############################################
+  # PORTABLE BUILD (Nuitka --onefile)
+  ###############################################
+  build-portable:
+    name: Build Portable (onefile)
     runs-on: windows-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Set up Python
+
+      - name: Determine version from tag
+        id: version
+        shell: bash
+        run: |
+          git fetch --tags
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+          else
+            TAG="${{ github.ref_name }}"
+          fi
+          echo "TAG=$TAG"
+          echo "TAG=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Setup Python 3.11
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
-          cache: 'pip'
-      - name: Install dependencies
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install requirements
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install nuitka
-      
-      #######################################
-      # BUILD ONEFILE PORTABLE
-      #######################################
-      - name: Build portable onefile exe
+
+      - name: Build Portable EXE (Nuitka)
         shell: cmd
         run: |
           python -m nuitka ^
             --onefile ^
-            --onefile-tempdir-spec="%CACHE_DIR%" ^
             --windows-console-mode=disable ^
             --enable-plugin=pyside6 ^
             --windows-icon-from-ico=assets/icon/youtube.ico ^
@@ -45,52 +66,201 @@ jobs:
             --include-data-dir=assets=assets ^
             --include-data-dir=UI=UI ^
             --include-data-file=UI/Style.qss=UI/Style.qss ^
+            --include-data-file=Data/schema.sql=Data/schema.sql ^
             --assume-yes-for-downloads ^
             main.py
-      
-      - name: Rename and prepare portable exe
+
+      - name: Validate portable build output
         shell: pwsh
         run: |
-          $version = "${{ github.ref_name }}"
-          if ($version.StartsWith("v")) { $version = $version.Substring(1) }
-          if (!(Test-Path ".\main.exe")) { throw "Onefile portable exe not found" }
-          New-Item -ItemType Directory -Force -Path releases | Out-Null
-          Move-Item ".\main.exe" ".\releases\StaTube-$version-portable.exe" -Force
-      
-      #######################################
-      # UPLOAD ARTIFACTS
-      #######################################
-      - name: Upload artifacts
+          if (!(Test-Path "./main.exe")) {
+              throw "Portable exe not found."
+          }
+
+      - name: Move and rename artifact
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.TAG }}"
+          New-Item -ItemType Directory -Force -Path $env:RELEASE_DIR | Out-Null
+          Move-Item "./main.exe" "./$env:RELEASE_DIR/StaTube-$version-portable.exe" -Force
+
+      - name: SHA256 checksum
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.TAG }}"
+          $file = "./$env:RELEASE_DIR/StaTube-$version-portable.exe"
+          $hash = Get-FileHash -Algorithm SHA256 $file
+          "$($hash.Hash)  StaTube-$version-portable.exe" | Out-File "$file.sha256.txt"
+
+      - name: Upload portable artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-${{ github.ref_name }}
-          path: releases/StaTube-*-portable.exe
-          retention-days: 7
-  #######################################
-  # RELEASE JOB
-  #######################################
-  release:
-    needs: build
+          name: portable-${{ steps.version.outputs.TAG }}
+          path: |
+            releases/StaTube-*-portable.exe
+            releases/StaTube-*-portable.exe.sha256.txt
+
+  ###############################################
+  # INSTALLER BUILD (standalone + Inno Setup)
+  ###############################################
+  build-installer:
+    name: Build Installer (standalone)
     runs-on: windows-latest
-    permissions:
-      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version from tag
+        id: version
+        shell: bash
+        run: |
+          git fetch --tags
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+          else
+            TAG="${{ github.ref_name }}"
+          fi
+          echo "TAG=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install nuitka
+
+      - name: Extract metadata from main.py
+        id: meta
+        shell: bash
+        run: |
+          python build/installer/extract_metadata.py main.py > meta.out
+          cat meta.out
+          while IFS= read -r line; do
+            echo "$line" >> $GITHUB_OUTPUT
+          done < meta.out
+
+      - name: Build Standalone Folder (Nuitka)
+        shell: cmd
+        run: |
+          python -m nuitka ^
+            --standalone ^
+            --output-dir=standalone_build ^
+            --windows-console-mode=disable ^
+            --enable-plugin=pyside6 ^
+            --windows-icon-from-ico=assets/icon/youtube.ico ^
+            --include-package=yt_dlp ^
+            --include-module=yt_dlp.utils ^
+            --include-package=scrapetube ^
+            --nofollow-import-to=yt_dlp.extractor.lazy_extractors ^
+            --include-data-dir=assets=assets ^
+            --include-data-dir=UI=UI ^
+            --include-data-file=UI/Style.qss=UI/Style.qss ^
+            --include-data-file=Data/schema.sql=Data/schema.sql ^
+            --assume-yes-for-downloads ^
+            main.py
+
+      - name: Validate standalone output
+        shell: pwsh
+        run: |
+          if (!(Test-Path "./standalone_build/main.dist")) {
+            throw "Standalone build folder missing!"
+          }
+
+      - name: Create Installer Input Folder
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.TAG }}"
+          New-Item -ItemType Directory -Force -Path $env:RELEASE_DIR | Out-Null
+          $target = "./$env:RELEASE_DIR/StaTube-$version-standalone"
+          if (Test-Path $target) { Remove-Item -Recurse -Force $target }
+          New-Item -ItemType Directory -Force -Path $target | Out-Null
+          Copy-Item -Recurse -Force "./standalone_build/main.dist/*" $target
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y
+
+      - name: Build Installer (ISCC)
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.TAG }}"
+          $name = "${{ steps.meta.outputs.APP_NAME }}"
+          $appver = "${{ steps.meta.outputs.APP_VERSION }}"
+          $pub = "${{ steps.meta.outputs.APP_PUBLISHER }}"
+          $desc = "${{ steps.meta.outputs.APP_DESCRIPTION }}"
+
+          $iss = "${{ github.workspace }}\\build\\installer\\StaTube.iss"
+          $src = "${{ github.workspace }}\\releases\\StaTube-$version-standalone"
+          $out = "${{ github.workspace }}\\releases"
+
+          & "C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe" `
+            /DMyAppName="$name" `
+            /DMyAppVersion="$appver" `
+            /DMyAppPublisher="$pub" `
+            /DMyAppDescription="$desc" `
+            /DMyAppTag="$version" `
+            /DSourceDir="$src" `
+            /DOutputDir="$out" `
+            "$iss"
+
+      - name: Validate installer output
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.TAG }}"
+          if (!(Test-Path "./$env:RELEASE_DIR/StaTube-$version-setup.exe")) {
+            throw "Installer not produced!"
+          }
+
+      - name: SHA256 installer
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.TAG }}"
+          $file = "./$env:RELEASE_DIR/StaTube-$version-setup.exe"
+          $hash = Get-FileHash -Algorithm SHA256 $file
+          "$($hash.Hash)  StaTube-$version-setup.exe" | Out-File "$file.sha256.txt"
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ steps.version.outputs.TAG }}
+          path: |
+            releases/StaTube-*-setup.exe
+            releases/StaTube-*-setup.exe.sha256.txt
+
+  ###############################################
+  # CREATE RELEASE
+  ###############################################
+  create-release:
+    runs-on: ubuntu-latest
+    needs: [build-portable, build-installer]
+
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: build-*
-          merge-multiple: true
+          path: artifacts
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           body: |
-            Automatic build for ${{ github.ref_name }}
-            
+            Automatic build for tag ${{ github.ref_name }}
+
             **Included:**
-            - Portable single EXE (StaTube-${{ github.ref_name }}-portable.exe)
-          files: StaTube-*-portable.exe
-          generate_release_notes: true
+            - Portable EXE
+            - Installer EXE
+            - SHA256 hash files
+          files: |
+            artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
