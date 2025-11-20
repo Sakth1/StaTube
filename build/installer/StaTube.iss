@@ -7,7 +7,7 @@ AppPublisherURL=https://example.com
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 OutputDir={#OutputDir}
-OutputBaseFilename=StaTube-{#MyAppVersion}-setup
+OutputBaseFilename=StaTube-{#MyAppTag}-setup
 Compression=lzma2
 SolidCompression=yes
 
