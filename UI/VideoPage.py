@@ -421,10 +421,6 @@ class Video(QWidget):
         filter_sort_layout.addWidget(self.filter_combo)
         filter_sort_layout.addWidget(self.sort_combo)
 
-        self.lang_combo: QComboBox = QComboBox()
-        self.lang_combo.addItems([f'{name} ({code})' for code, name in const.YOUTUBE_LANGUAGE_CODES.items()])
-        self.lang_combo.setCurrentText(f'English (en)')
-
         # === Segmented Control ===
         self._create_segmented_control()
 
@@ -448,8 +444,7 @@ class Video(QWidget):
         self.main_layout.addLayout(filter_sort_layout, 0, 1, 1, 1, alignment=Qt.AlignLeft)
         self.main_layout.addLayout(self.channel_label_layout, 0, 2, 1, 3, alignment=Qt.AlignCenter)
         self.main_layout.addWidget(self.scrape_shorts_checkbox, 0, 5, 1, 1, alignment=Qt.AlignRight)
-        self.main_layout.addWidget(self.lang_combo, 0, 6, 1, 1, alignment=Qt.AlignRight)
-        self.main_layout.addWidget(self.video_view, 1, 0, 1, 7)
+        self.main_layout.addWidget(self.video_view, 1, 0, 1, 6)
         self.main_layout.addLayout(bottom_layout, 2, 1, 1, 4, alignment=Qt.AlignCenter)
 
         # === Signals ===

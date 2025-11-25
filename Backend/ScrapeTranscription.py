@@ -39,10 +39,7 @@ class TranscriptWorker(QObject):
             self.progress_updated.emit("Starting transcript scrape...")
             self.progress_percentage.emit(0)
 
-            if len(self.languages) > 1:
-                language_option = tuple(l for l in self.languages) + (self.languages[0],)
-            else:
-                language_option = (self.languages[0],)
+            language_option = ["en"]
 
             for channel_id, video_id_list in self.video_details.items():
                 for video_id in video_id_list:
@@ -100,9 +97,15 @@ class TranscriptFetcher:
         try:
             transcript_list = YouTubeTranscriptApi().list(video_id=video_id)
             try:
-                transcript = transcript_list.find_manually_created_transcript(language_codes=language_option)
+                # First try to get manual English transcript
+                transcript = transcript_list.find_manually_created_transcript(language_codes=["en"])
             except NoTranscriptFound:
-                transcript = transcript_list.find_generated_transcript(language_codes=language_option)
+                try:
+                    # Then try generated English transcript
+                    transcript = transcript_list.find_generated_transcript(language_codes=["en"])
+                except NoTranscriptFound:
+                    # Finally, try to get English translation from any available transcript
+                    transcript = transcript_list.find_transcript(language_codes=["en"])
             
             transcript_data = transcript.fetch()
             filename = f"{video_id}.json"
@@ -154,10 +157,7 @@ class TranscriptFetcher:
             dict: A dictionary containing the fetched transcripts organized by channel.
         """
         try:                
-            if len(languages) > 1:
-                language_option = tuple(l for l in languages) + (languages[0],)
-            else:
-                language_option = (languages[0],)
+            language_option = ["en"]
 
             for channel_id, video_id_list in video_details.items():
                 transcripts = {}

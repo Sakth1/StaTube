@@ -1,183 +1,288 @@
+"""
+sentiment_summary_renderer.py
+
+Pure PySide6 sentiment summary renderer.
+Creates a modern card-style sentiment visualization and returns QImage.
+
+Test block at bottom:
+    - Runs VADER on a list of sentences
+    - Counts positive/neutral/negative
+    - Renders summary card
+    - Saves output as 'sentiment_preview.png'
+"""
+
 import nltk
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
-from typing import List, Dict, Union, Tuple
+from nltk.sentiment import SentimentIntensityAnalyzer
 
-# Ensure VADER lexicon is downloaded (run 'nltk.download('vader_lexicon')' once)
+from PySide6.QtGui import (
+    QImage, QPainter, QColor, QFont, Qt
+)
+from PySide6.QtCore import QRectF
 
-class SentimentAnalyzer:
-    """
-    A class to perform sentiment analysis on a list of text strings 
-    using the NLTK VADER (Valence Aware Dictionary and sEntiment Reasoner) model.
-    
-    VADER is specifically attuned to sentiments expressed in social media.
-    """
+# ---------------------------------------------------------
+# Setup VADER Sentiment
+# ---------------------------------------------------------
+def ensure_vader():
+    try:
+        nltk.data.find("sentiment/vader_lexicon.zip")
+    except LookupError:
+        nltk.download("vader_lexicon")
 
-    def __init__(self):
-        """
-        Initializes the SentimentAnalyzer and loads the VADER model.
-        """
-        # Load the VADER sentiment intensity analyzer
-        self.sid = SentimentIntensityAnalyzer()
-        
-    def get_sentence_sentiment(self, text: str) -> Dict[str, float]:
-        """
-        Calculates the sentiment scores for a single piece of text.
 
-        :param text: The input string to analyze.
-        :type text: str
-        :returns: A dictionary containing 'neg', 'neu', 'pos', and 'compound' scores.
-                  - 'compound' is a normalized, weighted composite score.
-        :rtype: Dict[str, float]
-        """
-        # Polarity scores include negative, neutral, positive, and compound scores
-        return self.sid.polarity_scores(text)
+# ---------------------------------------------------------
+# Sentiment Renderer Class
+# ---------------------------------------------------------
+class SentimentSummaryRenderer:
 
-    def analyze_list(self, text_list: List[str]) -> Dict[str, Union[List[Dict], Tuple[str, float]]]:
-        """
-        Performs sentiment analysis on a list of strings and aggregates the results.
+    def __init__(self, width=900, height=300, radius=25):
+        self.width = width
+        self.height = height
+        self.radius = radius
 
-        :param text_list: A list of text strings (e.g., reviews, tweets, sentences).
-        :type text_list: List[str]
-        :raises TypeError: If the input is not a list of strings.
-        :raises ValueError: If the input list is empty.
-        :returns: A dictionary containing:
-                  - 'individual_scores': A list of dictionaries, one for each input text.
-                  - 'overall_compound': The average compound score across all texts.
-                  - 'overall_sentiment': The derived overall sentiment ('Positive', 'Neutral', or 'Negative').
-        :rtype: Dict[str, Union[List[Dict], Tuple[str, float]]]
-        """
-        if not isinstance(text_list, list) or not all(isinstance(t, str) for t in text_list):
-            raise TypeError("Input must be a list of strings.")
-        if not text_list:
-            raise ValueError("Input list cannot be empty.")
-            
-        individual_scores = []
-        compound_scores = []
+        # Theme colors
+        self.bg_color = QColor(255, 255, 255)
+        self.card_shadow = QColor(0, 0, 0, 30)
 
-        for text in text_list:
-            # 1. Get the sentiment scores for the current text
-            scores = self.get_sentence_sentiment(text)
-            
-            # 2. Store the detailed results
-            individual_scores.append({
-                'text': text,
-                'scores': scores,
-                'sentiment': self._determine_label(scores['compound'])
-            })
-            
-            # 3. Collect compound score for overall aggregation
-            compound_scores.append(scores['compound'])
+        self.positive_color = QColor("#4CAF50")
+        self.neutral_color = QColor("#FFC107")
+        self.negative_color = QColor("#F44336")
 
-        # 4. Calculate the average compound score
-        if compound_scores:
-            avg_compound = sum(compound_scores) / len(compound_scores)
-        else:
-            avg_compound = 0.0
-            
-        # 5. Determine the overall sentiment label
-        overall_sentiment_label = self._determine_label(avg_compound)
-        
-        # 6. Return the structured results
-        return {
-            'individual_scores': individual_scores,
-            'overall_compound': avg_compound,
-            'overall_sentiment': overall_sentiment_label
-        }
+    def compute_label(self, p, n, u):
+        total = p + n + u
+        if total == 0:
+            return "No Data"
 
-    def _determine_label(self, compound_score: float) -> str:
-        """
-        Helper method to classify a compound score into a simple sentiment label.
-        
-        Uses common VADER thresholds: >0.05 for positive, <-0.05 for negative.
-        """
-        if compound_score >= 0.05:
-            return "Positive"
-        elif compound_score <= -0.05:
-            return "Negative"
-        else:
-            return "Neutral"
+        score = (p - n) / total
 
-# --- Example Usage (Non-GUI Console Output) ---
-if __name__ == '__main__':
-    # Sample data with varied sentiments
-    comments = [
-        "I absolutely loved the experience and would do it again."  # positive
-        "The product exceeded all my expectations."  # positive
-        "She was thrilled with the results of her hard work."  # positive
-        "The weather was perfect for a nice long walk."  # positive
-        "He felt proud after completing the difficult task."  # positive
-        "The team celebrated their victory with excitement."  # positive
-        "I enjoyed every moment of the event."  # positive
-        "The delicious meal made my day even better."  # positive
-        "The new update works flawlessly and is very intuitive."  # positive
-        "His performance was outstanding and inspiring."  # positive
+        if score > 0.6: return "Overwhelmingly Positive"
+        if score > 0.3: return "Positive"
+        if score > 0.05: return "Slightly Positive"
+        if score > -0.05: return "Neutral"
+        if score > -0.3: return "Negative"
+        if score > -0.6: return "Strongly Negative"
+        return "Overwhelmingly Negative"
 
-        "I am disappointed with the quality of the service."  # negative
-        "The experience was terrible and not worth the money."  # negative
-        "She regretted buying the product after using it once."  # negative
-        "He was frustrated with the slow customer support."  # negative
-        "The movie was boring and a complete waste of time."  # negative
-        "The food tasted awful and was poorly prepared."  # negative
-        "The sudden cancellation ruined my entire plan."  # negative
-        "They were upset due to the shipment delay."  # negative
-        "The new software update caused more problems than before."  # negative
-        "The room was dirty and smelled very bad."  # negative
+    # ---------------------------------------------------------
+    # Render the Sentiment Card → returns QImage
+    # ---------------------------------------------------------
+    def render_summary(self, positive: int, neutral: int, negative: int) -> QImage:
+        img = QImage(self.width, self.height, QImage.Format_ARGB32)
+        img.fill(Qt.transparent)
 
-        "The meeting was held as scheduled."  # neutral
-        "He walked to the store to buy groceries."  # neutral
-        "The device needs to be charged before use."  # neutral
-        "She placed the book on the wooden shelf."  # neutral
-        "The data was recorded and stored in the database."  # neutral
-        "He typed the report and sent it to his manager."  # neutral
-        "The bus arrived at the station on time."  # neutral
-        "She turned off the lights before leaving."  # neutral
-        "The file was moved to a different folder."  # neutral
-        "He switched on the computer and logged in."  # neutral
+        painter = QPainter(img)
+        painter.setRenderHint(QPainter.Antialiasing)
 
-        "I’m really happy that my efforts finally paid off."  # positive
-        "The host made us feel extremely welcome."  # positive
-        "The design is clean, simple, and beautiful."  # positive
-        "He received great feedback from his clients."  # positive
-        "The journey was peaceful and refreshing."  # positive
+        # ---------------------------
+        # Card shadow
+        # ---------------------------
+        shadow_rect = QRectF(10, 10, self.width - 20, self.height - 20)
+        painter.setBrush(self.card_shadow)
+        painter.setPen(Qt.NoPen)
+        painter.drawRoundedRect(shadow_rect, self.radius, self.radius)
 
-        "I can’t believe how bad the service was today."  # negative
-        "The experience left me feeling very disappointed."  # negative
-        "The product broke after only one day of use."  # negative
-        "He felt completely ignored by the staff."  # negative
-        "This is the worst decision I have ever made."  # negative
+        # ---------------------------
+        # Card background
+        # ---------------------------
+        bg_rect = QRectF(0, 0, self.width - 20, self.height - 20)
+        painter.setBrush(self.bg_color)
+        painter.drawRoundedRect(bg_rect, self.radius, self.radius)
 
-        "She checked the time and continued her work."  # neutral
-        "The report was updated earlier this morning."  # neutral
-        "He opened the door and walked inside."  # neutral
-        "The instructions were printed on the back of the box."  # neutral
-        "The website loaded after a few seconds."  # neutral
+        # ---------------------------
+        # Title
+        # ---------------------------
+        painter.setPen(QColor(120, 120, 120))
+        painter.setFont(QFont("Segoe UI", 14))
+        painter.drawText(30, 45, "COMMUNITY SENTIMENT")
 
-        "The support team was incredibly helpful."  # positive
-        "I’m delighted with how smooth everything went."  # positive
-        "She smiled after hearing the good news."  # positive
+        # ---------------------------
+        # Main label
+        # ---------------------------
+        label = self.compute_label(positive, negative, neutral)
+        painter.setPen(QColor(20, 20, 20))
+        painter.setFont(QFont("Segoe UI", 24, QFont.Bold))
+        painter.drawText(30, 90, label)
 
-        "The solution failed completely during testing."  # negative
-        "He felt anxious throughout the meeting."  # negative
-        "The constant errors made the system unusable."  # negative
+        # ---------------------------
+        # Sentiment bar
+        # ---------------------------
+        total = max(positive + neutral + negative, 1)
 
-        "He wrote down the notes during the lecture."  # neutral
-        "She saved the document before closing the app."  # neutral
-        "The box was placed neatly on the table."  # neutral
+        bar_x = 30
+        bar_y = 120
+        bar_width = self.width - 80
+        bar_height = 30
+
+        neg_w = bar_width * (negative / total)
+        neu_w = bar_width * (neutral / total)
+        pos_w = bar_width * (positive / total)
+
+        # Negative bar
+        painter.setBrush(self.negative_color)
+        painter.drawRoundedRect(QRectF(bar_x, bar_y, neg_w, bar_height), 10, 10)
+
+        # Neutral bar (flat)
+        painter.setBrush(self.neutral_color)
+        painter.drawRect(QRectF(bar_x + neg_w, bar_y, neu_w, bar_height))
+
+        # Positive bar
+        painter.setBrush(self.positive_color)
+        painter.drawRoundedRect(
+            QRectF(bar_x + neg_w + neu_w, bar_y, pos_w, bar_height), 10, 10
+        )
+
+        # ---------------------------
+        # Bottom text counts
+        # ---------------------------
+        painter.setFont(QFont("Segoe UI", 14))
+
+        painter.setPen(self.negative_color)
+        painter.drawText(bar_x, bar_y + 80, f"😡 Negative: {negative}")
+
+        painter.setPen(self.neutral_color)
+        painter.drawText(bar_x + 250, bar_y + 80, f"😐 Neutral: {neutral}")
+
+        painter.setPen(self.positive_color)
+        painter.drawText(bar_x + 500, bar_y + 80, f"😊 Positive: {positive}")
+
+        painter.end()
+        return img
+
+
+# ---------------------------------------------------------
+# 🔥 TEST BLOCK — generate summary from list of sentences
+# ---------------------------------------------------------
+if __name__ == "__main__":
+    from PySide6.QtWidgets import QApplication
+    import sys
+
+    # Needed for QPainter/QFont to work
+    app = QApplication(sys.argv)
+
+    ensure_vader()
+    vader = SentimentIntensityAnalyzer()
+
+    sentences = [
+        "The sun dipped below the horizon leaving a warm glow.",
+        "Technology is evolving faster than ever before.",
+        "Cats often sleep for more than twelve hours a day.",
+        "The sound of rain on the rooftop was calming.",
+        "He opened the old book and dust filled the air.",
+        "The startup launched a new innovative product.",
+        "Music festivals attract thousands of enthusiastic fans.",
+        "The mountain peaks were covered in a blanket of snow.",
+        "Artificial intelligence is transforming industries.",
+        "She brewed a cup of coffee to start her morning.",
+        "The waves crashed gently along the shoreline.",
+        "Traveling helps people discover new cultures.",
+        "The city lights sparkled brilliantly at night.",
+        "He found a rare coin buried in the garden.",
+        "The chef prepared a delicious five-course meal.",
+        "Birds chirped loudly as the sun rose.",
+        "The library was silent except for turning pages.",
+        "A gentle breeze rustled the leaves.",
+        "Innovation drives economic growth worldwide.",
+        "The dog wagged its tail excitedly.",
+        "She wrote her thoughts in a leather journal.",
+        "The conference attracted global business leaders.",
+        "Fresh flowers brightened the entire room.",
+        "He solved the puzzle after several attempts.",
+        "The river flowed calmly through the valley.",
+        "The team celebrated their unexpected victory.",
+        "Healthy habits improve overall well-being.",
+        "The old bridge creaked as cars passed.",
+        "She painted a landscape filled with vibrant colors.",
+        "Clouds gathered signaling an approaching storm.",
+        "The market saw a sudden surge in demand.",
+        "He planted a tree in his backyard.",
+        "The classroom buzzed with lively discussions.",
+        "Digital marketing strategies are constantly evolving.",
+        "Snowflakes fell softly onto the frozen ground.",
+        "She whispered a wish into the night sky.",
+        "The robot performed tasks with precision.",
+        "The bakery sold out of fresh bread quickly.",
+        "He captured stunning photos of the sunset.",
+        "The festival showcased traditional dance forms.",
+        "A cup of tea can be incredibly comforting.",
+        "The stock market experienced a minor correction.",
+        "Children played joyfully in the park.",
+        "The scientist conducted a groundbreaking experiment.",
+        "The aroma of spices filled the kitchen.",
+        "The garden bloomed with colorful flowers.",
+        "He trained for months before running the marathon.",
+        "Online learning platforms have become widely popular.",
+        "The forest trail was peaceful and quiet.",
+        "She discovered a hidden path behind the cabin.",
+        "He enjoys reading books about ancient civilizations.",
+        "The airport was crowded with holiday travelers.",
+        "The innovation hub hosted various technology startups.",
+        "The night sky was filled with shining stars.",
+        "She cooked a meal using farm-fresh ingredients.",
+        "The artist sketched portraits with remarkable detail.",
+        "The rainfall cooled the hot summer day.",
+        "He found inspiration in everyday moments.",
+        "The technology conference introduced new software tools.",
+        "Farmers worked tirelessly during the harvest season.",
+        "The lighthouse guided ships through the dark.",
+        "She decorated her room with minimalistic designs.",
+        "The athlete broke a national record.",
+        "Nature photography requires patience and precision.",
+        "The museum showcased ancient artifacts.",
+        "Digital transformation is reshaping workplaces.",
+        "He enjoyed a peaceful walk by the lake.",
+        "The classroom embraced collaborative learning.",
+        "The startup secured funding for expansion.",
+        "She bought handmade crafts from local artisans.",
+        "The river reflected the clear blue sky.",
+        "The company implemented new sustainability initiatives.",
+        "He listened to calming instrumental music.",
+        "The storm passed leaving behind a rainbow.",
+        "She captured memories through her travel vlog.",
+        "The organization hosted a charity marathon.",
+        "He studied data trends to make predictions.",
+        "The bookstore offered rare and vintage novels.",
+        "The wind carried the scent of jasmine flowers.",
+        "He developed a mobile app for fitness tracking.",
+        "The team brainstormed creative solutions.",
+        "She enjoyed hiking on challenging trails.",
+        "The village celebrated a cultural festival.",
+        "He analyzed customer behavior using analytics tools.",
+        "The sound of the waterfall echoed through the valley.",
+        "Her artwork was displayed in the exhibition.",
+        "The new café became popular among students.",
+        "He conducted a survey to gather feedback.",
+        "The beach was filled with tourists during summer.",
+        "She practiced yoga to relax her mind.",
+        "The researchers published an interesting study.",
+        "He explored the historic streets of the town.",
+        "The company celebrated a decade of success.",
+        "She adopted a puppy from the shelter.",
+        "The algorithm improved accuracy significantly.",
+        "He enjoyed a warm bowl of soup on a cold day.",
+        "The team used data visualization for insights.",
+        "She watched the sunrise with quiet admiration.",
+        "The car sped down the empty highway.",
+        "He learned new skills through online courses."
     ]
 
+    positive = neutral = negative = 0
 
-    print("--- Sentiment Analysis Starting ---")
-    try:
-        # Create an instance of the analyzer
-        analyzer = SentimentAnalyzer()
+    for s in sentences:
+        score = vader.polarity_scores(s)["compound"]
+        if score >= 0.05:
+            positive += 1
+        elif score <= -0.05:
+            negative += 1
+        else:
+            neutral += 1
 
-        # Perform the analysis
-        analysis_result = analyzer.analyze_list(comments)
-        
-        print("\n## 📊 Analysis Summary")
-        print(f"Overall Compound Score: {analysis_result['overall_compound']:.4f}")
-        print(f"Overall Sentiment: **{analysis_result['overall_sentiment']}**")
-        print("-" * 30)
+    print(f"POS={positive}, NEU={neutral}, NEG={negative}")
 
-    except Exception as e:
-        print(f"An error occurred: {e}")
+    renderer = SentimentSummaryRenderer()
+    img = renderer.render_summary(positive, neutral, negative)
+
+    # Save output preview
+    img.save("sentiment_preview.png")
+    print("Saved: sentiment_preview.png")
+
+    # Exit Qt cleanly
+    sys.exit()
