@@ -1,16 +1,23 @@
+import io
+import sys
 from wordcloud import WordCloud, STOPWORDS
 from PIL import Image
-# ... (WordCloudAnalyzer class definition from previous turn remains here) ...
+from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtWidgets import QApplication, QLabel
 
 class WordCloudAnalyzer:
     """
     A class to generate a word cloud image from a list of strings.
-    ... (docstring and methods as defined previously) ...
+    This module returns a QImage compatible with PySide6/Qt.
     """
     def __init__(self, width=800, height=400, background_color="white", max_words=200):
         """
-        Initializes the WordCloudAnalyzer with specified parameters for the visualization.
-        ...
+        Initializes the WordCloudAnalyzer with specified parameters.
+        
+        :param width: Width of the canvas.
+        :param height: Height of the canvas.
+        :param background_color: Hex color or name (e.g., "white", "#000000").
+        :param max_words: Maximum number of words to include in the cloud.
         """
         self.width = width
         self.height = height
@@ -18,19 +25,22 @@ class WordCloudAnalyzer:
         self.max_words = max_words
         self.stopwords = set(STOPWORDS)
 
-    def generate_wordcloud(self, text_list: list[str]) -> Image.Image:
+    def generate_wordcloud(self, text_list: list[str]) -> QImage:
         """
-        Generates the word cloud image from a list of strings.
-        ...
-        :returns: A PIL.Image.Image object of the generated word cloud.
+        Generates the word cloud and converts it to a PySide6 QImage.
+
+        :param text_list: A list of strings to process.
+        :returns: A PySide6.QtGui.QImage object.
         """
         if not isinstance(text_list, list):
             raise TypeError("Input must be a list of strings.")
         if not text_list:
             raise ValueError("Input list cannot be empty.")
 
+        # 1. Join list into a single corpus
         text_corpus = " ".join(text_list)
         
+        # 2. Generate WordCloud using the library (Creates a PIL object internally)
         wordcloud = WordCloud(
             width=self.width,
             height=self.height,
@@ -40,134 +50,65 @@ class WordCloudAnalyzer:
             scale=2, 
             collocations=False
         )
-
         wordcloud.generate(text_corpus)
-        image_object = wordcloud.to_image()
+        
+        # 3. Get the PIL Image
+        pil_image = wordcloud.to_image()
 
-        return image_object
+        # 4. Convert PIL Image to PySide6 QImage
+        # We use a memory buffer (BytesIO) to transfer data safely.
+        # This handles format (RGB/RGBA) conversions automatically.
+        img_buffer = io.BytesIO()
+        pil_image.save(img_buffer, format="PNG")
+        qimage = QImage()
+        # Load from the internal byte data of the buffer
+        qimage.loadFromData(img_buffer.getvalue())
 
-# --- Example Usage for Testing (Non-GUI Display) ---
+        return qimage
+
+# --- Example Usage for Testing (GUI Display) ---
 if __name__ == '__main__':
     # Sample data
     data = [
-        "The sun dipped below the horizon leaving a warm glow.",
-        "Technology is evolving faster than ever before.",
-        "Cats often sleep for more than twelve hours a day.",
-        "The sound of rain on the rooftop was calming.",
-        "He opened the old book and dust filled the air.",
-        "The startup launched a new innovative product.",
-        "Music festivals attract thousands of enthusiastic fans.",
-        "The mountain peaks were covered in a blanket of snow.",
-        "Artificial intelligence is transforming industries.",
-        "She brewed a cup of coffee to start her morning.",
-        "The waves crashed gently along the shoreline.",
-        "Traveling helps people discover new cultures.",
-        "The city lights sparkled brilliantly at night.",
-        "He found a rare coin buried in the garden.",
-        "The chef prepared a delicious five-course meal.",
-        "Birds chirped loudly as the sun rose.",
-        "The library was silent except for turning pages.",
-        "A gentle breeze rustled the leaves.",
-        "Innovation drives economic growth worldwide.",
-        "The dog wagged its tail excitedly.",
-        "She wrote her thoughts in a leather journal.",
-        "The conference attracted global business leaders.",
-        "Fresh flowers brightened the entire room.",
-        "He solved the puzzle after several attempts.",
-        "The river flowed calmly through the valley.",
-        "The team celebrated their unexpected victory.",
-        "Healthy habits improve overall well-being.",
-        "The old bridge creaked as cars passed.",
-        "She painted a landscape filled with vibrant colors.",
-        "Clouds gathered signaling an approaching storm.",
-        "The market saw a sudden surge in demand.",
-        "He planted a tree in his backyard.",
-        "The classroom buzzed with lively discussions.",
-        "Digital marketing strategies are constantly evolving.",
-        "Snowflakes fell softly onto the frozen ground.",
-        "She whispered a wish into the night sky.",
-        "The robot performed tasks with precision.",
-        "The bakery sold out of fresh bread quickly.",
-        "He captured stunning photos of the sunset.",
-        "The festival showcased traditional dance forms.",
-        "A cup of tea can be incredibly comforting.",
-        "The stock market experienced a minor correction.",
-        "Children played joyfully in the park.",
-        "The scientist conducted a groundbreaking experiment.",
-        "The aroma of spices filled the kitchen.",
-        "The garden bloomed with colorful flowers.",
-        "He trained for months before running the marathon.",
-        "Online learning platforms have become widely popular.",
-        "The forest trail was peaceful and quiet.",
-        "She discovered a hidden path behind the cabin.",
-        "He enjoys reading books about ancient civilizations.",
-        "The airport was crowded with holiday travelers.",
-        "The innovation hub hosted various technology startups.",
-        "The night sky was filled with shining stars.",
-        "She cooked a meal using farm-fresh ingredients.",
-        "The artist sketched portraits with remarkable detail.",
-        "The rainfall cooled the hot summer day.",
-        "He found inspiration in everyday moments.",
-        "The technology conference introduced new software tools.",
-        "Farmers worked tirelessly during the harvest season.",
-        "The lighthouse guided ships through the dark.",
-        "She decorated her room with minimalistic designs.",
-        "The athlete broke a national record.",
-        "Nature photography requires patience and precision.",
-        "The museum showcased ancient artifacts.",
-        "Digital transformation is reshaping workplaces.",
-        "He enjoyed a peaceful walk by the lake.",
-        "The classroom embraced collaborative learning.",
-        "The startup secured funding for expansion.",
-        "She bought handmade crafts from local artisans.",
-        "The river reflected the clear blue sky.",
-        "The company implemented new sustainability initiatives.",
-        "He listened to calming instrumental music.",
-        "The storm passed leaving behind a rainbow.",
-        "She captured memories through her travel vlog.",
-        "The organization hosted a charity marathon.",
-        "He studied data trends to make predictions.",
-        "The bookstore offered rare and vintage novels.",
-        "The wind carried the scent of jasmine flowers.",
-        "He developed a mobile app for fitness tracking.",
-        "The team brainstormed creative solutions.",
-        "She enjoyed hiking on challenging trails.",
-        "The village celebrated a cultural festival.",
-        "He analyzed customer behavior using analytics tools.",
-        "The sound of the waterfall echoed through the valley.",
-        "Her artwork was displayed in the exhibition.",
-        "The new café became popular among students.",
-        "He conducted a survey to gather feedback.",
-        "The beach was filled with tourists during summer.",
-        "She practiced yoga to relax her mind.",
-        "The researchers published an interesting study.",
-        "He explored the historic streets of the town.",
-        "The company celebrated a decade of success.",
-        "She adopted a puppy from the shelter.",
-        "The algorithm improved accuracy significantly.",
-        "He enjoyed a warm bowl of soup on a cold day.",
-        "The team used data visualization for insights.",
-        "She watched the sunrise with quiet admiration.",
-        "The car sped down the empty highway.",
-        "He learned new skills through online courses."
+        "Python is amazing for data visualization",
+        "PySide6 allows building powerful GUIs",
+        "WordCloud generates beautiful text representations",
+        "Coding is fun and creative",
+        "Artificial Intelligence is changing the world",
+        "OpenAI tools help developers write better code",
+        "Qt framework is robust and cross-platform",
+        "Innovation drives technology forward",
+        "Learning never stops in software engineering"
     ]
 
-
     print("Starting word cloud generation...")
-    try:
-        # 1. Create an instance of the analyzer
-        analyzer = WordCloudAnalyzer(width=800, height=300, max_words=50, background_color="white")
+    
+    # We must create a QApplication to display anything in PySide6
+    app = QApplication(sys.argv)
 
-        # 2. Generate the word cloud image object
-        wordcloud_img = analyzer.generate_wordcloud(data)
+    try:
+        # 1. Create instance
+        analyzer = WordCloudAnalyzer(width=600, height=400, max_words=50, background_color="black")
+
+        # 2. Generate QImage
+        qt_image = analyzer.generate_wordcloud(data)
+        print(f"Success! Generated object type: {type(qt_image)}")
+
+        # 3. Display it
+        # QImage holds the data, QPixmap is optimized for on-screen display.
+        # We convert it here for the label.
+        display_pixmap = QPixmap.fromImage(qt_image)
         
-        print(f"Word cloud image generated successfully: {wordcloud_img}")
-        print("-" * 40)
+        label = QLabel()
+        label.setWindowTitle("WordCloud Preview")
+        label.setPixmap(display_pixmap)
+        label.resize(display_pixmap.width(), display_pixmap.height())
+        label.show()
+
+        print("Displaying GUI window. Close the window to exit script.")
         
-        # 3. Use the PIL .show() method to display the image for non-GUI testing
-        # This will save a temporary file and open it with your system's default image viewer.
-        print("Opening image in default system viewer for testing...")
-        wordcloud_img.show() 
+        # Start the GUI event loop
+        sys.exit(app.exec())
 
     except Exception as e:
-        print(f"An error occurred during generation or display: {e}")
+        print(f"An error occurred: {e}")
