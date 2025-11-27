@@ -1,5 +1,6 @@
 # Virtual environments
 .venv/
+venv
 
 # IDE and editor settings
 .vscode/
