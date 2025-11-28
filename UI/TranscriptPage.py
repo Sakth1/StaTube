@@ -17,31 +17,20 @@ from utils.AppState import app_state
 
 
 # -------------------------------------------------------------
-# Helper: Convert transcript segments → sentences
+# Convert transcript → sentences
 # -------------------------------------------------------------
 def transcript_to_sentences(transcript_list: List[dict]) -> List[str]:
-    """
-    Convert a list of transcript segments into plain text sentences.
-    Expected format:
-        [
-            { "text": "Hello world", "start": 0.0, "duration": 3.3 },
-            ...
-        ]
-    """
     sentences = []
     for seg in transcript_list:
         text = seg.get("text")
         if isinstance(text, str) and text.strip():
-            # split into smaller sentences
             parts = re.split(r"[.!?]\s+|\n+", text.strip())
-            parts = [p.strip() for p in parts if p.strip()]
-            sentences.extend(parts)
-
+            sentences.extend([p.strip() for p in parts if p.strip()])
     return sentences
 
 
 # -------------------------------------------------------------
-# Transcript Page Widget
+# Transcript Page
 # -------------------------------------------------------------
 class Transcript(QWidget):
 
@@ -54,25 +43,19 @@ class Transcript(QWidget):
         self.transcript_fetcher = TranscriptFetcher()
         self.transcript_page_scrape_transcripts_signal.connect(self.scrape_transcript)
 
-        # -----------------------------------------------------
-        # MAIN LAYOUT
-        # -----------------------------------------------------
+        # UI Layout ------------------------------------------------
         self.main_layout = QVBoxLayout(self)
         self.setLayout(self.main_layout)
 
-        # Scrape button
-        self.scrape_transcript_button = QPushButton("Scrape Transcript")
-        self.scrape_transcript_button.clicked.connect(self.scrape_transcript)
-        self.main_layout.addWidget(self.scrape_transcript_button)
+        self.scrape_btn = QPushButton("Scrape Transcript")
+        self.scrape_btn.clicked.connect(self.scrape_transcript)
+        self.main_layout.addWidget(self.scrape_btn)
 
-        # Language selector
         self.language_selection = QComboBox()
         self.language_selection.addItems(["en", "es"])
         self.main_layout.addWidget(self.language_selection)
 
-        # -----------------------------------------------------
-        # Scroll Area for Display
-        # -----------------------------------------------------
+        # Scroll area for analysis output
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.main_layout.addWidget(self.scroll_area)
@@ -83,107 +66,110 @@ class Transcript(QWidget):
 
         self.transcript_sentences: List[str] = []
 
+
     # ---------------------------------------------------------
     # SCRAPE + LOAD + ANALYZE
     # ---------------------------------------------------------
     def scrape_transcript(self):
-        """
-        Scrape transcript JSON files for selected videos, convert to sentences,
-        and display analysis.
-        """
-        video_list: List[str] = app_state.video_list
+        video_list = app_state.video_list
         if not video_list:
-            print("No videos found in app_state.video_list")
+            print("No videos in app_state.video_list")
             return
 
         language = self.language_selection.currentText()
 
-        # Fetch transcripts -> returns { video_id: path OR { "filepath": "path" } }
+        # Fetch structure:
+        # {
+        #    channel_id: {
+        #        video_id: { "filepath": "...", ... }
+        #    }
+        # }
         result = self.transcript_fetcher.fetch_transcripts(video_list, language)
 
         all_segments = []
 
-        # Load JSON transcripts
-        for vid, meta in result.items():
+        # loop channels
+        for channel_id, video_dict in result.items():
 
-            # Supports both formats: string or dict
-            if isinstance(meta, dict):
-                filepath = meta.get("filepath")
-            else:
-                filepath = meta
-
-            if not filepath or not isinstance(filepath, str):
-                print(f"Invalid filepath for {vid}: {filepath}")
+            # if fetcher returns a list instead of dict, skip safely
+            if not isinstance(video_dict, dict):
+                print(f"Unexpected structure for {channel_id}: {video_dict}")
                 continue
 
-            if not os.path.exists(filepath):
-                print(f"Transcript file missing: {filepath}")
-                continue
+            # loop videos under channel
+            for video_id, meta in video_dict.items():
 
-            try:
-                with open(filepath, "r", encoding="utf-8") as f:
-                    data = json.load(f)
+                filepath = None
 
-                if isinstance(data, list):
-                    all_segments.extend(data)
-                else:
-                    print(f"Unexpected transcript JSON format in {filepath}: {type(data)}")
+                # meta must be dict containing "filepath"
+                if isinstance(meta, dict):
+                    filepath = meta.get("filepath")
 
-            except Exception as e:
-                print(f"Failed to read transcript {filepath}: {e}")
+                # validate filepath
+                if not filepath or not isinstance(filepath, str):
+                    print(f"Invalid filepath for {channel_id}/{video_id}: {meta}")
+                    continue
+
+                if not os.path.exists(filepath):
+                    print(f"Transcript file not found: {filepath}")
+                    continue
+
+                # Load JSON transcript
+                try:
+                    with open(filepath, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+
+                    if isinstance(data, list):
+                        all_segments.extend(data)
+                    else:
+                        print(f"Unexpected transcript JSON in {filepath}: {type(data)}")
+
+                except Exception as e:
+                    print(f"Error reading transcript {filepath}: {e}")
 
         # Convert → sentences
         self.transcript_sentences = transcript_to_sentences(all_segments)
 
-        # Display analysis
         self.display_analysis()
 
+
     # ---------------------------------------------------------
-    # DISPLAY ANALYSIS (Sentiment + Word Cloud)
+    # SHOW ANALYSIS
     # ---------------------------------------------------------
     def display_analysis(self):
-        # Clear previous widgets
-        for i in reversed(range(self.scroll_layout.count())):
-            item = self.scroll_layout.itemAt(i)
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
 
-        # Empty?
+        # Clear previous widget content
+        for i in reversed(range(self.scroll_layout.count())):
+            w = self.scroll_layout.itemAt(i).widget()
+            if w:
+                w.deleteLater()
+
         if not self.transcript_sentences:
             self.scroll_layout.addWidget(QLabel("No transcript found."), 0, 0)
             return
 
-        # -----------------------------------------------------
-        # RUN ANALYSIS
-        # -----------------------------------------------------
+        # Run sentiment + wordcloud
         sentiment_img = run_sentiment_summary(self.transcript_sentences)
 
         wc = WordCloudAnalyzer(max_words=120)
         wordcloud_img = wc.generate_wordcloud(self.transcript_sentences)
 
-        # -----------------------------------------------------
-        # Safe scaling for QPixmap (fixes QFont warnings)
-        # -----------------------------------------------------
-        def scaled_label(qimg):
+        # scaled label helper
+        def scaled_label(qimage):
             label = QLabel()
-            pix = QPixmap.fromImage(qimg)
+            pix = QPixmap.fromImage(qimage)
 
-            # Ensure width stays >= 200px to avoid Qt font errors
             viewport_width = self.scroll_area.viewport().width()
-            target_width = max(200, viewport_width - 40)
+            target_width = max(200, viewport_width - 40)  # safe width
 
             scaled = pix.scaledToWidth(target_width, Qt.SmoothTransformation)
-
             label.setPixmap(scaled)
             label.setAlignment(Qt.AlignCenter)
             label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
             return label
 
-        # -----------------------------------------------------
-        # INSERT INTO UI
-        # -----------------------------------------------------
-        self.scroll_layout.addWidget(QLabel("<b>Sentimental Analysis</b>"), 0, 0)
+        # Insert into layout
+        self.scroll_layout.addWidget(QLabel("<b>Sentiment Analysis</b>"), 0, 0)
         self.scroll_layout.addWidget(scaled_label(sentiment_img), 1, 0)
 
         self.scroll_layout.addWidget(QLabel("<b>Word Cloud</b>"), 2, 0)

@@ -411,8 +411,8 @@ class Video(QWidget):
         self.filter_combo.addItems(["All", "Live", "Shorts", "Videos"])
         self.sort_combo: QComboBox = QComboBox()
         self.sort_combo.addItems(["Longest", "Shortest", "Newest", "Oldest", "Most Viewed", "Least Viewed"])
-        self.filter_combo.currentIndexChanged.connect(self.on_combo_changed)
-        self.sort_combo.currentIndexChanged.connect(self.on_combo_changed)
+        self.filter_combo.currentIndexChanged.connect(lambda:self.on_combo_changed(self.sort_combo.currentText(), self.filter_combo.currentText()))
+        self.sort_combo.currentIndexChanged.connect(lambda: self.on_combo_changed(self.sort_combo.currentText(), self.filter_combo.currentText()))
 
         self.scrape_shorts_checkbox: QCheckBox = QCheckBox("Scrape Shorts")
         self.scrape_shorts_checkbox.setChecked(False)
