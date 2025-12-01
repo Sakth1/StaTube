@@ -20,7 +20,7 @@ class Internet():
         Returns:
             bool: True if internet is available, False otherwise.
         """
-        test_url: str = "http://www.google.com"  # lightweight and reliable endpoint
+        test_url: str = "http://www.youtube.com"
         try:
             response: requests.Response = requests.get(test_url, timeout=timeout)
             return response.status_code == 200

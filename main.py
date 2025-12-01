@@ -1,32 +1,19 @@
-from UI.MainWindow import MainWindow
-from PySide6.QtWidgets import QApplication, QMessageBox
-from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import QApplication
 import sys
-import signal
-from utils.CheckInternet import Internet
+
+from UI.MainWindow import MainWindow
 
 APP_NAME = "StaTube"
 APP_VERSION = "0.3.0"
-APP_PUBLISHER = "Sakthi Murugan C"
+APP_PUBLISHER = "StaTube"
 APP_DESCRIPTION = "A Python PySide6 GUI app for analyzing YouTube video transcripts and comments."
 
 def main():
-    internet = Internet()
-
-    if not internet.check_internet():
-        app = QApplication()
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Critical)
-        msg.setText("No internet connection detected.\nPlease check your network and restart the app.")
-        msg.setWindowTitle("Connection Error")
-        msg.exec()
-        sys.exit(1)
-
-    app = QApplication()
-    window = MainWindow()
-    window.showMaximized()
 
     try:
+        app = QApplication()
+        window = MainWindow()
+        window.showMaximized()
         app.exec()
     except KeyboardInterrupt:
         print("Interrupted by user, exiting...")
