@@ -14,6 +14,7 @@ propcache
 PySide6
 PySide6_Addons
 PySide6_Essentials
+PySide6-Fluent-Widgets
 requests
 scrapetube
 shiboken6

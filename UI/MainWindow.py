@@ -2,12 +2,18 @@ import os
 import sys
 import time
 
-from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QStackedWidget, QFrame, QWidget,
-    QVBoxLayout, QHBoxLayout, QToolButton, QMessageBox
+from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtGui import QIcon, QColor
+from PySide6.QtCore import Qt, QThread, Signal, QObject
+
+from qfluentwidgets import (
+    MSFluentWindow,
+    NavigationItemPosition,
+    setTheme,
+    setThemeColor,
+    Theme,
+    FluentIcon as FIF,  # not used yet, but handy if you want built-in icons later
 )
-from PySide6.QtGui import QIcon
-from PySide6.QtCore import Qt, QSize, QThread, Signal
 
 # ---- Import Pages ----
 from .Homepage import Home
@@ -19,8 +25,6 @@ from .SplashScreen import SplashScreen
 
 from Data.DatabaseManager import DatabaseManager
 from utils.CheckInternet import Internet
-
-# ---- Import AppState ----
 from utils.AppState import app_state
 
 
@@ -42,7 +46,6 @@ class StartupWorker(QThread):
         connected = False
 
         for attempt in range(self.max_retries):
-            # R2: general “soft” messages, not attempt counts
             if attempt == 0:
                 self.status_updated.emit("Checking internet connection...")
             elif attempt == 1:
@@ -51,58 +54,60 @@ class StartupWorker(QThread):
                 self.status_updated.emit("Almost there, verifying network...")
 
             connected = internet.check_internet()
-
             if connected:
                 break
 
-            # Small delay before retrying (background thread, so safe)
             time.sleep(self.retry_delay)
 
         self.finished.emit(bool(connected))
 
 
-class MainWindow(QMainWindow):
+class MainWindow(MSFluentWindow):
     """
-    Main window of the application.
+    Main window of the application using QFluentWidgets navigation shell.
     """
+
     def __init__(self):
-        """
-        Initializes the main window.
-        """
         super().__init__()
 
-        # Base dir and icon setup
+        # ---- Paths & icons ----
         base_dir = os.path.dirname(os.path.abspath(__file__))
         self.base_dir = os.path.dirname(base_dir)
         icon_path = os.path.join(self.base_dir, "icon", "youtube.ico")
 
+        # ---- Fluent theme ----
+        setTheme(Theme.DARK)
+        # Accent color close to YouTube red
+        setThemeColor(QColor("#FF3B3B"))
+
         self.setWindowTitle("StaTube - YouTube Data Analysis Tool")
         self.setWindowIcon(QIcon(icon_path))
-        # Initial geometry (window can be resized later)
-        self.setGeometry(500, 200, 1000, 700)
+        self.resize(1000, 700)
 
-        # Placeholder central widget until UI is fully ready
-        self.central_widget = QWidget()
-        self.setCentralWidget(self.central_widget)
+        # Alias old attribute name so other modules can still use self.stack if needed
+        # MSFluentWindow already has a stackedWidget for its interfaces
+        self.stack = self.stackedWidget
 
-        # Create stacked widget (pages will be added later in setup_ui)
-        self.stack = QStackedWidget()
+        # Route keys used by navigationInterface
+        self.route_keys = {
+            "home": "homeInterface",
+            "video": "videoInterface",
+            "transcript": "transcriptInterface",
+            "comment": "commentInterface",
+            "settings": "settingsInterface",
+        }
 
-        # Sidebar button list
-        self.sidebar_buttons = []
-
-        # Splash screen
+        # ---- Splash screen ----
         gif_path = os.path.join(self.base_dir, "assets", "splash", "loading.gif")
         self.splash = SplashScreen(parent=self, gif_path=gif_path)
-        # self.splash = SplashScreen(parent=self)
         self.splash.set_title("StaTube - YouTube Data Analysis Tool")
         self.splash.update_status("Starting application...")
         self.splash.show()
 
-        # Start asynchronous startup flow
+        # Async startup
         self.start_startup_sequence()
 
-    # ---------- Startup Sequence ----------
+    # ---------- Startup sequence ----------
 
     def start_startup_sequence(self):
         """
@@ -136,7 +141,6 @@ class MainWindow(QMainWindow):
             msg.exec()
 
             if msg.clickedButton() == quit_btn:
-                # User chose to quit; close the app
                 QApplication.instance().quit()
                 return
 
@@ -146,166 +150,148 @@ class MainWindow(QMainWindow):
         else:
             self.splash.update_status("Internet connection established. Preparing application...")
 
-        # Now perform remaining init (DB, stylesheet, pages)
+        # Now perform remaining init (DB, pages, nav)
         self.finish_initialization()
 
     def finish_initialization(self):
         """
         Perform remaining initialization once startup checks are done.
         """
-        # Load stylesheet
-        self.load_stylesheet()
-
         # Initialize database and store in app_state
         db: DatabaseManager = DatabaseManager()
         app_state.db = db
 
-        # Setup the full UI now
-        self.setup_ui()
+        # Setup the Fluent interfaces & nav shell
+        self.init_interfaces()
+        self.init_window_shell()
 
-        # Smooth fade-out of the splash, then show main window fully ready
+        # Smooth fade-out of the splash, then main window is ready
         self.splash.fade_and_close(duration_ms=700)
 
         # Debug log
-        print("[DEBUG] Main UI initialized successfully")
+        print("[DEBUG] Main UI (QFluentWidgets) initialized successfully")
 
-    # ---------- Stylesheet ----------
+    # ---------- Fluent window / navigation ----------
 
-    def load_stylesheet(self):
+    def init_interfaces(self):
         """
-        Load and apply QSS stylesheet.
+        Create page widgets and register them as sub-interfaces.
         """
-        try:
-            # For Nuitka onefile builds, use sys.argv[0]
-            if getattr(sys, 'frozen', False):
-                # Running as compiled executable
-                base_dir = os.path.dirname(sys.argv[0])
-            else:
-                # Running as script
-                base_dir = os.path.dirname(os.path.abspath(__file__))
-                base_dir = os.path.dirname(base_dir)  # Go up to project root
-
-            qss_path = os.path.join(base_dir, "UI", "Style.qss")
-
-            with open(qss_path, "r", encoding="utf-8") as f:
-                self.setStyleSheet(f.read())
-
-        except FileNotFoundError:
-            print(base_dir)
-            print(f"Warning: Stylesheet not found at {qss_path}")
-        except Exception as e:
-            print(f"Error loading stylesheet: {e}")
-
-    # ---------- UI Setup ----------
-
-    def setup_ui(self):
-        """
-        Setup the main UI once all startup tasks are done.
-        """
-        # Root layout for central widget
-        main_layout = QHBoxLayout(self.central_widget)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-
-        # Sidebar frame
-        self.sidebar = QFrame()
-        self.sidebar.setFixedWidth(80)
-        side_layout = QVBoxLayout(self.sidebar)
-        side_layout.setAlignment(Qt.AlignCenter)
-        side_layout.setContentsMargins(20, 0, 0, 0)
-        side_layout.setSpacing(25)
-
-        # Icons path
-        icon_path = os.path.join(self.base_dir, "assets", "icon", "light")
-
-        # Create buttons
-        self.home_btn = QToolButton()
-        self.video_btn = QToolButton()
-        self.transcript_btn = QToolButton()
-        self.comment_btn = QToolButton()
-        self.settings_btn = QToolButton()
-
-        buttons_config = [
-            (self.home_btn, "light_home.ico", "Home"),
-            (self.video_btn, "light_video.ico", "Videos"),
-            (self.transcript_btn, "light_transcript.ico", "Transcription Analysis"),
-            (self.comment_btn, "light_comment.ico", "Comment Analysis"),
-            (self.settings_btn, "light_settings.ico", "Settings"),
-        ]
-
-        self.sidebar_buttons = []
-        for i, (btn, filename, tooltip) in enumerate(buttons_config):
-            btn.setIcon(QIcon(os.path.join(icon_path, filename)))
-            btn.setIconSize(QSize(28, 28))
-            btn.setToolTip(tooltip)
-            btn.setCheckable(True)
-            btn.setAutoExclusive(True)
-            btn.clicked.connect(lambda checked, idx=i: self.switch_page(idx))
-            side_layout.addWidget(btn)
-            self.sidebar_buttons.append(btn)
-
-        # Add sidebar + stack
-        main_layout.addWidget(self.sidebar)
-        main_layout.addWidget(self.stack, stretch=1)
-
-        # Add pages
+        # Instantiate pages
         self.homepage = Home(self)
         self.video_page = Video(self)
         self.transcript_page = Transcript(self)
         self.comment_page = Comment(self)
         self.settings_page = Settings(self)
 
-        self.stack.addWidget(self.homepage)
-        self.stack.addWidget(self.video_page)
-        self.stack.addWidget(self.transcript_page)
-        self.stack.addWidget(self.comment_page)
-        self.stack.addWidget(self.settings_page)
+        # Give each page a unique objectName (used by QFluent navigation)
+        self.homepage.setObjectName(self.route_keys["home"])
+        self.video_page.setObjectName(self.route_keys["video"])
+        self.transcript_page.setObjectName(self.route_keys["transcript"])
+        self.comment_page.setObjectName(self.route_keys["comment"])
+        self.settings_page.setObjectName(self.route_keys["settings"])
 
-        # Default page
-        self.switch_page(0)
-        if self.sidebar_buttons:
-            self.sidebar_buttons[0].setChecked(True)
+        # Icon path
+        light_icon_path = os.path.join(self.base_dir, "assets", "icon", "light")
 
-        # Cross-page signals
+        # Register sub-interfaces with Fluent navigation
+        self.addSubInterface(
+            self.homepage,
+            QIcon(os.path.join(light_icon_path, "light_home.ico")),
+            "Home",
+            position=NavigationItemPosition.TOP,
+        )
+
+        self.addSubInterface(
+            self.video_page,
+            QIcon(os.path.join(light_icon_path, "light_video.ico")),
+            "Videos",
+            position=NavigationItemPosition.TOP,
+        )
+
+        self.addSubInterface(
+            self.transcript_page,
+            QIcon(os.path.join(light_icon_path, "light_transcript.ico")),
+            "Transcription Analysis",
+            position=NavigationItemPosition.TOP,
+        )
+
+        self.addSubInterface(
+            self.comment_page,
+            QIcon(os.path.join(light_icon_path, "light_comment.ico")),
+            "Comment Analysis",
+            position=NavigationItemPosition.TOP,
+        )
+
+        self.addSubInterface(
+            self.settings_page,
+            QIcon(os.path.join(light_icon_path, "light_settings.ico")),
+            "Settings",
+            position=NavigationItemPosition.BOTTOM,
+        )
+
+        # Cross-page signals (same logic as before, just different switching)
         self.homepage.home_page_scrape_video_signal.connect(self.switch_and_scrape_video)
         self.video_page.video_page_scrape_transcript_signal.connect(self.switch_and_scrape_transcripts)
         self.video_page.video_page_scrape_comments_signal.connect(self.switch_and_scrape_comments)
 
-    # ---------- Sidebar navigation ----------
+    def init_window_shell(self):
+        """
+        Final MSFluentWindow tweaks (size, centering, default page).
+        """
+        # Center window on primary screen
+        screen_geo = QApplication.primaryScreen().availableGeometry()
+        self.move(
+            screen_geo.center().x() - self.width() // 2,
+            screen_geo.center().y() - self.height() // 2,
+        )
 
-    def switch_page(self, index: int):
+        # Default interface is home
+        self.switch_to_interface(self.homepage)
+
+    # ---------- Helper to switch interfaces programmatically ----------
+
+    def switch_to_interface(self, widget: QObject):
         """
-        Switches to the specified page index.
+        Switch both the stacked widget and navigation selection to `widget`.
         """
-        self.stack.setCurrentIndex(max(0, index))
+        if widget is None:
+            return
+
+        try:
+            # Switch stack
+            self.stackedWidget.setCurrentWidget(widget)
+
+            # Sync nav selection
+            if hasattr(self, "navigationInterface"):
+                route = widget.objectName()
+                if route:
+                    self.navigationInterface.setCurrentItem(route)
+        except Exception as e:
+            print(f"[WARN] Failed to switch interface: {e}")
+
+    # ---------- Cross-page helpers (kept from old API) ----------
 
     def switch_and_scrape_video(self, scrape_shorts: bool = False):
         """
         Switches to the video page and scrapes videos.
         """
-        if len(self.sidebar_buttons) >= 2:
-            self.sidebar_buttons[0].setChecked(False)
-            self.sidebar_buttons[1].setChecked(True)
-        self.switch_page(1)
+        self.switch_to_interface(self.video_page)
+        # Trigger existing signal that VideoPage already listens to
         self.video_page.video_page_scrape_video_signal.emit(scrape_shorts)
 
     def switch_and_scrape_transcripts(self):
         """
         Switches to the transcript page and scrapes transcripts.
         """
-        if len(self.sidebar_buttons) >= 3:
-            self.sidebar_buttons[1].setChecked(False)
-            self.sidebar_buttons[2].setChecked(True)
-        self.switch_page(2)
+        self.switch_to_interface(self.transcript_page)
         self.transcript_page.transcript_page_scrape_transcripts_signal.emit()
 
     def switch_and_scrape_comments(self):
         """
         Switches to the comment page and scrapes comments.
         """
-        if len(self.sidebar_buttons) >= 4:
-            self.sidebar_buttons[2].setChecked(False)
-            self.sidebar_buttons[3].setChecked(True)
-        self.switch_page(3)
+        self.switch_to_interface(self.comment_page)
         self.comment_page.comment_page_scrape_comments_signal.emit()
 
     # ---------- Close Event ----------
@@ -321,6 +307,11 @@ class MainWindow(QMainWindow):
 # Entry Point
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+
+    # Recommended HiDPI settings for QFluentWidgets
+    app.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    app.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
