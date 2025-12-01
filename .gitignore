@@ -16,6 +16,7 @@ utils/__pycache__/
 output/
 .readmeaiignore
 ai_env
+readme-ai.md
 experiments/
 
 # Notes and documentation drafts
