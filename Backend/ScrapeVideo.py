@@ -90,23 +90,25 @@ async def download_img_async(url: str, save_path: str, session: aiohttp.ClientSe
     Returns:
     bool: True if the image was downloaded successfully, False otherwise.
     """
-    async with semaphore:
+    async with semaphore:  # Use existing semaphore
         try:
             url = str(url)
             save_path = str(save_path)
-            session = aiohttp.ClientSession(session)
-            semaphore = asyncio.Semaphore(semaphore)
-            
+
+            # Fix double https issue
             if url.startswith("https:https://"):
                 url = url.replace("https:https://", "https://", 1)
-            
+
             async with session.get(url, timeout=aiohttp.ClientTimeout(total=15)) as response:
                 response.raise_for_status()
+
                 with open(save_path, "wb") as f:
                     async for chunk in response.content.iter_chunked(8192):
                         f.write(chunk)
-                return True
-        except Exception as e:
+
+            return True
+
+        except Exception:
             logger.error(f"Failed to download thumbnail: {url}")
             logger.exception("Thumbnail download error:")
             return False
