@@ -132,6 +132,7 @@ class Search:
         if not name:
             return {"None": {"title": None, "url": None}}
 
+        logger.debug(f"Searching channels: name={name}, limit={limit}, final={final}")
         self.channels = {}
         self.completed_downloads = 0
         self.total_downloads = 0
@@ -182,5 +183,7 @@ class Search:
             
             if progress_callback:
                 progress_callback(100, "All downloads completed!")
+
+        logger.debug(f"Search completed. Found {len(self.channels)} channels.")
 
         return self.channels

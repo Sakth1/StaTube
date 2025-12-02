@@ -1,16 +1,16 @@
 import os
 import scrapetube
-import requests
 import yt_dlp
 from datetime import datetime, timedelta, timezone
 import re
 import asyncio
 import aiohttp
 from typing import List, Dict, Optional, Callable
-
 from PySide6.QtCore import QObject, Signal, Slot, QMetaObject, Qt, Q_ARG
+
 from Data.DatabaseManager import DatabaseManager
 from utils.AppState import app_state
+from utils.logger import logger
 
 
 def parse_duration(duration: str) -> int:
@@ -107,7 +107,8 @@ async def download_img_async(url: str, save_path: str, session: aiohttp.ClientSe
                         f.write(chunk)
                 return True
         except Exception as e:
-            print(f"[ERROR] Failed to download {url}: {e}")
+            logger.error(f"Failed to download thumbnail: {url}")
+            logger.exception("Thumbnail download error:")
             return False
 
 
@@ -151,7 +152,8 @@ async def fetch_shorts_metadata_async(video_id: str, session: aiohttp.ClientSess
                 'title': str(info.get('title', 'Untitled')),
             }
         except Exception as e:
-            print(f"[ERROR] Failed to fetch metadata for {video_id}: {e}")
+            logger.error(f"Failed to fetch metadata for short video: {video_id}")
+            logger.exception("Short metadata fetch error:")
             return {'video_id': str(video_id), 'error': True}
 
 
@@ -297,11 +299,8 @@ class VideoWorker(QObject):
             asyncio.set_event_loop(loop)
             loop.run_until_complete(self._fetch_video_urls_async(scrape_shorts=bool(scrape_shorts)))
         except Exception as e:
-            import traceback
-            traceback.print_exc()
-            error_msg = f"Error while fetching video URLs: {e}"
-            print(error_msg)
-            self.progress_updated.emit(error_msg)
+            logger.exception("Error while fetching video URLs:")
+            self.progress_updated.emit(f"Error while fetching video URLs: {e}")
             self.progress_percentage.emit(0)
             self.finished.emit()
         finally:
@@ -511,7 +510,7 @@ class VideoWorker(QObject):
                             self.progress_updated.emit(
                                 f"[{vtype.capitalize()}] Processing: {idx+1}/{len(videos)}"
                             )
-
+                            
                     # === Wait for all thumbnails to download ===
                     if thumbnail_tasks:
                         self.progress_updated.emit(f"[{vtype.capitalize()}] Downloading {len(thumbnail_tasks)} thumbnails...")
@@ -519,7 +518,9 @@ class VideoWorker(QObject):
                         self.progress_updated.emit(f"[{vtype.capitalize()}] ✓ All thumbnails downloaded")
 
                     # === Batch insert to database ===
+                    logger.debug(f"Saving {len(videos_to_insert)} {vtype} entries to DB for channel_id={self.channel_id}")
                     self.progress_updated.emit(f"[{vtype.capitalize()}] Saving {len(videos_to_insert)} videos to database...")
+
                     
                     for video_data in videos_to_insert:
                         existing_videos = self.db.fetch(
@@ -539,10 +540,7 @@ class VideoWorker(QObject):
                 self.finished.emit()
 
         except Exception as e:
-            import traceback
-            traceback.print_exc()
-            error_msg = f"Error while fetching video URLs: {e}"
-            print(error_msg)
-            self.progress_updated.emit(error_msg)
+            self.progress_updated.emit(f"Fetching {vtype.capitalize()}...")
+            logger.debug(f"Scraping {vtype} for channel {self.channel_id}")
             self.progress_percentage.emit(0)
             self.finished.emit()
