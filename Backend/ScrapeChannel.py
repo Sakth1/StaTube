@@ -5,6 +5,7 @@ import os
 from typing import Callable, Optional
 
 from utils.AppState import app_state
+from utils.logger import logger
 
 def download_img(url: str, save_path: str) -> bool:
     """
@@ -29,9 +30,8 @@ def download_img(url: str, save_path: str) -> bool:
                 f.write(chunk)
         return True
     except Exception as e:
-        print(f"[ERROR] Failed to download {url}: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Failed to download image: {url}")
+        logger.exception("Download image error:")
         return False
 
 class Search:
@@ -74,9 +74,8 @@ class Search:
             if progress_callback and success:
                 progress_callback(f"Downloaded profile for: {title}")
         except Exception as e:
-            print(f"Failed to save profile picture: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error(f"Failed to save profile picture for {channel_id}: {e}")
+            logger.exception("Error saving profile picture:")
             success = False
 
         if channel_id:
@@ -102,7 +101,7 @@ class Search:
                         "profile_pic": profile_save_path,
                     },
                 )
-                print(f"Added new channel: {title}")
+                logger.info(f"Added new channel: {title}")
 
         # Update completion counter
         with self.download_lock:
@@ -145,7 +144,7 @@ class Search:
         for ch in search_results:
             # Check if we should stop
             if stop_event and stop_event.is_set():
-                print("Search interrupted")
+                logger.warning("Search thread interrupted by stop_event")
                 return self.channels
             
             title = ch.get("title", {}).get("simpleText")

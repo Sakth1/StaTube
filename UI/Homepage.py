@@ -11,6 +11,7 @@ from typing import Optional, Dict, List, Any, Callable
 from Data.DatabaseManager import DatabaseManager
 from Backend.ScrapeChannel import Search
 from utils.AppState import app_state
+from utils.logger import logger
 from UI.SplashScreen import SplashScreen
 import os
 
@@ -271,7 +272,7 @@ class Home(QWidget):
         Called when the final comprehensive search operation completes.
         Updates the UI with the full channel list and closes the splash screen.
         """
-        print("Final search complete, updating UI...")
+        logger.info("Final search complete, updating UI...")
         self.update_channel_list()
         self.close_splash()
 
@@ -303,7 +304,7 @@ class Home(QWidget):
             if not inf:
                 # No DB row found — use sensible defaults and warn
                 channel_name = info.get("title", "Unknown")
-                print(f"[WARN] No DB entry for channel_id={channel_id}")
+                logger.warning(f"No DB entry for channel_id={channel_id}")
                 sub_count = 0
                 profile_pic = None
             else:
@@ -346,7 +347,7 @@ class Home(QWidget):
             # Signal any existing thread to stop
             if self.search_thread_instance and self.search_thread_instance.is_alive():
                 self.stop_event.set()
-                print("Signaling previous search thread to stop")
+                logger.debug("Signaling previous search thread to stop")
 
             self.stop_event.clear()
 
@@ -359,8 +360,7 @@ class Home(QWidget):
                 self.search_thread_instance.start()
         
         except Exception as e:
-            traceback.print_exc()
-            print(e)
+            logger.exception("Search keyword error:")
 
     def _run_search(self, query: str, final: bool) -> None:
         """
@@ -379,11 +379,11 @@ class Home(QWidget):
             final: If True, performs comprehensive search with progress tracking.
                   If False, performs quick limited search.
         """
-        print("search channel thread triggered")
+        logger.debug("Search channel thread triggered")
         
         # Check if thread should stop before starting work
         if self.stop_event.is_set():
-            print("Search thread cancelled before execution")
+            logger.debug("Search thread cancelled before execution")
             return
         
         try:
@@ -424,17 +424,16 @@ class Home(QWidget):
             
         except Exception as e:
             if self.stop_event.is_set():
-                print("Search thread stopped during execution")
+                logger.debug("Search thread stopped during execution")
                 return
             # Close splash on error
             self.close_splash_signal.emit()
-            print(f"Search error: {e}")
-            traceback.print_exc()
+            logger.exception("Search error occurred:")
             return
 
         # Check again before processing results
         if self.stop_event.is_set():
-            print("Search thread cancelled after search")
+            logger.debug("Search thread cancelled after search")
             self.close_splash_signal.emit()
             return
 
