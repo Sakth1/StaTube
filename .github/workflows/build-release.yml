@@ -56,7 +56,6 @@ jobs:
         run: |
           python -m nuitka ^
             --onefile ^
-            --windows-console-mode=disable ^
             --enable-plugin=pyside6 ^
             --windows-icon-from-ico=assets/icon/youtube.ico ^
             --include-package=yt_dlp ^
@@ -153,7 +152,6 @@ jobs:
           python -m nuitka ^
             --standalone ^
             --output-dir=standalone_build ^
-            --windows-console-mode=disable ^
             --enable-plugin=pyside6 ^
             --windows-icon-from-ico=assets/icon/youtube.ico ^
             --include-package=yt_dlp ^
