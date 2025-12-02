@@ -13,8 +13,7 @@ from Backend.ScrapeTranscription import TranscriptWorker
 from Backend.ScrapeComments import CommentWorker
 from UI.SplashScreen import SplashScreen
 from utils.AppState import app_state
-from utils.Config import const
-
+from utils.logger import logger
 
 def clear_layout(layout: QLayout) -> None:
     """
@@ -544,7 +543,7 @@ class Video(QWidget):
         channel_info: dict[str, str] = app_state.channel_info
 
         if not channel_info:
-            print("No channel selected")
+            logger.warning("No channel selected for video scraping")
             return
 
         else:
@@ -627,7 +626,7 @@ class Video(QWidget):
         if self.splash is not None:
             self.splash.close()
             self.splash = None
-        print("Video scraping completed!")
+        logger.info("Video scraping completed!")
         self.load_videos_from_db()
     
     def on_transcript_worker_finished(self) -> None:
@@ -678,6 +677,7 @@ class Video(QWidget):
         for video in videos:
             thumb_path: str = os.path.join(self.db.thumbnail_dir, str(channel_id), f"{video['video_id']}.png")
             if not os.path.exists(thumb_path):
+                logger.debug(f"Thumbnail missing for video_id={video['video_id']}")
                 continue
             pixmap: QPixmap = QPixmap(thumb_path)
             if pixmap.isNull():
@@ -696,7 +696,7 @@ class Video(QWidget):
             item.setEditable(False)
             self.model.appendRow(item)
 
-        print(f"Loaded {self.model.rowCount()} videos for channel {channel_id}")
+        logger.info(f"Loaded {self.model.rowCount()} videos for channel {channel_id}")
 
     def _format_duration(self, duration: Optional[int]) -> str:
         """
@@ -776,7 +776,7 @@ class Video(QWidget):
         """
         selected_indexes: List[QModelIndex] = self.video_view.selectedIndexes()
         if not selected_indexes:
-            print("No videos selected")
+            logger.warning("No videos selected in video page")
             return {}
         
         channel_id: int = app_state.channel_info.get("channel_id", 0)
@@ -832,7 +832,7 @@ class Video(QWidget):
         """
         video_list: Dict[int, List[str]] = app_state.video_list
         if not video_list:
-            print("No videos in list to scrape transcripts.")
+            logger.warning("No videos in list to scrape comments")
             return
         
         self.show_splash_screen(title="Scraping Transcripts...")

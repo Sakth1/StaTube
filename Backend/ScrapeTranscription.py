@@ -1,11 +1,12 @@
 from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, FetchedTranscript, TranscriptsDisabled
 from youtube_transcript_api.formatters import JSONFormatter
-import json
 import os
 from PySide6.QtCore import QObject, Signal
 
 from Data.DatabaseManager import DatabaseManager
 from utils.AppState import app_state
+from utils.logger import logger
+
 
 class TranscriptWorker(QObject):
     """
@@ -62,8 +63,7 @@ class TranscriptWorker(QObject):
             self.finished.emit()
 
         except Exception as e:
-            import traceback
-            traceback.print_exc()
+            logger.exception(f"Error: {str(e)}")
             self.progress_updated.emit(f"Error: {str(e)}")
             self.finished.emit()
 
@@ -110,6 +110,7 @@ class TranscriptFetcher:
             transcript_data = transcript.fetch()
             filename = f"{video_id}.json"
             filepath = self.save_transcript(transcript_data, channel_id, filename)
+            logger.info(f"Transcript saved for video_id={video_id}")
             
             # Structure the result
             result = {
@@ -121,7 +122,7 @@ class TranscriptFetcher:
             }
         
         except TranscriptsDisabled:
-            print(f"Transcripts disabled for {video_id}")
+            logger.warning(f"Transcripts disabled for {video_id}")
             result = {
                 'video_id': video_id,
                 'filepath': None,
@@ -131,9 +132,8 @@ class TranscriptFetcher:
             }
 
         except Exception as e:
-            import traceback
-            traceback.print_exc()
-            print(f"Error fetching transcript for {video_id}: {e}")
+            logger.error(f"Error fetching transcript for {video_id}")
+            logger.exception("Transcript fetch error:")
             result = {
                 'video_id': video_id,
                 'filepath': None,
@@ -163,8 +163,6 @@ class TranscriptFetcher:
                 transcripts = {}
                 for id in video_id_list:
                     result = self._fetch(id, channel_id, language_option)
-                    if result.get("filepath") is None:
-                        print(result.get("remarks"))
                     transcripts[id] = result
                 
                 self.video_transcripts[channel_id] = transcripts
@@ -172,9 +170,8 @@ class TranscriptFetcher:
             return self.video_transcripts     
             
         except Exception as e:
-            import traceback
-            traceback.print_exc()
-            print(f"Error fetching transcript for {id if id else channel_id}: {e}")
+            logger.error(f"Error fetching transcript for {id if id else channel_id}: {e}")
+            logger.exception("Transcript save error:")
             return None
 
     def save_transcript(self, transcript_data: FetchedTranscript, channel_id: str, filename: str) -> str:
@@ -204,5 +201,6 @@ class TranscriptFetcher:
             return filepath
         
         except Exception as e:
-            print(f"Error saving transcript for {id}: {e}")
+            logger.error(f"Error saving transcript for {filename}")
+            logger.exception("Transcript save error:")
             return False

@@ -19,6 +19,7 @@ from .SplashScreen import SplashScreen
 
 from Data.DatabaseManager import DatabaseManager
 from utils.CheckInternet import Internet
+from utils.logger import logger
 
 # ---- Import AppState ----
 from utils.AppState import app_state
@@ -167,7 +168,7 @@ class MainWindow(QMainWindow):
         self.splash.fade_and_close(duration_ms=700)
 
         # Debug log
-        print("[DEBUG] Main UI initialized successfully")
+        logger.debug("Main UI initialized successfully")
 
     # ---------- Stylesheet ----------
 
@@ -191,10 +192,9 @@ class MainWindow(QMainWindow):
                 self.setStyleSheet(f.read())
 
         except FileNotFoundError:
-            print(base_dir)
-            print(f"Warning: Stylesheet not found at {qss_path}")
+            logger.warning(f"Stylesheet not found at {qss_path}")
         except Exception as e:
-            print(f"Error loading stylesheet: {e}")
+            logger.exception("Error loading stylesheet:")
 
     # ---------- UI Setup ----------
 

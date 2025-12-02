@@ -13,6 +13,7 @@ from Backend.ScrapeComments import CommentFetcher
 from Analysis.SentimentAnalysis import run_sentiment_summary
 from Analysis.WordCloud import WordCloudAnalyzer
 from utils.AppState import app_state
+from utils.logger import logger
 
 
 def comments_to_sentences(data):
@@ -92,7 +93,7 @@ class Comment(QWidget):
         video_details = app_state.video_list  # expected: Dict[channel_id, List[video_id]]
 
         if not video_details:
-            print("No videos in app_state.video_list")
+            logger.warning("CommentPage: No videos in app_state.video_list")
             return
 
         # If it's a plain list, wrap it under a dummy key
@@ -102,7 +103,7 @@ class Comment(QWidget):
         # 1) Scrape + save comments (and get filepaths)
         results = self.comment_fetcher.fetch_comments(video_details)
         if not results:
-            print("fetch_comments returned no results")
+            logger.error("CommentPage: fetch_comments returned no results")
             return
 
         # 2) Load all comment JSONs from disk using the filepaths
@@ -113,11 +114,11 @@ class Comment(QWidget):
             for video_id, meta in videos_dict.items():
                 filepath = meta.get("filepath")
                 if not filepath:
-                    print(f"No filepath for {video_id} (channel {channel_id})")
+                    logger.error(f"CommentPage: No filepath for {video_id} (channel {channel_id})")
                     continue
 
                 if not os.path.exists(filepath):
-                    print(f"Comment file not found: {filepath}")
+                    logger.error(f"CommentPage: Comment file not found: {filepath}")
                     continue
 
                 try:
@@ -127,10 +128,11 @@ class Comment(QWidget):
                     if isinstance(comments_for_video, list):
                         all_comment_dicts.extend(comments_for_video)
                     else:
-                        print(f"Unexpected JSON format in {filepath}: {type(comments_for_video)}")
+                        logger.error(f"CommentPage: Unexpected JSON format in {filepath}: {type(comments_for_video)}")
 
                 except Exception as e:
-                    print(f"Failed to read comments from {filepath}: {e}")
+                    logger.error(f"CommentPage: Failed to read comments from {filepath}")
+                    logger.exception(e)
 
         # 3) Convert all these comment dicts into sentences
         self.comments = comments_to_sentences(all_comment_dicts)
@@ -152,6 +154,7 @@ class Comment(QWidget):
         # ---------------------------
         # RUN ANALYSIS
         # ---------------------------
+        logger.info(f"CommentPage: Running analysis on {len(self.comments)} comments")
         sentimental_analysis_img = run_sentiment_summary(self.comments)
 
         word_cloud = WordCloudAnalyzer(max_words=100)

@@ -6,6 +6,8 @@ from PySide6.QtCore import QObject, Signal
 
 from Data.DatabaseManager import DatabaseManager
 from utils.AppState import app_state
+from utils.logger import logger
+
 
 class CommentWorker(QObject):
     """
@@ -59,8 +61,7 @@ class CommentWorker(QObject):
             self.finished.emit()
 
         except Exception as e:
-            import traceback
-            traceback.print_exc()
+            logger.exception("Error while fetching comments:")
             self.progress_updated.emit(f"Error: {str(e)}")
             self.finished.emit()
 
@@ -107,7 +108,7 @@ class CommentFetcher:
                 
                 # Check if comments are available
                 if 'comments' not in info or info['comments'] is None:
-                    print(f"Comments disabled or unavailable for {video_id}")
+                    logger.warning(f"Comments disabled or unavailable for {video_id}")
                     return {
                         'video_id': video_id,
                         'filepath': None,
@@ -159,7 +160,7 @@ class CommentFetcher:
         except yt_dlp.utils.DownloadError as e:
             error_msg = str(e)
             if 'comments are turned off' in error_msg.lower() or 'disabled comments' in error_msg.lower():
-                print(f"Comments disabled for {video_id}")
+                logger.warning(f"Comments disabled for {video_id}")
                 result = {
                     'video_id': video_id,
                     'filepath': None,
@@ -167,7 +168,7 @@ class CommentFetcher:
                     'remarks': "Comments disabled"
                 }
             elif 'video unavailable' in error_msg.lower() or 'video not found' in error_msg.lower():
-                print(f"Video not found: {video_id}")
+                logger.warning(f"Video not found: {video_id}")
                 result = {
                     'video_id': video_id,
                     'filepath': None,
@@ -175,7 +176,8 @@ class CommentFetcher:
                     'remarks': "Video not found"
                 }
             else:
-                print(f"Download Error fetching comments for {video_id}: {e}")
+                logger.error(f"Download error fetching comments for {video_id}")
+                logger.exception("Comment fetch error:")
                 result = {
                     'video_id': video_id,
                     'filepath': None,
@@ -184,9 +186,8 @@ class CommentFetcher:
                 }
                 
         except Exception as e:
-            import traceback
-            traceback.print_exc()
-            print(f"Error fetching comments for {video_id}: {e}")
+            logger.error(f"Error fetching comments for {video_id}")
+            logger.exception("Comment fetch general error:")
             result = {
                 'video_id': video_id,
                 'filepath': None,
@@ -212,8 +213,6 @@ class CommentFetcher:
                 comments = {}
                 for video_id in video_id_list:
                     result = self._fetch(video_id, channel_id)
-                    if result.get("filepath") is None:
-                        print(f"{video_id}: {result.get('remarks')}")
                     comments[video_id] = result
                 
                 self.video_comments[channel_id] = comments
@@ -221,9 +220,8 @@ class CommentFetcher:
             return self.video_comments
             
         except Exception as e:
-            import traceback
-            traceback.print_exc()
-            print(f"Error fetching comments: {e}")
+            logger.error("Error fetching comments for multiple videos")
+            logger.exception("Comment fetch general error:")
             return None
 
     def save_comments(self, comments_data: List[Dict[str, str]], channel_id: str, filename: str) -> str:
@@ -250,5 +248,6 @@ class CommentFetcher:
             return filepath
         
         except Exception as e:
-            print(f"Error saving comments for {filename}: {e}")
+            logger.error(f"Error saving comments for {filename}")
+            logger.exception("Comment save error:")
             return False

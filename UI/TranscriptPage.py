@@ -14,6 +14,7 @@ from Backend.ScrapeTranscription import TranscriptFetcher
 from Analysis.SentimentAnalysis import run_sentiment_summary
 from Analysis.WordCloud import WordCloudAnalyzer
 from utils.AppState import app_state
+from utils.logger import logger
 
 
 # -------------------------------------------------------------
@@ -73,17 +74,11 @@ class Transcript(QWidget):
     def scrape_transcript(self):
         video_list = app_state.video_list
         if not video_list:
-            print("No videos in app_state.video_list")
+            logger.warning("TranscriptPage: No videos in app_state.video_list")
             return
 
         language = self.language_selection.currentText()
 
-        # Fetch structure:
-        # {
-        #    channel_id: {
-        #        video_id: { "filepath": "...", ... }
-        #    }
-        # }
         result = self.transcript_fetcher.fetch_transcripts(video_list, language)
 
         all_segments = []
@@ -93,7 +88,7 @@ class Transcript(QWidget):
 
             # if fetcher returns a list instead of dict, skip safely
             if not isinstance(video_dict, dict):
-                print(f"Unexpected structure for {channel_id}: {video_dict}")
+                logger.error(f"TranscriptPage: Unexpected structure for {channel_id}: {video_dict}")
                 continue
 
             # loop videos under channel
@@ -107,11 +102,11 @@ class Transcript(QWidget):
 
                 # validate filepath
                 if not filepath or not isinstance(filepath, str):
-                    print(f"Invalid filepath for {channel_id}/{video_id}: {meta}")
+                    logger.error(f"TranscriptPage: Invalid filepath for {channel_id}/{video_id}: {meta}")
                     continue
 
                 if not os.path.exists(filepath):
-                    print(f"Transcript file not found: {filepath}")
+                    logger.error(f"TranscriptPage: Transcript file not found: {filepath}")
                     continue
 
                 # Load JSON transcript
@@ -122,10 +117,12 @@ class Transcript(QWidget):
                     if isinstance(data, list):
                         all_segments.extend(data)
                     else:
-                        print(f"Unexpected transcript JSON in {filepath}: {type(data)}")
+                        logger.error(f"TranscriptPage: Unexpected transcript JSON in {filepath}: {type(data)}")
 
                 except Exception as e:
-                    print(f"Error reading transcript {filepath}: {e}")
+                    logger.error(f"TranscriptPage: Error reading transcript {filepath}")
+                    logger.exception(e)
+
 
         # Convert → sentences
         self.transcript_sentences = transcript_to_sentences(all_segments)
@@ -147,6 +144,8 @@ class Transcript(QWidget):
         if not self.transcript_sentences:
             self.scroll_layout.addWidget(QLabel("No transcript found."), 0, 0)
             return
+        
+        logger.info(f"TranscriptPage: Running analysis on {len(self.transcript_sentences)} sentences")
 
         # Run sentiment + wordcloud
         sentiment_img = run_sentiment_summary(self.transcript_sentences)

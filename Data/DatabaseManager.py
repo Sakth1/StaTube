@@ -83,7 +83,6 @@ class DatabaseManager:
         Load schema.sql and execute it.
         """
         if not self.schema_path.exists():
-            print(self.schema_path)
             raise FileNotFoundError(f"Schema file not found: {self.schema_path}")
 
         with open(self.schema_path, "r", encoding="utf-8") as f:
