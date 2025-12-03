@@ -10,6 +10,7 @@ frozenlist
 idna
 lxml
 multidict
+nltk
 propcache
 PySide6
 PySide6_Addons
