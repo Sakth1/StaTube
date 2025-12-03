@@ -2,8 +2,6 @@ name: Build and Release (Portable + Installer)
 
 on:
   workflow_dispatch:
-  push:
-    tags: ['v*', 'Alpha-v*', 'Beta-v*']
   release:
     types: [published]
 
@@ -28,21 +26,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Determine version from tag or release
+      - name: Determine version from release
         id: version
         shell: bash
         run: |
-          git fetch --tags
-          # If manually triggered, pick latest tag in repo
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
-          # If triggered by a release event, use the release's tag name
-          elif [[ "${{ github.event_name }}" == "release" ]]; then
-            TAG="${{ github.event.release.tag_name }}"
-          else
-            # For push/tag triggers, github.ref_name contains the tag
-            TAG="${{ github.ref_name }}"
-          fi
+          TAG="${{ github.event.release.tag_name }}"
           echo "TAG=$TAG"
           echo "TAG=$TAG" >> $GITHUB_OUTPUT
 
@@ -102,7 +90,7 @@ jobs:
       - name: Upload portable artifact
         uses: actions/upload-artifact@v4
         with:
-          name: portable-${{ steps.version.outputs.TAG }}
+          name: portable
           path: |
             releases/StaTube-*-portable.exe
             releases/StaTube-*-portable.exe.sha256.txt
@@ -113,6 +101,7 @@ jobs:
   build-installer:
     name: Build Installer (standalone)
     runs-on: windows-latest
+    needs: build-portable
 
     steps:
       - name: Checkout
@@ -120,18 +109,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Determine version from tag or release
+      - name: Determine version from release
         id: version
         shell: bash
         run: |
-          git fetch --tags
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
-          elif [[ "${{ github.event_name }}" == "release" ]]; then
-            TAG="${{ github.event.release.tag_name }}"
-          else
-            TAG="${{ github.ref_name }}"
-          fi
+          TAG="${{ github.event.release.tag_name }}"
           echo "TAG=$TAG" >> $GITHUB_OUTPUT
 
       - name: Setup Python 3.11
@@ -239,15 +221,15 @@ jobs:
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: installer-${{ steps.version.outputs.TAG }}
+          name: installer
           path: |
             releases/StaTube-*-setup.exe
             releases/StaTube-*-setup.exe.sha256.txt
 
   ###############################################
-  # CREATE RELEASE
+  # ATTACH FILES TO EXISTING RELEASE
   ###############################################
-  create-release:
+  upload-to-release:
     runs-on: ubuntu-latest
     needs: [build-portable, build-installer]
 
@@ -257,19 +239,10 @@ jobs:
         with:
           path: artifacts
 
-      - name: Create GitHub Release
+      - name: Attach build outputs to existing release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          body: |
-            Automatic build for tag ${{ github.ref_name }}
-
-            **Included:**
-            - Portable EXE
-            - Installer EXE
-            - SHA256 hash files
-          files: |
-            artifacts/**/*
+          tag_name: ${{ github.event.release.tag_name }}
+          files: artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
