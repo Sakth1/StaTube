@@ -60,6 +60,7 @@ jobs:
             --windows-icon-from-ico=assets/icon/youtube.ico ^
             --include-package=yt_dlp ^
             --include-module=yt_dlp.utils ^
+            --include-package=nltk ^
             --include-package=scrapetube ^
             --nofollow-import-to=yt_dlp.extractor.lazy_extractors ^
             --include-data-dir=assets=assets ^
@@ -156,6 +157,7 @@ jobs:
             --windows-icon-from-ico=assets/icon/youtube.ico ^
             --include-package=yt_dlp ^
             --include-module=yt_dlp.utils ^
+            --include-package=nltk ^
             --include-package=scrapetube ^
             --nofollow-import-to=yt_dlp.extractor.lazy_extractors ^
             --include-data-dir=assets=assets ^
