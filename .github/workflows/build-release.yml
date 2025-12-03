@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   push:
     tags: ['v*', 'Alpha-v*', 'Beta-v*']
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -26,14 +28,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Determine version from tag
+      - name: Determine version from tag or release
         id: version
         shell: bash
         run: |
           git fetch --tags
+          # If manually triggered, pick latest tag in repo
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+          # If triggered by a release event, use the release's tag name
+          elif [[ "${{ github.event_name }}" == "release" ]]; then
+            TAG="${{ github.event.release.tag_name }}"
           else
+            # For push/tag triggers, github.ref_name contains the tag
             TAG="${{ github.ref_name }}"
           fi
           echo "TAG=$TAG"
@@ -113,13 +120,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Determine version from tag
+      - name: Determine version from tag or release
         id: version
         shell: bash
         run: |
           git fetch --tags
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+          elif [[ "${{ github.event_name }}" == "release" ]]; then
+            TAG="${{ github.event.release.tag_name }}"
           else
             TAG="${{ github.ref_name }}"
           fi
