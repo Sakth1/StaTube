@@ -19,7 +19,7 @@ from .SplashScreen import SplashScreen
 
 from Data.DatabaseManager import DatabaseManager
 from utils.CheckInternet import Internet
-from utils.logger import logger
+from utils.Logger import logger
 
 # ---- Import AppState ----
 from utils.AppState import app_state
@@ -51,9 +51,12 @@ class StartupWorker(QThread):
             else:
                 self.status_updated.emit("Almost there, verifying network...")
 
+            logger.debug(f"StartupWorker: Checking internet (attempt {attempt + 1}/{self.max_retries})")
             connected = internet.check_internet()
+            logger.debug(f"StartupWorker: Internet check result: {connected}")
 
             if connected:
+                logger.info(f"StartupWorker finished. Internet connected: {connected}")
                 break
 
             # Small delay before retrying (background thread, so safe)
@@ -70,12 +73,16 @@ class MainWindow(QMainWindow):
         """
         Initializes the main window.
         """
+        logger.info("MainWindow initialization started.")
         super().__init__()
 
         # Base dir and icon setup
         base_dir = os.path.dirname(os.path.abspath(__file__))
         self.base_dir = os.path.dirname(base_dir)
         icon_path = os.path.join(self.base_dir, "icon", "youtube.ico")
+        logger.debug(f"Resolved application base directory: {self.base_dir}")
+        logger.debug(f"Using icon path: {icon_path}")
+
 
         self.setWindowTitle("StaTube - YouTube Data Analysis Tool")
         self.setWindowIcon(QIcon(icon_path))
@@ -98,6 +105,7 @@ class MainWindow(QMainWindow):
         # self.splash = SplashScreen(parent=self)
         self.splash.set_title("StaTube - YouTube Data Analysis Tool")
         self.splash.update_status("Starting application...")
+        logger.info("Displaying splash screen and starting asynchronous startup sequence.")
         self.splash.show()
 
         # Start asynchronous startup flow
@@ -110,6 +118,7 @@ class MainWindow(QMainWindow):
         Kick off background startup tasks (internet checks, etc.)
         while showing the splash screen.
         """
+        logger.debug("StartupWorker thread created. Beginning internet check process...")
         self.startup_worker = StartupWorker(self, max_retries=3, retry_delay=2.0)
         self.startup_worker.status_updated.connect(self.splash.update_status)
         self.startup_worker.finished.connect(self.on_startup_finished)
@@ -119,9 +128,11 @@ class MainWindow(QMainWindow):
         """
         Called when the startup worker finishes internet checks.
         """
+        logger.info(f"Startup network check completed. Connected = {connected}")
         if not connected:
             # Show dialog: Continue Offline / Quit
             self.splash.close()
+            logger.warning("No internet detected. User will be prompted for offline mode or exit.")
             msg = QMessageBox(self)
             msg.setIcon(QMessageBox.Warning)
             msg.setWindowTitle("Connection Issue")
@@ -145,6 +156,7 @@ class MainWindow(QMainWindow):
             self.splash.update_status("Continuing in offline mode...")
 
         else:
+            logger.info("Internet connection verified. Proceeding with initialization.")
             self.splash.update_status("Internet connection established. Preparing application...")
 
         # Now perform remaining init (DB, stylesheet, pages)
@@ -154,15 +166,18 @@ class MainWindow(QMainWindow):
         """
         Perform remaining initialization once startup checks are done.
         """
+        logger.info("Starting final initialization sequence (DB, UI, stylesheet).")
         # Load stylesheet
         self.load_stylesheet()
 
         # Initialize database and store in app_state
         db: DatabaseManager = DatabaseManager()
+        logger.debug("DatabaseManager instance created and stored in app_state.")
         app_state.db = db
 
         # Setup the full UI now
         self.setup_ui()
+        logger.info("UI setup completed. Finalizing splash screen fade-out.")
 
         # Smooth fade-out of the splash, then show main window fully ready
         self.splash.fade_and_close(duration_ms=700)
@@ -187,9 +202,12 @@ class MainWindow(QMainWindow):
                 base_dir = os.path.dirname(base_dir)  # Go up to project root
 
             qss_path = os.path.join(base_dir, "UI", "Style.qss")
+            logger.debug(f"Attempting to load QSS stylesheet from: {qss_path}")
 
             with open(qss_path, "r", encoding="utf-8") as f:
                 self.setStyleSheet(f.read())
+
+            logger.info("Stylesheet loaded successfully.")
 
         except FileNotFoundError:
             logger.warning(f"Stylesheet not found at {qss_path}")
@@ -202,11 +220,13 @@ class MainWindow(QMainWindow):
         """
         Setup the main UI once all startup tasks are done.
         """
+        logger.info("Setting up main UI components...")
         # Root layout for central widget
         main_layout = QHBoxLayout(self.central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         # Sidebar frame
+        logger.debug("Sidebar navigation buttons initialized.")
         self.sidebar = QFrame()
         self.sidebar.setFixedWidth(80)
         side_layout = QVBoxLayout(self.sidebar)
@@ -259,6 +279,7 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.transcript_page)
         self.stack.addWidget(self.comment_page)
         self.stack.addWidget(self.settings_page)
+        logger.debug("All pages instantiated and added to QStackedWidget.")
 
         # Default page
         self.switch_page(0)
@@ -269,6 +290,9 @@ class MainWindow(QMainWindow):
         self.homepage.home_page_scrape_video_signal.connect(self.switch_and_scrape_video)
         self.video_page.video_page_scrape_transcript_signal.connect(self.switch_and_scrape_transcripts)
         self.video_page.video_page_scrape_comments_signal.connect(self.switch_and_scrape_comments)
+        logger.debug("Cross-page signals connected.")
+        logger.info("Main UI fully constructed.")
+
 
     # ---------- Sidebar navigation ----------
 
@@ -276,6 +300,7 @@ class MainWindow(QMainWindow):
         """
         Switches to the specified page index.
         """
+        logger.debug(f"Switching to page index: {index}")
         self.stack.setCurrentIndex(max(0, index))
 
     def switch_and_scrape_video(self, scrape_shorts: bool = False):

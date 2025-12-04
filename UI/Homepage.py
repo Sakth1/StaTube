@@ -3,15 +3,14 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QStackedWidget, QWidge
                                QLineEdit, QListWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                QPushButton, QListWidgetItem, QCompleter, QGridLayout)
 from PySide6.QtCore import Qt, QStringListModel, QSize, Signal
-from PySide6.QtGui import QPixmap, QIcon, QPalette, QColor
+from PySide6.QtGui import QIcon
 import threading
-import traceback
 from typing import Optional, Dict, List, Any, Callable
 
 from Data.DatabaseManager import DatabaseManager
 from Backend.ScrapeChannel import Search
 from utils.AppState import app_state
-from utils.logger import logger
+from utils.Logger import logger
 from UI.SplashScreen import SplashScreen
 import os
 

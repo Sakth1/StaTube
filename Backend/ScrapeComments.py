@@ -6,7 +6,7 @@ from PySide6.QtCore import QObject, Signal
 
 from Data.DatabaseManager import DatabaseManager
 from utils.AppState import app_state
-from utils.logger import logger
+from utils.Logger import logger
 
 
 class CommentWorker(QObject):

@@ -1,6 +1,6 @@
 # utils/CheckInternet.py
 import requests
-from utils.logger import logger
+from utils.Logger import logger
 
 class Internet():
     def __init__(self):
