@@ -10,6 +10,7 @@ frozenlist
 idna
 lxml
 multidict
+nltk
 propcache
 PySide6
 PySide6_Addons
@@ -20,6 +21,7 @@ shiboken6
 typing_extensions
 urllib3
 webvtt-py
+wordcloud
 yarl
 youtube_transcript_api
 yt-dlp

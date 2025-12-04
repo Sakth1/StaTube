@@ -14,7 +14,7 @@ env:
 
 jobs:
   ###############################################
-  # PORTABLE BUILD (Nuitka --onefile)
+  # PORTABLE BUILD (onefile)
   ###############################################
   build-portable:
     name: Build Portable (onefile)
@@ -36,7 +36,6 @@ jobs:
           else
             TAG="${{ github.ref_name }}"
           fi
-          echo "TAG=$TAG"
           echo "TAG=$TAG" >> $GITHUB_OUTPUT
 
       - name: Setup Python 3.11
@@ -45,22 +44,26 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      - name: Install requirements
+      - name: Install requirements + Nuitka plugins
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install nuitka
+          pip install "nuitka[plugins]"
 
       - name: Build Portable EXE (Nuitka)
         shell: cmd
         run: |
           python -m nuitka ^
             --onefile ^
-            --windows-console-mode=disable ^
             --enable-plugin=pyside6 ^
             --windows-icon-from-ico=assets/icon/youtube.ico ^
             --include-package=yt_dlp ^
             --include-module=yt_dlp.utils ^
+            --include-package=nltk ^
+            --include-package=wordcloud ^
+            --include-package=utils ^
+            --include-package-data=wordcloud ^
+            --include-package-data=utils ^
             --include-package=scrapetube ^
             --nofollow-import-to=yt_dlp.extractor.lazy_extractors ^
             --include-data-dir=assets=assets ^
@@ -101,7 +104,7 @@ jobs:
             releases/StaTube-*-portable.exe.sha256.txt
 
   ###############################################
-  # INSTALLER BUILD (standalone + Inno Setup)
+  # INSTALLER BUILD (standalone)
   ###############################################
   build-installer:
     name: Build Installer (standalone)
@@ -131,21 +134,18 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      - name: Install requirements
+      - name: Install requirements + Nuitka plugins
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install nuitka
+          pip install "nuitka[plugins]"
 
-      - name: Extract metadata from main.py
+      - name: Extract metadata
         id: meta
         shell: bash
         run: |
           python build/installer/extract_metadata.py main.py > meta.out
-          cat meta.out
-          while IFS= read -r line; do
-            echo "$line" >> $GITHUB_OUTPUT
-          done < meta.out
+          while IFS= read -r line; do echo "$line" >> $GITHUB_OUTPUT; done < meta.out
 
       - name: Build Standalone Folder (Nuitka)
         shell: cmd
@@ -153,11 +153,15 @@ jobs:
           python -m nuitka ^
             --standalone ^
             --output-dir=standalone_build ^
-            --windows-console-mode=disable ^
             --enable-plugin=pyside6 ^
             --windows-icon-from-ico=assets/icon/youtube.ico ^
             --include-package=yt_dlp ^
             --include-module=yt_dlp.utils ^
+            --include-package=nltk ^
+            --include-package=wordcloud ^
+            --include-package=utils ^
+            --include-package-data=wordcloud ^
+            --include-package-data=utils ^
             --include-package=scrapetube ^
             --nofollow-import-to=yt_dlp.extractor.lazy_extractors ^
             --include-data-dir=assets=assets ^
@@ -197,19 +201,15 @@ jobs:
           $pub = "${{ steps.meta.outputs.APP_PUBLISHER }}"
           $desc = "${{ steps.meta.outputs.APP_DESCRIPTION }}"
 
-          $iss = "${{ github.workspace }}\\build\\installer\\StaTube.iss"
-          $src = "${{ github.workspace }}\\releases\\StaTube-$version-standalone"
-          $out = "${{ github.workspace }}\\releases"
-
           & "C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe" `
             /DMyAppName="$name" `
             /DMyAppVersion="$appver" `
             /DMyAppPublisher="$pub" `
             /DMyAppDescription="$desc" `
             /DMyAppTag="$version" `
-            /DSourceDir="$src" `
-            /DOutputDir="$out" `
-            "$iss"
+            /DSourceDir="${{ github.workspace }}\\releases\\StaTube-$version-standalone" `
+            /DOutputDir="${{ github.workspace }}\\releases" `
+            "${{ github.workspace }}\\build\\installer\\StaTube.iss"
 
       - name: Validate installer output
         shell: pwsh
