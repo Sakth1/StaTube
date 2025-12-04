@@ -145,7 +145,7 @@ class TranscriptFetcher:
         finally:
             return result
 
-    def fetch_transcripts(self, video_details: dict[str, list], languages: list = ["en"]) -> dict:
+    def fetch_transcripts(self, video_details: dict[str, list]) -> dict:
         """
         Fetches YouTube video transcripts for a list of videos organized by channel.
 
@@ -157,12 +157,11 @@ class TranscriptFetcher:
             dict: A dictionary containing the fetched transcripts organized by channel.
         """
         try:                
-            language_option = ["en"]
 
             for channel_id, video_id_list in video_details.items():
                 transcripts = {}
                 for id in video_id_list:
-                    result = self._fetch(id, channel_id, language_option)
+                    result = self._fetch(id, channel_id)
                     transcripts[id] = result
                 
                 self.video_transcripts[channel_id] = transcripts
