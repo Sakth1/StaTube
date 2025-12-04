@@ -13,7 +13,7 @@ from Backend.ScrapeComments import CommentFetcher
 from Analysis.SentimentAnalysis import run_sentiment_summary
 from Analysis.WordCloud import WordCloudAnalyzer
 from utils.AppState import app_state
-from utils.logger import logger
+from utils.Logger import logger
 
 
 def comments_to_sentences(data):
