@@ -10,7 +10,7 @@ from PySide6.QtCore import QObject, Signal, Slot, QMetaObject, Qt, Q_ARG
 
 from Data.DatabaseManager import DatabaseManager
 from utils.AppState import app_state
-from utils.logger import logger
+from utils.Logger import logger
 
 
 def parse_duration(duration: str) -> int:
