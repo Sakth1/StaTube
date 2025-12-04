@@ -2,7 +2,7 @@ import io
 from wordcloud import WordCloud, STOPWORDS
 from PySide6.QtGui import QImage
 
-from utils.logger import logger
+from utils.Logger import logger
 
 class WordCloudAnalyzer:
     """

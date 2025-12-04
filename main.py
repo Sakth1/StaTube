@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QApplication
 import sys
 
-from utils.logger import logger
+from utils.Logger import logger
 from UI.MainWindow import MainWindow
 
 APP_NAME = "StaTube"

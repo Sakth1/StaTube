@@ -19,7 +19,7 @@ from .SplashScreen import SplashScreen
 
 from Data.DatabaseManager import DatabaseManager
 from utils.CheckInternet import Internet
-from utils.logger import logger
+from utils.Logger import logger
 
 # ---- Import AppState ----
 from utils.AppState import app_state

@@ -5,7 +5,7 @@ import os
 from typing import Callable, Optional
 
 from utils.AppState import app_state
-from utils.logger import logger
+from utils.Logger import logger
 
 def download_img(url: str, save_path: str) -> bool:
     """

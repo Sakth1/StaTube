@@ -13,7 +13,7 @@ from Backend.ScrapeTranscription import TranscriptWorker
 from Backend.ScrapeComments import CommentWorker
 from UI.SplashScreen import SplashScreen
 from utils.AppState import app_state
-from utils.logger import logger
+from utils.Logger import logger
 
 def clear_layout(layout: QLayout) -> None:
     """

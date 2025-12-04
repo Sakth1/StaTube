@@ -10,7 +10,7 @@ from typing import Optional, Dict, List, Any, Callable
 from Data.DatabaseManager import DatabaseManager
 from Backend.ScrapeChannel import Search
 from utils.AppState import app_state
-from utils.logger import logger
+from utils.Logger import logger
 from UI.SplashScreen import SplashScreen
 import os
 
