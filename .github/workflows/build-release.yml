@@ -87,22 +87,6 @@ jobs:
           New-Item -ItemType Directory -Force -Path $env:RELEASE_DIR | Out-Null
           Move-Item "./main.exe" "./$env:RELEASE_DIR/StaTube-$version-portable.exe" -Force
 
-      - name: SHA256 checksum
-        shell: pwsh
-        run: |
-          $version = "${{ steps.version.outputs.TAG }}"
-          $file = "./$env:RELEASE_DIR/StaTube-$version-portable.exe"
-          $hash = Get-FileHash -Algorithm SHA256 $file
-          "$($hash.Hash)  StaTube-$version-portable.exe" | Out-File "$file.sha256.txt"
-
-      - name: Upload portable artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: portable-${{ steps.version.outputs.TAG }}
-          path: |
-            releases/StaTube-*-portable.exe
-            releases/StaTube-*-portable.exe.sha256.txt
-
   ###############################################
   # INSTALLER BUILD (standalone)
   ###############################################
@@ -219,22 +203,6 @@ jobs:
             throw "Installer not produced!"
           }
 
-      - name: SHA256 installer
-        shell: pwsh
-        run: |
-          $version = "${{ steps.version.outputs.TAG }}"
-          $file = "./$env:RELEASE_DIR/StaTube-$version-setup.exe"
-          $hash = Get-FileHash -Algorithm SHA256 $file
-          "$($hash.Hash)  StaTube-$version-setup.exe" | Out-File "$file.sha256.txt"
-
-      - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: installer-${{ steps.version.outputs.TAG }}
-          path: |
-            releases/StaTube-*-setup.exe
-            releases/StaTube-*-setup.exe.sha256.txt
-
   ###############################################
   # CREATE RELEASE
   ###############################################
@@ -259,7 +227,7 @@ jobs:
             **Included:**
             - Portable EXE
             - Installer EXE
-            - SHA256 hash files
+            - Source code
           files: |
             artifacts/**/*
         env:
