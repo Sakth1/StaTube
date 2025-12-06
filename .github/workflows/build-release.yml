@@ -36,7 +36,6 @@ jobs:
           elif [[ "${{ github.event_name }}" == "release" ]]; then
             TAG="${{ github.event.release.tag_name }}"
           else
-            # fallback to ref name if available
             TAG="${{ github.ref_name }}"
           fi
           echo "TAG=$TAG" >> $GITHUB_OUTPUT
@@ -91,6 +90,14 @@ jobs:
           New-Item -ItemType Directory -Force -Path $env:RELEASE_DIR | Out-Null
           Move-Item "./main.exe" "./$env:RELEASE_DIR/StaTube-$version-portable.exe" -Force
 
+      # ---------- NEW: UPLOAD PORTABLE ARTIFACT ----------
+      - name: Upload portable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: portable
+          path: releases/*.exe
+      # ----------------------------------------------------
+
   ###############################################
   # INSTALLER BUILD (standalone)
   ###############################################
@@ -110,7 +117,7 @@ jobs:
         run: |
           git fetch --tags
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+            TAG=$(git describe --tags `git.rev-list --tags --max-count=1`)
           elif [[ "${{ github.event_name }}" == "release" ]]; then
             TAG="${{ github.event.release.tag_name }}"
           else
@@ -209,6 +216,14 @@ jobs:
           if (!(Test-Path "./$env:RELEASE_DIR/StaTube-$version-setup.exe")) {
             throw "Installer not produced!"
           }
+
+      # ---------- NEW: UPLOAD INSTALLER ARTIFACT ----------
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer
+          path: releases/*.exe
+      # ----------------------------------------------------
 
   ###############################################
   # CREATE RELEASE
