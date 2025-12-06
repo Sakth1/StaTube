@@ -3,7 +3,7 @@ name: Build and Release (Portable + Installer)
 on:
   workflow_dispatch:
   release:
-    types: [published]
+    types: [created, published]
 
 permissions:
   contents: write
