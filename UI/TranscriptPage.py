@@ -1,22 +1,18 @@
-# transcriptpage.py
 import json
 import re
 import os
 from typing import Optional, List
-from datetime import datetime
 
-from PySide6.QtCore import Signal, Qt, QTimer
+from PySide6.QtCore import Signal, QTimer
 from PySide6.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QScrollArea, QSizePolicy
 )
-from PySide6.QtGui import QPixmap
 
 from Backend.ScrapeTranscription import TranscriptFetcher
 from Analysis.SentimentAnalysis import run_sentiment_summary
 from Analysis.WordCloud import WordCloudAnalyzer
 from utils.AppState import app_state
 from utils.Logger import logger
-
 from widgets.DownloadableImage import DownloadableImage
 
 

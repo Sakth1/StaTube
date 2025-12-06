@@ -79,7 +79,7 @@ class MainWindow(QMainWindow):
         # Base dir and icon setup
         base_dir = os.path.dirname(os.path.abspath(__file__))
         self.base_dir = os.path.dirname(base_dir)
-        icon_path = os.path.join(self.base_dir, "icon", "youtube.ico")
+        icon_path = os.path.join(self.base_dir, "icon", "StaTube.ico")
         logger.debug(f"Resolved application base directory: {self.base_dir}")
         logger.debug(f"Using icon path: {icon_path}")
 

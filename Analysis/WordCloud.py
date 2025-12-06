@@ -1,4 +1,3 @@
-# Analysis/WordCloud.py
 import io
 from wordcloud import WordCloud, STOPWORDS
 from PySide6.QtGui import QImage

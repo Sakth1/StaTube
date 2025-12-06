@@ -1,10 +1,3 @@
-# Analysis/SentimentAnalysis.py
-"""
-Generates sentiment summary as QImage at requested width/height.
-
-Call:
-    img = run_sentiment_summary(sentences, width=1600, height=520)
-"""
 import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
 

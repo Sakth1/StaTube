@@ -1,5 +1,4 @@
-# commentpage.py
-from PySide6.QtCore import Signal, Qt, QTimer
+from PySide6.QtCore import Signal, QTimer
 from PySide6.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QScrollArea, QSizePolicy
 )
