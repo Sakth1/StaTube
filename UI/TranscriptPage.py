@@ -1,25 +1,21 @@
 import json
 import re
 import os
-from typing import Optional, List, Dict
+from typing import Optional, List
 
-from PySide6.QtCore import Signal, Qt
+from PySide6.QtCore import Signal, QTimer
 from PySide6.QtWidgets import (
-    QWidget, QLabel, QVBoxLayout, QGridLayout, QPushButton,
-    QComboBox, QScrollArea, QSizePolicy
+    QWidget, QLabel, QVBoxLayout, QScrollArea, QSizePolicy
 )
-from PySide6.QtGui import QPixmap
 
 from Backend.ScrapeTranscription import TranscriptFetcher
 from Analysis.SentimentAnalysis import run_sentiment_summary
 from Analysis.WordCloud import WordCloudAnalyzer
 from utils.AppState import app_state
 from utils.Logger import logger
+from widgets.DownloadableImage import DownloadableImage
 
 
-# -------------------------------------------------------------
-# Convert transcript → sentences
-# -------------------------------------------------------------
 def transcript_to_sentences(transcript_list: List[dict]) -> List[str]:
     sentences = []
     for seg in transcript_list:
@@ -30,148 +26,117 @@ def transcript_to_sentences(transcript_list: List[dict]) -> List[str]:
     return sentences
 
 
-# -------------------------------------------------------------
-# Transcript Page
-# -------------------------------------------------------------
 class Transcript(QWidget):
-
     transcript_page_scrape_transcripts_signal = Signal()
 
     def __init__(self, parent: Optional[QWidget] = None):
-        super(Transcript, self).__init__(parent)
+        super().__init__(parent)
 
         self.db = app_state.db
         self.transcript_fetcher = TranscriptFetcher()
         self.transcript_page_scrape_transcripts_signal.connect(self.scrape_transcript)
 
-        # UI Layout ------------------------------------------------
+        # images
+        self.sentiment_image = None
+        self.wordcloud_image = None
+
+        # main layout: only a scroll area with content
         self.main_layout = QVBoxLayout(self)
         self.setLayout(self.main_layout)
 
-        self.scrape_btn = QPushButton("Scrape Transcript")
-        self.scrape_btn.clicked.connect(self.scrape_transcript)
-        self.main_layout.addWidget(self.scrape_btn)
-
-        self.language_selection = QComboBox()
-        self.language_selection.addItems(["en", "es"])
-        self.main_layout.addWidget(self.language_selection)
-
-        # Scroll area for analysis output
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.main_layout.addWidget(self.scroll_area)
 
+        # content widget that will hold full-size images stacked vertically
         self.scroll_content = QWidget()
-        self.scroll_layout = QGridLayout(self.scroll_content)
+        self.scroll_layout = QVBoxLayout(self.scroll_content)
         self.scroll_area.setWidget(self.scroll_content)
 
         self.transcript_sentences: List[str] = []
 
+        # Auto-run on load (post-init)
+        QTimer.singleShot(0, self.scrape_transcript)
 
-    # ---------------------------------------------------------
-    # SCRAPE + LOAD + ANALYZE
-    # ---------------------------------------------------------
     def scrape_transcript(self):
         video_list = app_state.video_list
         if not video_list:
             logger.warning("TranscriptPage: No videos in app_state.video_list")
+            # clear content
+            for i in reversed(range(self.scroll_layout.count())):
+                w = self.scroll_layout.itemAt(i).widget()
+                if w:
+                    w.deleteLater()
+            self.scroll_layout.addWidget(QLabel("No transcript found."))
             return
 
-        language = self.language_selection.currentText()
-
-        result = self.transcript_fetcher.fetch_transcripts(video_list, language)
+        result = self.transcript_fetcher.fetch_transcripts(video_list)
 
         all_segments = []
-
-        # loop channels
         for channel_id, video_dict in result.items():
-
-            # if fetcher returns a list instead of dict, skip safely
             if not isinstance(video_dict, dict):
-                logger.error(f"TranscriptPage: Unexpected structure for {channel_id}: {video_dict}")
                 continue
-
-            # loop videos under channel
             for video_id, meta in video_dict.items():
-
                 filepath = None
-
-                # meta must be dict containing "filepath"
                 if isinstance(meta, dict):
                     filepath = meta.get("filepath")
-
-                # validate filepath
-                if not filepath or not isinstance(filepath, str):
-                    logger.error(f"TranscriptPage: Invalid filepath for {channel_id}/{video_id}: {meta}")
+                if not filepath or not os.path.exists(filepath):
                     continue
-
-                if not os.path.exists(filepath):
-                    logger.error(f"TranscriptPage: Transcript file not found: {filepath}")
-                    continue
-
-                # Load JSON transcript
                 try:
                     with open(filepath, "r", encoding="utf-8") as f:
                         data = json.load(f)
-
                     if isinstance(data, list):
                         all_segments.extend(data)
-                    else:
-                        logger.error(f"TranscriptPage: Unexpected transcript JSON in {filepath}: {type(data)}")
+                except Exception:
+                    logger.exception("TranscriptPage: Error reading transcript file")
 
-                except Exception as e:
-                    logger.error(f"TranscriptPage: Error reading transcript {filepath}")
-                    logger.exception(e)
-
-
-        # Convert → sentences
         self.transcript_sentences = transcript_to_sentences(all_segments)
+        self._generate_and_display_images()
 
-        self.display_analysis()
-
-
-    # ---------------------------------------------------------
-    # SHOW ANALYSIS
-    # ---------------------------------------------------------
-    def display_analysis(self):
-
-        # Clear previous widget content
+    def _generate_and_display_images(self):
+        # clear previous
         for i in reversed(range(self.scroll_layout.count())):
             w = self.scroll_layout.itemAt(i).widget()
             if w:
                 w.deleteLater()
 
         if not self.transcript_sentences:
-            self.scroll_layout.addWidget(QLabel("No transcript found."), 0, 0)
+            self.scroll_layout.addWidget(QLabel("No transcript found."))
             return
-        
-        logger.info(f"TranscriptPage: Running analysis on {len(self.transcript_sentences)} sentences")
 
-        # Run sentiment + wordcloud
-        sentiment_img = run_sentiment_summary(self.transcript_sentences)
+        # Fixed HD sizes (Option A)
+        sent_w = 1600
+        sent_h = int(sent_w * 0.33)
+        wc_w = 2800
+        wc_h = int(wc_w * 0.6)
 
-        wc = WordCloudAnalyzer(max_words=120)
-        wordcloud_img = wc.generate_wordcloud(self.transcript_sentences)
+        logger.info(f"TranscriptPage: Generating sentiment {sent_w}x{sent_h}, wordcloud {wc_w}x{wc_h}")
 
-        # scaled label helper
-        def scaled_label(qimage):
-            label = QLabel()
-            pix = QPixmap.fromImage(qimage)
+        try:
+            sentiment_img = run_sentiment_summary(self.transcript_sentences, width=sent_w, height=sent_h)
+            wc_img = WordCloudAnalyzer(max_words=120).generate_wordcloud(self.transcript_sentences, width=wc_w, height=wc_h)
+        except Exception:
+            logger.exception("TranscriptPage: Error generating images")
+            self.scroll_layout.addWidget(QLabel("Failed to generate analysis images."))
+            return
 
-            viewport_width = self.scroll_area.viewport().width()
-            target_width = max(200, viewport_width - 40)  # safe width
+        self.sentiment_image = sentiment_img
+        self.wordcloud_image = wc_img
 
-            scaled = pix.scaledToWidth(target_width, Qt.SmoothTransformation)
-            label.setPixmap(scaled)
-            label.setAlignment(Qt.AlignCenter)
-            label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-            return label
+        channel_name = next(iter(app_state.video_list.keys()), "unknown")
 
-        # Insert into layout
-        self.scroll_layout.addWidget(QLabel("<b>Sentiment Analysis</b>"), 0, 0)
-        self.scroll_layout.addWidget(scaled_label(sentiment_img), 1, 0)
+        # Title label
+        self.scroll_layout.addWidget(QLabel("<b>Sentiment Analysis</b>"))
 
-        self.scroll_layout.addWidget(QLabel("<b>Word Cloud</b>"), 2, 0)
-        self.scroll_layout.addWidget(scaled_label(wordcloud_img), 3, 0)
+        # DownloadableImage displays at natural size and provides download overlay
+        sent_widget = DownloadableImage(sentiment_img, default_name=f"transcript_sentiment_{channel_name}.png")
+        sent_widget.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.scroll_layout.addWidget(sent_widget)
 
-        self.scroll_layout.setRowStretch(4, 1)
+        self.scroll_layout.addWidget(QLabel("<b>Word Cloud</b>"))
+        wc_widget = DownloadableImage(wc_img, default_name=f"transcript_wordcloud_{channel_name}.png")
+        wc_widget.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.scroll_layout.addWidget(wc_widget)
+
+        # Spacer
+        self.scroll_layout.addStretch(1)
