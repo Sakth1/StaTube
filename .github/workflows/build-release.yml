@@ -227,7 +227,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.event.release.tag_name }}
-          name: Release ${{ github.event.release.tag_name }}
+          name: ${{ github.event.release.tag_name }}
           body: |
             Automatic build for tag ${{ github.event.release.tag_name }}
 
