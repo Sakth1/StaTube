@@ -59,7 +59,7 @@ jobs:
             --onefile ^
             --windows-disable-console ^
             --enable-plugin=pyside6 ^
-            --windows-icon-from-ico=assets/icon/youtube.ico ^
+            --windows-icon-from-ico=assets/icon/StaTube.ico ^
             --include-package=yt_dlp ^
             --include-module=yt_dlp.utils ^
             --include-package=nltk ^
@@ -152,7 +152,7 @@ jobs:
             --output-dir=standalone_build ^
             --windows-disable-console ^
             --enable-plugin=pyside6 ^
-            --windows-icon-from-ico=assets/icon/youtube.ico ^
+            --windows-icon-from-ico=assets/icon/StaTube.ico ^
             --include-package=yt_dlp ^
             --include-module=yt_dlp.utils ^
             --include-package=nltk ^
