@@ -2,8 +2,8 @@ name: Build and Release (Portable + Installer)
 
 on:
   workflow_dispatch:
-  push:
-    tags: ['v*', 'Alpha-v*', 'Beta-v*']
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -26,14 +26,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Determine version from tag
+      - name: Determine version from event
         id: version
         shell: bash
         run: |
           git fetch --tags
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+          elif [[ "${{ github.event_name }}" == "release" ]]; then
+            TAG="${{ github.event.release.tag_name }}"
           else
+            # fallback to ref name if available
             TAG="${{ github.ref_name }}"
           fi
           echo "TAG=$TAG" >> $GITHUB_OUTPUT
@@ -55,6 +58,7 @@ jobs:
         run: |
           python -m nuitka ^
             --onefile ^
+            --windows-disable-console ^
             --enable-plugin=pyside6 ^
             --windows-icon-from-ico=assets/icon/youtube.ico ^
             --include-package=yt_dlp ^
@@ -100,13 +104,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Determine version from tag
+      - name: Determine version from event
         id: version
         shell: bash
         run: |
           git fetch --tags
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+          elif [[ "${{ github.event_name }}" == "release" ]]; then
+            TAG="${{ github.event.release.tag_name }}"
           else
             TAG="${{ github.ref_name }}"
           fi
@@ -137,6 +143,7 @@ jobs:
           python -m nuitka ^
             --standalone ^
             --output-dir=standalone_build ^
+            --windows-disable-console ^
             --enable-plugin=pyside6 ^
             --windows-icon-from-ico=assets/icon/youtube.ico ^
             --include-package=yt_dlp ^
@@ -219,10 +226,10 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
+          tag_name: ${{ github.event.release.tag_name }}
+          name: Release ${{ github.event.release.tag_name }}
           body: |
-            Automatic build for tag ${{ github.ref_name }}
+            Automatic build for tag ${{ github.event.release.tag_name }}
 
             **Included:**
             - Portable EXE
