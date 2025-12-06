@@ -2,8 +2,8 @@ name: Build and Release (Portable + Installer)
 
 on:
   workflow_dispatch:
-  push:
-    tags: ['v*', 'Alpha-v*', 'Beta-v*']
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -26,13 +26,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Determine version from tag
+      - name: Determine version from event
         id: version
         shell: bash
         run: |
           git fetch --tags
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+          elif [[ "${{ github.event_name }}" == "release" ]]; then
+            TAG="${{ github.event.release.tag_name }}"
           else
             TAG="${{ github.ref_name }}"
           fi
@@ -55,6 +57,7 @@ jobs:
         run: |
           python -m nuitka ^
             --onefile ^
+            --windows-disable-console ^
             --enable-plugin=pyside6 ^
             --windows-icon-from-ico=assets/icon/youtube.ico ^
             --include-package=yt_dlp ^
@@ -87,21 +90,13 @@ jobs:
           New-Item -ItemType Directory -Force -Path $env:RELEASE_DIR | Out-Null
           Move-Item "./main.exe" "./$env:RELEASE_DIR/StaTube-$version-portable.exe" -Force
 
-      - name: SHA256 checksum
-        shell: pwsh
-        run: |
-          $version = "${{ steps.version.outputs.TAG }}"
-          $file = "./$env:RELEASE_DIR/StaTube-$version-portable.exe"
-          $hash = Get-FileHash -Algorithm SHA256 $file
-          "$($hash.Hash)  StaTube-$version-portable.exe" | Out-File "$file.sha256.txt"
-
+      # ---------- NEW: UPLOAD PORTABLE ARTIFACT ----------
       - name: Upload portable artifact
         uses: actions/upload-artifact@v4
         with:
-          name: portable-${{ steps.version.outputs.TAG }}
-          path: |
-            releases/StaTube-*-portable.exe
-            releases/StaTube-*-portable.exe.sha256.txt
+          name: portable
+          path: releases/*.exe
+      # ----------------------------------------------------
 
   ###############################################
   # INSTALLER BUILD (standalone)
@@ -116,13 +111,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Determine version from tag
+      - name: Determine version from event
         id: version
         shell: bash
         run: |
           git fetch --tags
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+            TAG=$(git describe --tags `git.rev-list --tags --max-count=1`)
+          elif [[ "${{ github.event_name }}" == "release" ]]; then
+            TAG="${{ github.event.release.tag_name }}"
           else
             TAG="${{ github.ref_name }}"
           fi
@@ -153,6 +150,7 @@ jobs:
           python -m nuitka ^
             --standalone ^
             --output-dir=standalone_build ^
+            --windows-disable-console ^
             --enable-plugin=pyside6 ^
             --windows-icon-from-ico=assets/icon/youtube.ico ^
             --include-package=yt_dlp ^
@@ -219,21 +217,13 @@ jobs:
             throw "Installer not produced!"
           }
 
-      - name: SHA256 installer
-        shell: pwsh
-        run: |
-          $version = "${{ steps.version.outputs.TAG }}"
-          $file = "./$env:RELEASE_DIR/StaTube-$version-setup.exe"
-          $hash = Get-FileHash -Algorithm SHA256 $file
-          "$($hash.Hash)  StaTube-$version-setup.exe" | Out-File "$file.sha256.txt"
-
+      # ---------- NEW: UPLOAD INSTALLER ARTIFACT ----------
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: installer-${{ steps.version.outputs.TAG }}
-          path: |
-            releases/StaTube-*-setup.exe
-            releases/StaTube-*-setup.exe.sha256.txt
+          name: installer
+          path: releases/*.exe
+      # ----------------------------------------------------
 
   ###############################################
   # CREATE RELEASE
@@ -251,15 +241,15 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
+          tag_name: ${{ github.event.release.tag_name }}
+          name: ${{ github.event.release.tag_name }}
           body: |
-            Automatic build for tag ${{ github.ref_name }}
+            Automatic build for tag ${{ github.event.release.tag_name }}
 
             **Included:**
             - Portable EXE
             - Installer EXE
-            - SHA256 hash files
+            - Source code
           files: |
             artifacts/**/*
         env:
