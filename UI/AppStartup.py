@@ -108,6 +108,5 @@ class AppStartup:
         else:
             logger.info("Internet connection verified. Proceeding with initialization.")
             self.splash.update_status("Internet connection established. Preparing application...")
-
-        # Now perform remaining init (DB, stylesheet, pages)
-        self.finish_initialization()
+        
+        

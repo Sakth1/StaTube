@@ -15,6 +15,7 @@ from .VideoPage import Video
 from .CommentPage import Comment
 from .TranscriptPage import Transcript
 from .SettingsPage import Settings
+from .SplashScreen import SplashScreen
 
 from Data.DatabaseManager import DatabaseManager
 from utils.Logger import logger
@@ -38,6 +39,7 @@ class MainWindow(QMainWindow):
         base_dir = os.path.dirname(os.path.abspath(__file__))
         self.base_dir = os.path.dirname(base_dir)
         icon_path = os.path.join(self.base_dir, "icon", "StaTube.ico")
+        gif_path = os.path.join(self.base_dir, "assets", "splash", "loading.gif")
         logger.debug(f"Resolved application base directory: {self.base_dir}")
         logger.debug(f"Using icon path: {icon_path}")
 
@@ -52,6 +54,7 @@ class MainWindow(QMainWindow):
 
         # Create stacked widget (pages will be added later in setup_ui)
         self.stack = QStackedWidget()
+        self.splash = SplashScreen(parent=self, gif_path=gif_path)
 
         # Sidebar button list
         self.sidebar_buttons = []
@@ -67,6 +70,7 @@ class MainWindow(QMainWindow):
         # Initialize database and store in app_state
         db: DatabaseManager = DatabaseManager()
         logger.debug("DatabaseManager instance created and stored in app_state.")
+        
         app_state.db = db
 
         # Setup the full UI now
