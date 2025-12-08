@@ -60,28 +60,23 @@ class MainWindow(QMainWindow):
         self.sidebar_buttons = []
 
     def finish_initialization(self):
-        """
-        Perform remaining initialization once startup checks are done.
-        """
-        logger.info("Starting final initialization sequence (DB, UI, stylesheet).")
-        # Load stylesheet
+        logger.info("Starting final initialization sequence.")
+
+        self.splash.update_status("Loading theme...")
         self.load_stylesheet()
+        self.splash.set_progress(40)
 
-        # Initialize database and store in app_state
-        db: DatabaseManager = DatabaseManager()
-        logger.debug("DatabaseManager instance created and stored in app_state.")
-        
+        self.splash.update_status("Connecting database...")
+        db = DatabaseManager()
         app_state.db = db
+        self.splash.set_progress(70)
 
-        # Setup the full UI now
+        self.splash.update_status("Building UI layout...")
         self.setup_ui()
-        logger.info("UI setup completed. Finalizing splash screen fade-out.")
+        self.splash.set_progress(95)
 
-        # Smooth fade-out of the splash, then show main window fully ready
-        self.splash.fade_and_close(duration_ms=700)
+        self.splash.update_status("Startup complete")
 
-        # Debug log
-        logger.debug("Main UI initialized successfully")
 
     # ---------- Stylesheet ----------
 

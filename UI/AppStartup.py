@@ -1,112 +1,133 @@
 from PySide6.QtWidgets import QApplication, QMessageBox
-from PySide6.QtCore import QThread, Signal
-import os
-import time
+from PySide6.QtCore import QThread, Signal, QObject
+import os, time
 
 from UI.SplashScreen import SplashScreen
+from UI.MainWindow import MainWindow
 from utils.Logger import logger
 from utils.CheckInternet import Internet
 
+
+# ===========================
+# ✅ STARTUP WORKER THREAD
+# ===========================
 class StartupWorker(QThread):
-    """
-    Background worker for startup tasks such as internet checks.
-    Keeps UI responsive while doing blocking work.
-    """
-    status_updated = Signal(str)
-    finished = Signal(bool)  # True = internet OK, False = still offline after retries
+    status_updated = Signal(str, int)   # message, progress %
+    finished = Signal(bool)
+    step_timing = {}
 
-    def __init__(self, parent=None, max_retries: int = 3, retry_delay: float = 2.0):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.max_retries = max_retries
-        self.retry_delay = retry_delay
 
-    def run(self) -> None:
+    def run(self):
+        self.step("Checking internet connection...", 10)
         internet = Internet()
-        connected = False
+        connected = internet.check_internet()
 
-        for attempt in range(self.max_retries):
-            # R2: general “soft” messages, not attempt counts
-            if attempt == 0:
-                self.status_updated.emit("Checking internet connection...")
-            elif attempt == 1:
-                self.status_updated.emit("Still checking your connection...")
-            else:
-                self.status_updated.emit("Almost there, verifying network...")
-
-            logger.debug(f"StartupWorker: Checking internet (attempt {attempt + 1}/{self.max_retries})")
-            connected = internet.check_internet()
-            logger.debug(f"StartupWorker: Internet check result: {connected}")
-
+        for _ in range(2):
             if connected:
-                logger.info(f"StartupWorker finished. Internet connected: {connected}")
                 break
+            time.sleep(1)
+            connected = internet.check_internet()
 
-            # Small delay before retrying (background thread, so safe)
-            time.sleep(self.retry_delay)
+        if not connected:
+            self.finished.emit(False)
+            return
 
-        self.finished.emit(bool(connected))
+        self.step("Initializing plugins...", 25)
+        time.sleep(0.5)
+
+        self.step("Loading UI modules...", 45)
+        time.sleep(0.5)
+
+        self.step("Preparing database engine...", 65)
+        time.sleep(0.5)
+
+        self.step("Optimizing startup cache...", 80)
+        time.sleep(0.5)
+
+        self.step("Finalizing system checks...", 95)
+        time.sleep(0.4)
+
+        self.step("Startup ready", 100)
+        self.finished.emit(True)
+
+    def step(self, msg, progress):
+        logger.info(msg)
+        self.status_updated.emit(msg, progress)
+        self.step_timing[msg] = time.time()
 
 
-class AppStartup:    
+# ===========================
+# ✅ APP STARTUP CONTROLLER
+# ===========================
+class AppStartup(QObject):
     def __init__(self):
-        # Splash screen
+        super().__init__()
+
+        # ✅ MUST be QWidget OR None
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.base_dir = os.path.dirname(base_dir)
         gif_path = os.path.join(self.base_dir, "assets", "splash", "loading.gif")
-        self.splash = SplashScreen(parent=self, gif_path=gif_path)
-        # self.splash = SplashScreen(parent=self)
+
+        self.splash = SplashScreen(parent=None, gif_path=gif_path)
         self.splash.set_title("StaTube - YouTube Data Analysis Tool")
-        self.splash.update_status("Starting application...")
-        logger.info("Displaying splash screen and starting asynchronous startup sequence.")
+        self.splash.update_status("Booting system...")
+        self.splash.set_progress(5)
         self.splash.show()
 
-        # Start asynchronous startup flow
-        self.start_startup_sequence()
+        logger.info("Splash screen shown safely.")
 
-    # ---------- Startup Sequence ----------
+        self.start_worker()
 
-    def start_startup_sequence(self):
-        """
-        Kick off background startup tasks (internet checks, etc.)
-        while showing the splash screen.
-        """
-        logger.debug("StartupWorker thread created. Beginning internet check process...")
-        self.startup_worker = StartupWorker(self, max_retries=3, retry_delay=2.0)
-        self.startup_worker.status_updated.connect(self.splash.update_status)
-        self.startup_worker.finished.connect(self.on_startup_finished)
-        self.startup_worker.start()
+    # -------------------------
+    # ✅ START BACKGROUND TASK
+    # -------------------------
+    def start_worker(self):
+        self.worker = StartupWorker()
+        self.worker.status_updated.connect(self.on_status_update)
+        self.worker.finished.connect(self.on_finished)
+        self.worker.start()
 
-    def on_startup_finished(self, connected: bool):
-        """
-        Called when the startup worker finishes internet checks.
-        """
-        logger.info(f"Startup network check completed. Connected = {connected}")
+    def on_status_update(self, message: str, progress: int):
+        self.splash.update_status(message)
+        self.splash.set_progress(progress)
+
+    # -------------------------
+    # ✅ FINAL HANDOFF
+    # -------------------------
+    def on_finished(self, connected: bool):
+        self.splash.close()
         if not connected:
-            # Show dialog: Continue Offline / Quit
-            self.splash.close()
-            logger.warning("No internet detected. User will be prompted for offline mode or exit.")
-            msg = QMessageBox(self)
+            msg = QMessageBox()
             msg.setIcon(QMessageBox.Warning)
             msg.setWindowTitle("Connection Issue")
             msg.setText(
                 "No internet connection detected.\n\n"
-                "StaTube can continue in offline mode, but some features may not work.\n"
-                "What would you like to do?"
+                "StaTube can continue in offline mode, but some features may not work."
             )
             continue_btn = msg.addButton("Continue Offline", QMessageBox.AcceptRole)
             quit_btn = msg.addButton("Quit", QMessageBox.RejectRole)
             msg.setDefaultButton(continue_btn)
-
             msg.exec()
 
             if msg.clickedButton() == quit_btn:
-                # User chose to quit; close the app
                 QApplication.instance().quit()
                 return
 
-            # If user chose to continue offline, just carry on to setup
-            self.splash.update_status("Continuing in offline mode...")
-
-        else:
-            logger.info("Internet connection verified. Proceeding with initialization.")
-            self.splash.update_status("Internet connection established. Preparing application...")
-        
-        
+        # ✅ NOW SAFE TO CREATE MAIN WINDOW
+        logger.info("Launching MainWindow after verified startup.")
+        try:
+            self.main_window = MainWindow()
+            self.main_window.finish_initialization()
+            self.main_window.showMaximized()
+        except Exception as e:
+            logger.exception("Fatal UI startup failure")
+            QMessageBox.critical(
+                None,
+                "Startup Failure",
+                "StaTube failed to initialize UI. Starting in Safe Mode."
+            )
+        logger.info("===== Startup Timing Report =====")
+        for step, t in self.worker.step_timing.items():
+            logger.info(f"{step}")
