@@ -8,9 +8,7 @@ from utils.Logger import logger
 from utils.CheckInternet import Internet
 
 
-# ===========================
-# ✅ STARTUP WORKER THREAD
-# ===========================
+# STARTUP WORKER THREAD
 class StartupWorker(QThread):
     status_updated = Signal(str, int)   # message, progress %
     finished = Signal(bool)
@@ -58,9 +56,7 @@ class StartupWorker(QThread):
         self.step_timing[msg] = time.time()
 
 
-# ===========================
-# ✅ APP STARTUP CONTROLLER
-# ===========================
+# APP STARTUP CONTROLLER
 class AppStartup(QObject):
     def __init__(self):
         super().__init__()
@@ -69,22 +65,20 @@ class AppStartup(QObject):
         self.base_dir = os.path.dirname(base_dir)
         gif_path = os.path.join(self.base_dir, "assets", "splash", "loading.gif")
 
-        # ✅ parent=None to avoid QDialog parent type error
+        # parent=None to avoid QDialog parent type error
         self.splash = SplashScreen(parent=None, gif_path=gif_path)
         self.splash.set_title("StaTube - YouTube Data Analysis Tool")
         self.splash.update_status("Booting system...")
         self.splash.set_progress(5)
 
-        # ✅ Use animated show
+        # Use animated show
         self.splash.show_with_animation()
 
         logger.info("Splash screen shown with fade-in animation.")
 
         self.start_worker()
 
-    # -------------------------
-    # ✅ START BACKGROUND TASK
-    # -------------------------
+    # START BACKGROUND TASK
     def start_worker(self):
         self.worker = StartupWorker()
         self.worker.status_updated.connect(self.on_status_update)
@@ -95,9 +89,7 @@ class AppStartup(QObject):
         self.splash.update_status(message)
         self.splash.set_progress(progress)
 
-    # -------------------------
-    # ✅ FINAL HANDOFF
-    # -------------------------
+    # FINAL HANDOFF
     def on_finished(self, connected: bool):
         self.splash.fade_and_close()
         if not connected:
@@ -117,7 +109,7 @@ class AppStartup(QObject):
                 QApplication.instance().quit()
                 return
 
-        # ✅ NOW SAFE TO CREATE MAIN WINDOW
+        # NOW SAFE TO CREATE MAIN WINDOW
         logger.info("Launching MainWindow after verified startup.")
         try:
             self.main_window = MainWindow()

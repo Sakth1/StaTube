@@ -207,18 +207,27 @@ class Home(QWidget):
 
     @QtCore.Slot()
     def show_search_splash(self) -> None:
-        """
-        Show splash screen for search operation.
-        
-        Creates and displays a splash screen with an animated loading GIF
-        to provide visual feedback during channel search operations.
-        """
         cwd = os.getcwd()
         gif_path = os.path.join(cwd, "assets", "gif", "loading.gif")
+
+        if self.splash:
+            self.splash.close()
+
         self.splash = SplashScreen(parent=self.mainwindow, gif_path=gif_path)
         self.splash.set_title("Searching Channels...")
         self.splash.update_status("Fetching channel information...")
-        self.splash.show()
+        self.splash.set_progress(0)
+
+        # Runtime overlay + cancel support
+        self.splash.enable_runtime_mode(
+            parent_window=self.mainwindow,
+            cancel_callback=self.cancel_search
+        )
+
+        # THIS IS REQUIRED
+        self.splash.show_with_animation()
+        self.splash.raise_()
+        self.splash.activateWindow()
 
     @QtCore.Slot(int, str)
     def on_progress_update(self, progress: int, status: str) -> None:
@@ -240,14 +249,19 @@ class Home(QWidget):
 
     @QtCore.Slot()
     def close_splash(self) -> None:
-        """
-        Close splash screen.
-        
-        Closes and cleans up the splash screen instance if it exists.
-        """
         if self.splash:
-            self.splash.close()
+            self.splash.fade_and_close(400)
             self.splash = None
+
+    def cancel_search(self):
+        logger.warning("User cancelled search operation.")
+
+        self.stop_event.set()
+
+        if self.search_thread_instance and self.search_thread_instance.is_alive():
+            self.search_thread_instance.join(timeout=0.5)
+
+        self.close_splash_signal.emit()
 
     def update_results(self, channels: List[str]) -> None:
         """
@@ -382,27 +396,25 @@ class Home(QWidget):
         
         # Check if thread should stop before starting work
         if self.stop_event.is_set():
+            self.close_splash_signal.emit()
             logger.debug("Search thread cancelled before execution")
             return
         
         try:
-            if final:
-                # Show splash screen for final search
-                self.show_splash_signal.emit()
-                
+            if final:                
                 # Define progress callback for the search
-                def progress_callback(progress: Any, status: Optional[str] = None) -> None:
-                    """
-                    Callback function for reporting search progress.
-                    
-                    Args:
-                        progress: Progress value (int/float for percentage, str for status message)
-                        status: Optional status message, defaults to None
-                    """
+                def progress_callback(progress: Any, status: Optional[str] = None):
+                    if self.stop_event.is_set():
+                        return
+
                     if isinstance(progress, (int, float)):
                         self.progress_update.emit(int(progress), status or "")
+                        if self.splash:
+                            self.splash.update_eta(int(progress))
+
                     elif isinstance(progress, str):
-                        self.progress_update.emit(-1, progress)  # -1 means don't update progress bar
+                        self.progress_update.emit(-1, progress)
+
                 
                 # Perform search with progress tracking
                 self.channels = self.search.search_channel(
@@ -444,26 +456,33 @@ class Home(QWidget):
             # Signal that search is complete
             self.search_complete.emit()
 
+        if self.stop_event.is_set():
+            self.close_splash_signal.emit()
+            return
+
     def search_channel(self) -> None:
         """
         Handle search button click event.
-        
-        Initiates a final comprehensive search for the query entered in the search bar.
-        Cancels any ongoing auto-search operations before starting the new search.
-        Clears previous incomplete results to ensure fresh data is retrieved.
         """
         query = self.searchbar.text().strip()
         if not query:
             return
 
-        # --- Cancel any ongoing auto-search ---
+        # CANCEL any running search
         if self.search_thread_instance and self.search_thread_instance.is_alive():
             self.stop_event.set()
-            self.search_thread_instance.join(timeout=1.0)  # Ensure it fully stops before continuing
+            self.search_thread_instance.join(timeout=0.5)
 
-        # Clear old incomplete results
         self.channels = None
-        self.search.search_channel(name=None)  # reset internal state if needed
+        self.stop_event.clear()
 
-        # --- Now run the final search with fresh data ---
-        self.search_keyword(query=query, final=True)
+        # SHOW SPLASH IMMEDIATELY (MAIN THREAD)
+        self.show_search_splash()
+
+        # START WORKER THREAD AFTER SPLASH IS VISIBLE
+        self.search_thread_instance = threading.Thread(
+            target=self._run_search,
+            daemon=True,
+            args=(query, True)
+        )
+        self.search_thread_instance.start()

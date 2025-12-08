@@ -1,41 +1,85 @@
-from PySide6.QtWidgets import QDialog, QProgressBar, QLabel, QVBoxLayout
-from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, Property, QEvent
-from PySide6.QtGui import QPixmap, QFont, QPainter, QMovie, QColor, QPen, QLinearGradient, QGuiApplication, QPalette
+from PySide6.QtWidgets import (
+    QDialog, QProgressBar, QLabel, QVBoxLayout,
+    QWidget, QPushButton
+)
+from PySide6.QtCore import (
+    Qt, QPropertyAnimation, QEasingCurve,
+    Property, QEvent
+)
+from PySide6.QtGui import (
+    QFont, QPainter, QMovie, QColor,
+    QPen, QLinearGradient, QGuiApplication, QPalette
+)
+import time
+
+
+class BlurOverlay(QWidget):
+    """
+    Semi-transparent overlay that dims only the main window.
+    It is a child of the main window, so it follows its position,
+    stacking, and minimize/restore behavior.
+    """
+    def __init__(self, parent_window: QWidget):
+        super().__init__(parent_window)
+
+        # Child, no separate taskbar entry
+        self.setWindowFlags(Qt.Widget | Qt.FramelessWindowHint)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setAttribute(Qt.WA_ShowWithoutActivating, True)
+        self.setAttribute(Qt.WA_TransparentForMouseEvents, False)
+
+        self.setWindowOpacity(0.35)
+
+        if parent_window:
+            self.setGeometry(parent_window.rect())
+
+        self.show()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), QColor(0, 0, 0, 160))
 
 
 class SplashScreen(QDialog):
     """
-    A frameless dialog that shows a GIF/Animation and status messages during startup.
-    Supports:
-      - Auto dark/light theme based on system palette
-      - Fade-in / fade-out animations
+    Runtime / startup splash dialog.
+
+    - Stays above the main window
+    - Goes behind other applications
+    - Minimizes/restores with the main window
+    - Optional overlay dim & cancel button
     """
-    def __init__(self, parent=None, gif_path=None):
+
+    def __init__(self, parent: QWidget | None = None, gif_path: str | None = None):
         super().__init__(parent)
 
-        # Window flags: frameless, always on top, no taskbar button
+        self.overlay: BlurOverlay | None = None
+        self.cancel_button: QPushButton | None = None
+        self.eta_label: QLabel | None = None
+        self.start_time: float | None = None
+
+        # Install event filter on parent to track minimize/restore/move/resize
+        if parent is not None:
+            parent.installEventFilter(self)
+
+        # IMPORTANT: No global always-on-top. Tool + Frameless keeps it tied to app.
         self.setWindowFlags(
-            Qt.Dialog
-            | Qt.FramelessWindowHint
-            | Qt.WindowStaysOnTopHint
+            Qt.Tool |                 # no taskbar button, stays with parent
+            Qt.FramelessWindowHint    # borderless
         )
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setModal(True)  # Block interaction with parent while visible
+        self.setModal(False)
 
-        # Fixed size
+        # Size and state
         self.setFixedSize(550, 450)
-
-        # Centering flag
         self._centered_once = False
-
         self.title = ""
         self.status = ""
-        self._opacity = 1.0
+        self._opacity = 0.0
+        self.setWindowOpacity(0.0)
 
-        # Theme: computed once at construction
+        # Theme
         self._is_dark_theme = self._detect_color_scheme()
-
-        # Precompute colours for theme
         self._setup_theme_palette()
 
         # === Layout ===
@@ -43,18 +87,20 @@ class SplashScreen(QDialog):
         layout.setContentsMargins(30, 30, 30, 30)
         layout.setSpacing(20)
 
-        # Title label
+        # Title
         self.title_label = QLabel("")
         self.title_label.setAlignment(Qt.AlignCenter)
         self.title_label.setFont(QFont("Segoe UI", 16, QFont.Bold))
-        self.title_label.setStyleSheet(f"color: {self._title_color.name()}; padding: 10px;")
+        self.title_label.setStyleSheet(
+            f"color: {self._title_color.name()}; padding: 10px;"
+        )
         layout.addWidget(self.title_label)
 
-        # GIF / animation area
+        # GIF
         self.movie_label = QLabel(self)
         self.movie_label.setAlignment(Qt.AlignCenter)
         self.movie_label.setFixedSize(200, 200)
-        self.movie = None
+        self.movie: QMovie | None = None
 
         if gif_path:
             self.movie = QMovie(gif_path)
@@ -77,52 +123,83 @@ class SplashScreen(QDialog):
         self._apply_progressbar_style()
         layout.addWidget(self.progress_bar)
 
-        # Status label
+        # Status text
         self.status_label = QLabel("")
         self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setFont(QFont("Segoe UI", 11))
-        self.status_label.setStyleSheet(f"color: {self._status_color.name()}; padding: 5px;")
+        self.status_label.setStyleSheet(
+            f"color: {self._status_color.name()}; padding: 5px;"
+        )
         self.status_label.setWordWrap(True)
         layout.addWidget(self.status_label)
 
+        # ETA
+        self.eta_label = QLabel("")
+        self.eta_label.setAlignment(Qt.AlignCenter)
+        self.eta_label.setFont(QFont("Segoe UI", 10))
+        self.eta_label.setStyleSheet("color: #90caf9;")
+        layout.addWidget(self.eta_label)
+
+        # Cancel button
+        self.cancel_button = QPushButton("Cancel")
+        self.cancel_button.setFixedWidth(120)
+        self.cancel_button.setVisible(False)
+        layout.addWidget(self.cancel_button, alignment=Qt.AlignCenter)
+
         layout.addStretch()
 
-        # Keep reference to animations so they are not garbage collected
-        self._fade_animation = None
-        self._fade_in_animation = None
+        self._fade_animation: QPropertyAnimation | None = None
+        self._fade_in_animation: QPropertyAnimation | None = None
 
-        # Start transparent; we’ll animate to 1.0
-        self.setWindowOpacity(0.0)
-        self._opacity = 0.0
+    # ---------- Event Filter (track parent window) ----------
+
+    def eventFilter(self, obj, event):
+        """
+        Track the parent window so the splash:
+        - Minimizes/restores together
+        - Keeps overlay aligned on move/resize
+        """
+        parent = self.parent()
+        if parent is not None and obj is parent:
+            et = event.type()
+            if et == QEvent.WindowStateChange:
+                if parent.isMinimized():
+                    self.showMinimized()
+                    if self.overlay:
+                        self.overlay.hide()
+                else:
+                    # Restored
+                    if self.isMinimized():
+                        self.showNormal()
+                    self.raise_()
+                    self.activateWindow()
+                    if self.overlay:
+                        self.overlay.show()
+            elif et in (QEvent.Move, QEvent.Resize):
+                # Keep overlay covering the parent
+                if self.overlay and parent is not None:
+                    self.overlay.setGeometry(parent.rect())
+
+        return super().eventFilter(obj, event)
 
     # ---------- Theme detection & setup ----------
 
     def _detect_color_scheme(self) -> bool:
-        """
-        Heuristic to detect if the system/app is using a dark theme.
-        Returns True if dark, False if light.
-        """
         app = QGuiApplication.instance()
         if not app:
-            return True  # default to dark if unsure
+            return True  # assume dark
 
         palette: QPalette = app.palette()
         window_color = palette.color(QPalette.Window)
-        # Simple luminance heuristic
         luminance = (
             0.299 * window_color.red() +
             0.587 * window_color.green() +
             0.114 * window_color.blue()
         )
-        # Lower luminance -> dark theme
         return luminance < 128
 
     def _setup_theme_palette(self):
-        """
-        Set up colours depending on dark/light mode.
-        """
         if self._is_dark_theme:
-            # Dark theme palette
             self._gradient_top = QColor(26, 35, 39)
             self._gradient_mid = QColor(38, 50, 56)
             self._gradient_bottom = QColor(55, 71, 79)
@@ -131,13 +208,11 @@ class SplashScreen(QDialog):
             self._title_color = QColor(255, 255, 255)
             self._status_color = QColor(176, 190, 197)
 
-            # Progress bar colours
             self._progress_bg = "rgba(255, 255, 255, 0.12)"
             self._progress_chunk_start = "#1e88e5"
             self._progress_chunk_mid = "#42a5f5"
             self._progress_chunk_end = "#64b5f6"
         else:
-            # Light theme palette
             self._gradient_top = QColor(245, 245, 245)
             self._gradient_mid = QColor(232, 234, 246)
             self._gradient_bottom = QColor(225, 245, 254)
@@ -160,10 +235,12 @@ class SplashScreen(QDialog):
             }}
             QProgressBar::chunk {{
                 border-radius: 3px;
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:0,
                     stop:0 {self._progress_chunk_start},
                     stop:0.5 {self._progress_chunk_mid},
-                    stop:1 {self._progress_chunk_end});
+                    stop:1 {self._progress_chunk_end}
+                );
             }}
         """)
 
@@ -173,35 +250,28 @@ class SplashScreen(QDialog):
         accent = QColor(100, 181, 246) if self._is_dark_theme else QColor(25, 118, 210)
         self.movie_label.setStyleSheet(f"color: {accent.name()};")
 
-    # ---------- Positioning / Painting ----------
+    # ---------- Painting & positioning ----------
 
-    def showEvent(self, event: QEvent) -> None:
-        """
-        Ensure the splash is centered on the correct screen when shown.
-        """
+    def showEvent(self, event):
         super().showEvent(event)
 
         if not self._centered_once:
             self._centered_once = True
 
-            screen = None
-            if self.parent() and self.parent().windowHandle():
-                screen = self.parent().windowHandle().screen()
-
-            if screen is None:
+            parent = self.parent()
+            if parent is not None and parent.isVisible():
+                geo = parent.frameGeometry()
+            else:
                 screen = QGuiApplication.primaryScreen()
+                geo = screen.availableGeometry() if screen else None
 
-            if screen:
-                geo = screen.availableGeometry()
+            if geo:
                 self.move(
                     geo.center().x() - self.width() // 2,
                     geo.center().y() - self.height() // 2
                 )
 
     def paintEvent(self, event):
-        """
-        Draw modern gradient background with border and soft shadow.
-        """
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
@@ -227,36 +297,50 @@ class SplashScreen(QDialog):
     # ---------- Public API ----------
 
     def set_title(self, title: str):
-        """
-        Set the title of the SplashScreen dialog.
-        """
         self.title = title
         self.title_label.setText(title)
 
     def update_status(self, message: str):
-        """
-        Update the status message of the SplashScreen dialog.
-        """
         self.status = message
         self.status_label.setText(message)
 
     def set_progress(self, value: int):
-        """
-        Set the progress bar value (0-100).
-        """
         self.progress_bar.setValue(int(value))
 
-    # ---------- Boot animations ----------
+    def update_eta(self, progress: int):
+        if self.start_time is None or progress <= 0:
+            return
+
+        elapsed = time.time() - self.start_time
+        total_estimated = elapsed * (100.0 / progress)
+        remaining = max(0, int(total_estimated - elapsed))
+
+        mins, secs = divmod(remaining, 60)
+        self.eta_label.setText(
+            f"Estimated time remaining: {mins:02d}:{secs:02d}"
+        )
+
+    def enable_runtime_mode(self, parent_window: QWidget, cancel_callback):
+        """
+        Call this for long-running tasks (search, scraping).
+        """
+        if parent_window is not None:
+            self.overlay = BlurOverlay(parent_window)
+        self.cancel_button.setVisible(True)
+        self.cancel_button.clicked.connect(cancel_callback)
+
+    # ---------- Animations ----------
 
     def show_with_animation(self, duration_ms: int = 500):
-        """
-        Show the splash with a smooth fade-in animation.
-        """
-        # Start fully transparent
+        self.start_time = time.time()
         self.setWindowOpacity(0.0)
         self._opacity = 0.0
 
         self.show()
+        self.raise_()
+        self.activateWindow()
+
+        self.setWindowState((self.windowState() & ~Qt.WindowMinimized) | Qt.WindowActive)
 
         self._fade_in_animation = QPropertyAnimation(self, b"opacity", self)
         self._fade_in_animation.setDuration(duration_ms)
@@ -266,16 +350,12 @@ class SplashScreen(QDialog):
         self._fade_in_animation.start()
 
     def fade_and_close(self, duration_ms: int = 700):
-        """
-        Fade out smoothly and close the splash.
-        """
         if self._fade_animation is not None:
-            # Already fading
             return
 
         self._fade_animation = QPropertyAnimation(self, b"opacity", self)
         self._fade_animation.setDuration(duration_ms)
-        self._fade_animation.setStartValue(self._opacity)
+        self._fade_animation.setStartValue(self.windowOpacity())
         self._fade_animation.setEndValue(0.0)
         self._fade_animation.setEasingCurve(QEasingCurve.InOutQuad)
         self._fade_animation.finished.connect(self.close)
@@ -297,4 +377,9 @@ class SplashScreen(QDialog):
     def closeEvent(self, event):
         if self.movie:
             self.movie.stop()
+
+        if self.overlay:
+            self.overlay.close()
+            self.overlay = None
+
         super().closeEvent(event)

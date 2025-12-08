@@ -588,10 +588,56 @@ class Video(QWidget):
         """
         cwd = os.getcwd()
         gif_path = os.path.join(cwd, "assets", "gif", "loading.gif") if not gif_path else gif_path
-        self.splash = SplashScreen(parent=parent, gif_path=gif_path)
+
+        # Always destroy previous instance cleanly
+        if self.splash:
+            self.splash.close()
+            self.splash = None
+
+        # IMPORTANT: parent MUST be None for runtime dialogs
+        self.splash = SplashScreen(parent=self.mainwindow, gif_path=gif_path)
         self.splash.set_title(title)
         self.splash.update_status("Starting...")
-        self.splash.show()
+        self.splash.set_progress(0)
+
+        # Enable overlay + cancel runtime mode
+        self.splash.enable_runtime_mode(
+            parent_window=self.mainwindow,
+            cancel_callback=self.cancel_scraping
+        )
+
+        # THIS IS REQUIRED — show() WILL NOT WORK
+        self.splash.show_with_animation()
+
+    def cancel_scraping(self):
+        """
+        Called when user presses Cancel on splash screen.
+        Safely stops active workers and closes splash.
+        """
+        logger.warning("User cancelled scraping operation.")
+
+        # --- Stop video scraping ---
+        if self.worker_thread and self.worker_thread.isRunning():
+            self.worker_thread.requestInterruption()
+            self.worker_thread.quit()
+            self.worker_thread.wait(500)
+
+        # --- Stop transcript scraping ---
+        if self.transcript_thread and self.transcript_thread.isRunning():
+            self.transcript_thread.requestInterruption()
+            self.transcript_thread.quit()
+            self.transcript_thread.wait(500)
+
+        # --- Stop comment scraping ---
+        if self.comment_thread and self.comment_thread.isRunning():
+            self.comment_thread.requestInterruption()
+            self.comment_thread.quit()
+            self.comment_thread.wait(500)
+
+        # Fade & cleanup splash safely
+        if self.splash:
+            self.splash.fade_and_close(300)
+            self.splash = None
 
     def update_splash_progress(self, message: str) -> None:
         """
@@ -623,19 +669,20 @@ class Video(QWidget):
         :return None
         :rtype: None
         """
-        if self.splash is not None:
-            self.splash.close()
+        if self.splash:
+            self.splash.fade_and_close(400)
             self.splash = None
+
         logger.info("Video scraping completed!")
         self.load_videos_from_db()
-    
+
     def on_transcript_worker_finished(self) -> None:
         """
         Called when the TranscriptWorker thread has finished scraping transcripts.
         Closes the SplashScreen dialog.
         """
         if self.splash is not None:
-            self.splash.close()
+            self.splash.fade_and_close(400)
             self.splash = None
         self.video_page_scrape_transcript_signal.emit()
     
@@ -645,7 +692,7 @@ class Video(QWidget):
         Closes the SplashScreen dialog.
         """
         if self.splash is not None:
-            self.splash.close()
+            self.splash.fade_and_close(400)
             self.splash = None
         self.video_page_scrape_comments_signal.emit()
 

@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QToolButton
 )
 from PySide6.QtGui import QIcon
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt, QSize, QTimer
 
 # ---- Import Pages ----
 from .Homepage import Home
@@ -204,7 +204,8 @@ class MainWindow(QMainWindow):
             self.sidebar_buttons[0].setChecked(False)
             self.sidebar_buttons[1].setChecked(True)
         self.switch_page(1)
-        self.video_page.video_page_scrape_video_signal.emit(scrape_shorts)
+        # Add a small delay to ensure page switch completes before showing splash
+        QTimer.singleShot(50, lambda: self.video_page.video_page_scrape_video_signal.emit(scrape_shorts))
 
     def switch_and_scrape_transcripts(self):
         """
