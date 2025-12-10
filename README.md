@@ -2,7 +2,7 @@
 
 <div align="center" style="position: relative; width: 100%; height: 100%; ">
 
-<img src="./assets/StaTube_banner.png" width="30%" style="position: absolute; top: 0; right: 0;" alt="StaTube Logo"/>
+<img src="./assets/StaTube_banner.png" width="100%" style="position: absolute; top: 0; right: 0;" alt="StaTube banner"/>
 
 # STATUBE
 
