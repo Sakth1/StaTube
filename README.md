@@ -6,17 +6,9 @@
 
 <em>A desktop GUI application to fetch, view, and analyze video transcriptions and comments from YouTube.</em>
 
-<p align="center">
-  <a href="./LICENSE">
-    <img src="https://img.shields.io/badge/License-MIT-green.svg" />
-  </a>
-  <a href="https://www.python.org/">
-    <img src="https://img.shields.io/badge/python-3.11-blue.svg" />
-  </a>
-  <a href="https://pypi.org/project/PySide6/">
-    <img src="https://img.shields.io/badge/PySide6-required-orange.svg" />
-  </a>
-</p>
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
+[![Python](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
+[![PySide6](https://img.shields.io/badge/PySide6-required-orange.svg)](https://pypi.org/project/PySide6/)
 
 <em>Built with the tools and technologies:</em>
 
