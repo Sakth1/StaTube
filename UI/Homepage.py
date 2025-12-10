@@ -224,7 +224,6 @@ class Home(QWidget):
             cancel_callback=self.cancel_search
         )
 
-        # THIS IS REQUIRED
         self.splash.show_with_animation()
         self.splash.raise_()
         self.splash.activateWindow()

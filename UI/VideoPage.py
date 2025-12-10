@@ -11,7 +11,7 @@ from Data.DatabaseManager import DatabaseManager
 from Backend.ScrapeVideo import VideoWorker
 from Backend.ScrapeTranscription import TranscriptWorker
 from Backend.ScrapeComments import CommentWorker
-from UI.SplashScreen import SplashScreen
+from UI.SplashScreen import SplashScreen, BlurOverlay
 from utils.AppState import app_state
 from utils.Logger import logger
 
@@ -553,12 +553,10 @@ class Video(QWidget):
         self.show_splash_screen()
 
         self.worker_thread: QThread = QThread()
-        self.worker: VideoWorker = VideoWorker(channel_id, channel_url)
+        self.worker = VideoWorker(channel_id, channel_url, scrape_shorts)
         self.worker.moveToThread(self.worker_thread)
 
-        self.worker_thread.started.connect(
-            lambda: self.worker.fetch_video_urls(scrape_shorts)
-        )
+        self.worker_thread.started.connect(self.worker.run)
         self.worker.progress_updated.connect(self.update_splash_progress)
         self.worker.progress_percentage.connect(self.update_splash_percentage)
         self.worker.finished.connect(self.on_worker_finished)
@@ -568,51 +566,41 @@ class Video(QWidget):
         self.worker_thread.start()
 
     def show_splash_screen(self, parent: Optional[QWidget] = None, gif_path: str = "", title: str = "Scraping Videos...") -> None:
-        """
-        Show a splash screen while the video scraping is in progress.
-
-        This function creates and displays a splash screen with an animated loading GIF
-        to provide visual feedback during video scraping operations.
-
-        It sets the title of the splash screen to "Scraping Videos (Videos, Shorts, Live)..."
-        and the initial status to "Starting...".
-
-        :param parent: The parent QWidget of the splash screen (optional).
-        :type parent: Optional[QWidget]
-        :param gif_path: The path to the animated loading GIF (optional).
-        :type gif_path: str
-        :param title: The title to display on the splash screen.
-        :type title: str
-        :return None
-        :rtype: None
-        """
         cwd = os.getcwd()
         gif_path = os.path.join(cwd, "assets", "gif", "loading.gif") if not gif_path else gif_path
 
-        # Always destroy previous instance cleanly
         if self.splash:
             self.splash.close()
             self.splash = None
 
-        # IMPORTANT: parent MUST be None for runtime dialogs
-        self.splash = SplashScreen(parent=self.mainwindow, gif_path=gif_path)
+        # ✅ IMPORTANT FIX: parent MUST be None
+        self.splash = SplashScreen(parent=None, gif_path=gif_path)
+
         self.splash.set_title(title)
         self.splash.update_status("Starting...")
         self.splash.set_progress(0)
 
-        # Enable overlay + cancel runtime mode
+        # ✅ Overlay still binds to mainwindow correctly
         self.splash.enable_runtime_mode(
             parent_window=self.mainwindow,
             cancel_callback=self.cancel_scraping
         )
 
-        # THIS IS REQUIRED — show() WILL NOT WORK
         self.splash.show_with_animation()
+        self.splash.raise_()
+        self.splash.activateWindow()
+        """QTimer.singleShot(5 * 60 * 1000, self._force_close_stuck_splash)
+
+    def _force_close_stuck_splash(self):
+        if self.splash:
+            logger.error("FORCE closing stuck splash!")
+            self.splash.fade_and_close(300)
+            self.splash = None"""
 
     def cancel_scraping(self):
         """
         Called when user presses Cancel on splash screen.
-        Safely stops active workers and closes splash.
+        Safely stops active workers and closes splash + overlays.
         """
         logger.warning("User cancelled scraping operation.")
 
@@ -634,10 +622,25 @@ class Video(QWidget):
             self.comment_thread.quit()
             self.comment_thread.wait(500)
 
+        # ✅ Force-remove overlays
+        self._clear_overlays()
+
         # Fade & cleanup splash safely
         if self.splash:
             self.splash.fade_and_close(300)
             self.splash = None
+
+    def _clear_overlays(self) -> None:
+        """
+        Force-close any BlurOverlay widgets still attached to the main window.
+        This prevents the UI from staying dimmed if the splash fails to fully clean up.
+        """
+        if self.mainwindow is None:
+            return
+
+        # Close every BlurOverlay child of the main window
+        for overlay in self.mainwindow.findChildren(BlurOverlay):
+            overlay.close()
 
     def update_splash_progress(self, message: str) -> None:
         """
@@ -669,6 +672,8 @@ class Video(QWidget):
         :return None
         :rtype: None
         """
+        self._clear_overlays()
+
         if self.splash:
             self.splash.fade_and_close(400)
             self.splash = None
@@ -681,6 +686,8 @@ class Video(QWidget):
         Called when the TranscriptWorker thread has finished scraping transcripts.
         Closes the SplashScreen dialog.
         """
+        self._clear_overlays()
+
         if self.splash is not None:
             self.splash.fade_and_close(400)
             self.splash = None
@@ -691,6 +698,8 @@ class Video(QWidget):
         Called when the CommentWorker thread has finished scraping comments.
         Closes the SplashScreen dialog.
         """
+        self._clear_overlays()
+
         if self.splash is not None:
             self.splash.fade_and_close(400)
             self.splash = None

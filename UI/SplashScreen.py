@@ -23,6 +23,7 @@ class BlurOverlay(QWidget):
         super().__init__(parent_window)
 
         # Child, no separate taskbar entry
+        self.setAttribute(Qt.WA_DeleteOnClose, True)
         self.setWindowFlags(Qt.Widget | Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_ShowWithoutActivating, True)
@@ -64,9 +65,11 @@ class SplashScreen(QDialog):
 
         # IMPORTANT: No global always-on-top. Tool + Frameless keeps it tied to app.
         self.setWindowFlags(
-            Qt.Tool |                 # no taskbar button, stays with parent
-            Qt.FramelessWindowHint    # borderless
+            Qt.FramelessWindowHint |
+            Qt.WindowStaysOnTopHint |
+            Qt.Dialog
         )
+
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setModal(False)
 
