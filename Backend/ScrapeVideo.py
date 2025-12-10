@@ -407,4 +407,3 @@ class VideoWorker(QObject):
 
         except Exception:
             logger.exception("Async scrape failure")
-
