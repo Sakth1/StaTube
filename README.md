@@ -20,7 +20,7 @@
       <img src="https://img.shields.io/badge/Python-3.11-blue.svg" alt="Python">
     </a>
     <a href="https://pypi.org/project/PySide6/">
-      <img src="https://img.shields.io/badge/PySide6-Required-orange.svg" alt="PySide6">
+      <img src="https://img.shields.io/badge/PySide6-Qt--6.10-orange.svg" alt="PySide6">
     </a>
   </p>
   
