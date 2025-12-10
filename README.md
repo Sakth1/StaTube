@@ -44,7 +44,6 @@
 
 ## ☀️ Table of Contents
 
-- [☀️ Table of Contents](#-table-of-contents)
 - [🌞 Overview](#-overview)
 - [🔥 Features](#-features)
 - [🌅 Project Structure](#-project-structure)
@@ -551,7 +550,7 @@ To generate the installer locally, you must have Inno Setup installed and compil
 1. **Fork the Repository**: Start by forking the project repository to your account.
 2. **Clone Locally**: Clone the forked repository to your local machine.
    ```sh
-   git clone [https://github.com/Sakth1/StaTube.git](https://github.com/Sakth1/StaTube.git)
+   git clone https://github.com/Sakth1/StaTube.git
    ```
 3. **Create a New Branch**: Always work on a new branch, giving it a descriptive name.
    ```sh
@@ -592,4 +591,4 @@ StaTube is protected under the [MIT License](https://choosealicense.com/licenses
 
 </div>
 
-[back-to-top]: https://img.shields.io/badge/-BACK_TO_TOP-151515?style=flat-square
+[back-to-top]: https://img.shields.io/badge/_BACK_TO_TOP_-151515?style=flat-square
