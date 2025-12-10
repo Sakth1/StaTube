@@ -2,7 +2,7 @@
 
 <div align="center" style="position: relative; width: 100%; height: 100%; ">
 
-<img src="./assets/StaTube_banner.png" width="100%" style="position: absolute; top: 0; right: 0;" alt="StaTube banner"/>
+<img src="./assets/StaTube_banner.png" width="0%" style="position: absolute; top: 0; right: 0;" alt="StaTube banner"/>
 
 # STATUBE
 
@@ -14,12 +14,22 @@
 
 <em>Built with the tools and technologies:</em>
 
-<img src="https://img.shields.io/badge/Python-3776AB.svg?style=flat-square&logo=Python&logoColor=white" alt="Python">
-<img src="https://img.shields.io/badge/PySide6-83CD29.svg?style=flat-square&logo=Qt&logoColor=white" alt="PySide6">
-<img src="https://img.shields.io/badge/GitHub%20Actions-2088FF.svg?style=flat-square&logo=GitHub-Actions&logoColor=white" alt="GitHub%20Actions">
-<img src="https://img.shields.io/badge/SQLite-003B57.svg?style=flat-square&logo=SQLite&logoColor=white" alt="SQLite">
+<p>
+  <img src="https://img.shields.io/badge/Python-3776AB.svg?style=flat-square&logo=Python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/PySide6-83CD29.svg?style=flat-square&logo=Qt&logoColor=white" alt="PySide6">
+  <img src="https://img.shields.io/badge/SQLite-003B57.svg?style=flat-square&logo=SQLite&logoColor=white" alt="SQLite">
+  
+  <img src="https://img.shields.io/badge/NLTK-3776AB.svg?style=flat-square&logo=python&logoColor=white" alt="NLTK">
+  <img src="https://img.shields.io/badge/WordCloud-FF9900.svg?style=flat-square&logo=python&logoColor=white" alt="WordCloud">
+  
+  <img src="https://img.shields.io/badge/yt--dlp-c4302b.svg?style=flat-square&logo=youtube&logoColor=white" alt="yt-dlp">
+  <img src="https://img.shields.io/badge/scrapetube-FF0000.svg?style=flat-square&logo=youtube&logoColor=white" alt="scrapetube">
 
-</div>
+  <img src="https://img.shields.io/badge/Nuitka-0065a9.svg?style=flat-square&logo=python&logoColor=white" alt="Nuitka">
+  <img src="https://img.shields.io/badge/Inno%20Setup-265699.svg?style=flat-square&logo=windows&logoColor=white" alt="Inno Setup">
+  <img src="https://img.shields.io/badge/GitHub%20Actions-2088FF.svg?style=flat-square&logo=GitHub-Actions&logoColor=white" alt="GitHub Actions">
+</p>
+
 </div>
 <br clear="right">
 
