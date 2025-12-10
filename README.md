@@ -2,11 +2,11 @@
 
 <div align="center" style="position: relative; width: 100%; height: 100%; ">
 
-<img src="./assets/StaTube_banner.png" width="0%" style="position: absolute; top: 0; right: 0;" alt="StaTube banner"/>
+<img src="./assets/StaTube_banner.png" width="100%" style="position: absolute; top: 0; right: 0;" alt="StaTube banner"/>
 
 # STATUBE
 
-<em>A desktop GUI application to fetch, view, and analyze video transcriptions and comments from YouTube.</em>
+_A desktop GUI application to fetch, view, and analyze video transcriptions and comments from YouTube._
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
 [![Python Version](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
