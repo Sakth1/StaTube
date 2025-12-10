@@ -1,15 +1,15 @@
 <div id="top">
 
-<div align="left" style="position: relative; width: 100%; height: 100%; ">
+<div align="center" style="position: relative; width: 100%; height: 100%; ">
 
-<img src="./assets/StaTube_logo.png" width="30%" style="position: absolute; top: 0; right: 0;" alt="StaTube Logo"/>
+<img src="./assets/StaTube_banner.png" width="30%" style="position: absolute; top: 0; right: 0;" alt="StaTube Logo"/>
 
 # STATUBE
 
 <em>A desktop GUI application to fetch, view, and analyze video transcriptions and comments from YouTube.</em>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
-[![Python Version](https://img.shields.io/badge/python-3.x-blue.svg)](https://www.python.org/)
+[![Python Version](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
 [![PyPI](https://img.shields.io/badge/PySide6-required-orange.svg)](https://pypi.org/project/PySide6/)
 
 <em>Built with the tools and technologies:</em>
@@ -46,20 +46,21 @@
 
 ## 🌞 Overview
 
-**StaTube** is a desktop GUI application built with **Python** and **PySide6**. It allows users to fetch, view, and analyze video transcriptions and comments from any YouTube channel. 
+**StaTube** is a desktop GUI application built with **Python** and **PySide6**. It allows users to fetch, view, and analyze video transcriptions and comments from any YouTube channel without loggining in and not using any API keys. 
 
-The application utilizes a local architecture where data is scraped from YouTube and persisted into a local **SQLite database** (defined in `Data/schema.sql`). This allows for batch operations, offline viewing of fetched transcripts, and data export capabilities.
+The application utilizes a local architecture where data is scraped from YouTube and persisted into a local **SQLite database** (defined in `Data/schema.sql`). This allows for batch operations, offline viewing of fetched transcripts, and data storing capabilities.
 
 ---
 
 ## 🔥 Features
 
+- 🆓 **No Credentials Needed**: Use the application immediately—no registration, login, or API key is required.
 - 🎯 **Channel Scraping**: Fetch the list of videos from any specific YouTube channel.
 - 📄 **Transcription Retrieval**: Retrieve and display video transcriptions (if available).
 - 💬 **Comment Analysis**: Fetch and display user comments for specific videos.
 - 🧰 **Modern GUI**: A responsive desktop interface built with PySide6.
 - 🔄 **Batch Operations**: Support for processing multiple videos.
-- 📁 **Data Export**: Export transcript and comment data for external analysis.
+- 📁 **Analysis Export**: Export transcript and comment analysis image.
 - 💾 **Local Database**: All data is structured and stored locally using SQLite.
 
 ---
@@ -71,6 +72,8 @@ The application utilizes a local architecture where data is scraped from YouTube
     ├── .github
     │   ├── dependabot.yml
     │   └── workflows
+    │   	├── build-release.yml
+    │   	└── python-package.yml
     ├── Analysis
     │   ├── __init__.py
     │   ├── SentimentAnalysis.py
@@ -90,6 +93,9 @@ The application utilizes a local architecture where data is scraped from YouTube
     │   └── ScrapeVideo.py
     ├── build
     │   └── installer
+	│   	└── installer
+	│   		├── StaTube.iss
+	│  			└── extract_metadata.py
     ├── Data
     │   ├── __init__.py
     │   ├── DatabaseManager.py
@@ -448,17 +454,23 @@ The application utilizes a local architecture where data is scraped from YouTube
 
 This project requires the following dependencies:
 
-- **Programming Language:** Python 3.x
+- **Programming Language:** Python 3.9 or later
 - **Package Manager:** Pip
 
 ### ⚡ Installation
+
+**Windows:**
+
+Go to the [Releases](https://github.com/Sakth1/StaTube/releases) page and download the installer or portable version.
+
+**Linux/macOS:**
 
 Build StaTube from the source and install dependencies:
 
 1. **Clone the repository:**
 
     ```sh
-    git clone [https://github.com/Sakth1/StaTube.git](https://github.com/Sakth1/StaTube.git)
+    git clone https://github.com/Sakth1/StaTube.git
     ```
 
 2. **Navigate to the project directory:**
@@ -481,13 +493,14 @@ Run the project with:
 python main.py
 ```
 
-1. Enter a YouTube channel link or video link.
-2. Fetch the video list.
-3. Select videos to view transcripts and comments.
+1. Search for the channel you want to do comment/transcript analysis.
+2. Select the channel.
+3. Select videos from the channel and scrape transcripts or comment.
+4. Analysis will be done and you will be able to visualize and download the analysis.
 
 ### 📦 Building the Installer
 
-The project includes an automated workflow to create a Windows Installer (`.exe`).
+The project includes an automated workflow to create a portable executable and Windows Installer (`.exe`).
 
 1. **Workflow:** The `.github/workflows/build-release.yml` file handles the CI/CD pipeline.
 2. **Inno Setup:** The installer is generated using **Inno Setup**, utilizing the configuration script located at `build/installer/StaTube.iss`.
@@ -547,7 +560,9 @@ StaTube is protected under the [MIT License](https://choosealicense.com/licenses
 ## ✨ Acknowledgments
 
 - Built using the [PySide6](https://pypi.org/project/PySide6/) framework.
-- Transcript and data fetching logic powered by [aiohttp](https://docs.aiohttp.org/en/stable/).
+- YouTube data scrapping possible by:
+	- [yt-dlp](https://github.com/yt-dlp/yt-dlp)
+	- [scrapetube](https://github.com/dermasmid/scrapetube)
 
 <div align="right">
 
