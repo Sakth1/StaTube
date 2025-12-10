@@ -1,7 +1,5 @@
-<div id="top" align="center">
-
-  <img src="./assets/StaTube_banner.png" alt="StaTube banner" style="max-width: 100%; height: auto;" />
-
+<div align="center">
+  <img src="assets/StaTube_banner.png" width="100%" alt="StaTube banner"/>
 </div>
 
 # STATUBE
@@ -246,9 +244,12 @@ The application utilizes a local architecture where data is scraped from YouTube
 		<summary><b>assets</b></summary>
 		<blockquote>
 			<div class='directory-path' style='padding: 8px 0; color: #666;'>
-				<code><b>⦿ assets</b></code>
-				<p style='padding: 8px;'>Directory containing project images, diagrams (`ER_Diagram.png`, `wireframe.excalidraw`), icons, and the application logo (`StaTube_logo.png`).</p>
-			</table>
+			<code><b>⦿ assets</b></code>
+			<p style='padding: 8px;'>
+				Directory containing project images, diagrams (<code>ER_Diagram.png</code>, <code>wireframe.excalidraw</code>),
+				icons, GIFs, and the application logo (<code>StaTube_logo.png</code>).
+			</p>
+			</div>
 		</blockquote>
 	</details>
 	<details>
@@ -576,15 +577,28 @@ StaTube is protected under the [MIT License](https://choosealicense.com/licenses
 ## ✨ Acknowledgments
 
 - Built using the [PySide6](https://pypi.org/project/PySide6/) framework.
-- YouTube data scrapping possible by:
-	- [yt-dlp](https://github.com/yt-dlp/yt-dlp)
-	- [scrapetube](https://github.com/dermasmid/scrapetube)
+- YouTube data scraping powered by:
+  - [yt-dlp](https://github.com/yt-dlp/yt-dlp)
+  - [scrapetube](https://github.com/dermasmid/scrapetube)
+
+---
+
+<p align="center">
+  <a href="./LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-green.svg" />
+  </a>
+  <a href="https://www.python.org/">
+    <img src="https://img.shields.io/badge/python-3.11-blue.svg" />
+  </a>
+  <a href="https://pypi.org/project/PySide6/">
+    <img src="https://img.shields.io/badge/PySide6-required-orange.svg" />
+  </a>
+</p>
 
 <div align="right">
 
-[![][back-to-top]](#top)
+[![BACK TO TOP][back-to-top]](#top)
 
 </div>
-
 
 [back-to-top]: https://img.shields.io/badge/-BACK_TO_TOP-151515?style=flat-square
