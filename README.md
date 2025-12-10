@@ -27,15 +27,15 @@
   <em>Built using technologies:</em>
   <!-- TECH STACK -->
   <p>
-    <img src="https://img.shields.io/badge/Python-3776AB.svg?style=flat-square&logo=Python&logoColor=white">
-    <img src="https://img.shields.io/badge/PySide6-83CD29.svg?style=flat-square&logo=Qt&logoColor=white">
-    <img src="https://img.shields.io/badge/SQLite-003B57.svg?style=flat-square&logo=SQLite&logoColor=white">
-    <img src="https://img.shields.io/badge/NLTK-3776AB.svg?style=flat-square&logo=python&logoColor=white">
-    <img src="https://img.shields.io/badge/yt--dlp-c4302b.svg?style=flat-square&logo=youtube&logoColor=white">
-    <img src="https://img.shields.io/badge/scrapetube-FF0000.svg?style=flat-square&logo=youtube&logoColor=white">
-    <img src="https://img.shields.io/badge/Nuitka-0065a9.svg?style=flat-square&logo=python&logoColor=white">
-    <img src="https://img.shields.io/badge/Inno%20Setup-265699.svg?style=flat-square&logo=windows&logoColor=white">
-    <img src="https://img.shields.io/badge/GitHub%20Actions-2088FF.svg?style=flat-square&logo=GitHub-Actions&logoColor=white">
+    <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3776AB.svg?style=flat-square&logo=Python&logoColor=white">
+    <a href="https://doc.qt.io/qtforpython-6/index.html/"><img src="https://img.shields.io/badge/PySide6-83CD29.svg?style=flat-square&logo=Qt&logoColor=white">
+    <a href="https://www.sqlite.org/index.html"><img src="https://img.shields.io/badge/SQLite-003B57.svg?style=flat-square&logo=SQLite&logoColor=white">
+    <a href="https://www.nltk.org/"><img src="https://img.shields.io/badge/NLTK-3776AB.svg?style=flat-square&logo=python&logoColor=white">
+    <a href="https://github.com/yt-dlp/yt-dlp"><img src="https://img.shields.io/badge/yt--dlp-c4302b.svg?style=flat-square&logo=youtube&logoColor=white">
+    <a href="https://github.com/dermasmid/scrapetube"><img src="https://img.shields.io/badge/scrapetube-FF0000.svg?style=flat-square&logo=youtube&logoColor=white">
+    <a href="https://nuitka.net/"><img src="https://img.shields.io/badge/Nuitka-0065a9.svg?style=flat-square&logo=python&logoColor=white">
+    <a href="https://jrsoftware.org/isinfo.php/"><img src="https://img.shields.io/badge/Inno%20Setup-265699.svg?style=flat-square&logo=windows&logoColor=white">
+    <a href="https://github.com/features/actions"><img src="https://img.shields.io/badge/GitHub%20Actions-2088FF.svg?style=flat-square&logo=GitHub-Actions&logoColor=white">
   </p>
 
 </div>
