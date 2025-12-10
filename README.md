@@ -9,7 +9,7 @@
   <h1>STATUBE</h1>
 
   <!-- TAGLINE -->
-  <p><em>A desktop GUI application to fetch, view, and analyze video transcriptions and comments from YouTube.</em></p>
+  <p><em>A desktop GUI application to fetch, view, and analyze video transcriptions and comments from YouTube, without logging in and not using any API keys.</em></p>
 
   <!-- BADGES -->
   <p>
@@ -23,14 +23,14 @@
       <img src="https://img.shields.io/badge/PySide6-Required-orange.svg" alt="PySide6">
     </a>
   </p>
-
+  
+  <em>Built using technologies:</em>
   <!-- TECH STACK -->
   <p>
     <img src="https://img.shields.io/badge/Python-3776AB.svg?style=flat-square&logo=Python&logoColor=white">
     <img src="https://img.shields.io/badge/PySide6-83CD29.svg?style=flat-square&logo=Qt&logoColor=white">
     <img src="https://img.shields.io/badge/SQLite-003B57.svg?style=flat-square&logo=SQLite&logoColor=white">
     <img src="https://img.shields.io/badge/NLTK-3776AB.svg?style=flat-square&logo=python&logoColor=white">
-    <img src="https://img.shields.io/badge/WordCloud-FF9900.svg?style=flat-square&logo=python&logoColor=white">
     <img src="https://img.shields.io/badge/yt--dlp-c4302b.svg?style=flat-square&logo=youtube&logoColor=white">
     <img src="https://img.shields.io/badge/scrapetube-FF0000.svg?style=flat-square&logo=youtube&logoColor=white">
     <img src="https://img.shields.io/badge/Nuitka-0065a9.svg?style=flat-square&logo=python&logoColor=white">
