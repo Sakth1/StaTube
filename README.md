@@ -18,7 +18,6 @@
   </a>
 </p>
 
-
 <em>Built with the tools and technologies:</em>
 
 <p align="center">
@@ -582,18 +581,6 @@ StaTube is protected under the [MIT License](https://choosealicense.com/licenses
   - [scrapetube](https://github.com/dermasmid/scrapetube)
 
 ---
-
-<p align="center">
-  <a href="./LICENSE">
-    <img src="https://img.shields.io/badge/License-MIT-green.svg" />
-  </a>
-  <a href="https://www.python.org/">
-    <img src="https://img.shields.io/badge/python-3.11-blue.svg" />
-  </a>
-  <a href="https://pypi.org/project/PySide6/">
-    <img src="https://img.shields.io/badge/PySide6-required-orange.svg" />
-  </a>
-</p>
 
 <div align="right">
 
