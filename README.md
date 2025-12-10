@@ -8,13 +8,22 @@
 
 <em>A desktop GUI application to fetch, view, and analyze video transcriptions and comments from YouTube.</em>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
-[![Python Version](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
-[![PyPI](https://img.shields.io/badge/PySide6-required-orange.svg)](https://pypi.org/project/PySide6/)
+<p align="center">
+  <a href="./LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-green.svg" />
+  </a>
+  <a href="https://www.python.org/">
+    <img src="https://img.shields.io/badge/python-3.11-blue.svg" />
+  </a>
+  <a href="https://pypi.org/project/PySide6/">
+    <img src="https://img.shields.io/badge/PySide6-required-orange.svg" />
+  </a>
+</p>
+
 
 <em>Built with the tools and technologies:</em>
 
-<p>
+<p align="center">
   <img src="https://img.shields.io/badge/Python-3776AB.svg?style=flat-square&logo=Python&logoColor=white" alt="Python" />
   <img src="https://img.shields.io/badge/PySide6-83CD29.svg?style=flat-square&logo=Qt&logoColor=white" alt="PySide6" />
   <img src="https://img.shields.io/badge/SQLite-003B57.svg?style=flat-square&logo=SQLite&logoColor=white" alt="SQLite" />
