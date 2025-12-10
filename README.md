@@ -1,27 +1,42 @@
 <div id="top" align="center">
 
-<img src="./assets/StaTube_banner.png" width="100%" alt="StaTube banner"/>
+  <!-- PROJECT BANNER -->
+  <img src="./assets/StaTube_banner.png" width="100%" alt="StaTube Banner"/>
 
-# STATUBE
+  <br><br>
 
-_A desktop GUI application to fetch, view, and analyze video transcriptions and comments from YouTube._
+  <!-- PROJECT TITLE -->
+  <h1>STATUBE</h1>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
-[![Python Version](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
-[![PySide6](https://img.shields.io/badge/PySide6-required-orange.svg)](https://pypi.org/project/PySide6/)
+  <!-- TAGLINE -->
+  <p><em>A desktop GUI application to fetch, view, and analyze video transcriptions and comments from YouTube.</em></p>
 
-**Built with the tools and technologies:**
+  <!-- BADGES -->
+  <p>
+    <a href="./LICENSE">
+      <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
+    </a>
+    <a href="https://www.python.org/">
+      <img src="https://img.shields.io/badge/Python-3.11-blue.svg" alt="Python">
+    </a>
+    <a href="https://pypi.org/project/PySide6/">
+      <img src="https://img.shields.io/badge/PySide6-Required-orange.svg" alt="PySide6">
+    </a>
+  </p>
 
-<img src="https://img.shields.io/badge/Python-3776AB.svg?style=flat-square&logo=Python&logoColor=white">
-<img src="https://img.shields.io/badge/PySide6-83CD29.svg?style=flat-square&logo=Qt&logoColor=white">
-<img src="https://img.shields.io/badge/SQLite-003B57.svg?style=flat-square&logo=SQLite&logoColor=white">
-<img src="https://img.shields.io/badge/NLTK-3776AB.svg?style=flat-square&logo=python&logoColor=white">
-<img src="https://img.shields.io/badge/WordCloud-FF9900.svg?style=flat-square&logo=python&logoColor=white">
-<img src="https://img.shields.io/badge/yt--dlp-c4302b.svg?style=flat-square&logo=youtube&logoColor=white">
-<img src="https://img.shields.io/badge/scrapetube-FF0000.svg?style=flat-square&logo=youtube&logoColor=white">
-<img src="https://img.shields.io/badge/Nuitka-0065a9.svg?style=flat-square&logo=python&logoColor=white">
-<img src="https://img.shields.io/badge/Inno%20Setup-265699.svg?style=flat-square&logo=windows&logoColor=white">
-<img src="https://img.shields.io/badge/GitHub%20Actions-2088FF.svg?style=flat-square&logo=GitHub-Actions&logoColor=white">
+  <!-- TECH STACK -->
+  <p>
+    <img src="https://img.shields.io/badge/Python-3776AB.svg?style=flat-square&logo=Python&logoColor=white">
+    <img src="https://img.shields.io/badge/PySide6-83CD29.svg?style=flat-square&logo=Qt&logoColor=white">
+    <img src="https://img.shields.io/badge/SQLite-003B57.svg?style=flat-square&logo=SQLite&logoColor=white">
+    <img src="https://img.shields.io/badge/NLTK-3776AB.svg?style=flat-square&logo=python&logoColor=white">
+    <img src="https://img.shields.io/badge/WordCloud-FF9900.svg?style=flat-square&logo=python&logoColor=white">
+    <img src="https://img.shields.io/badge/yt--dlp-c4302b.svg?style=flat-square&logo=youtube&logoColor=white">
+    <img src="https://img.shields.io/badge/scrapetube-FF0000.svg?style=flat-square&logo=youtube&logoColor=white">
+    <img src="https://img.shields.io/badge/Nuitka-0065a9.svg?style=flat-square&logo=python&logoColor=white">
+    <img src="https://img.shields.io/badge/Inno%20Setup-265699.svg?style=flat-square&logo=windows&logoColor=white">
+    <img src="https://img.shields.io/badge/GitHub%20Actions-2088FF.svg?style=flat-square&logo=GitHub-Actions&logoColor=white">
+  </p>
 
 </div>
 
