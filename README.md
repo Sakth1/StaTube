@@ -27,7 +27,6 @@ _A desktop GUI application to fetch, view, and analyze video transcriptions and 
 
 ---
 
-
 ## ☀️ Table of Contents
 
 - [☀️ Table of Contents](#-table-of-contents)
