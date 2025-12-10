@@ -28,8 +28,8 @@
   <!-- TECH STACK -->
   <p>
     <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3776AB.svg?style=flat-square&logo=Python&logoColor=white">
-    <a href="https://doc.qt.io/qtforpython-6/index.html/"><img src="https://img.shields.io/badge/PySide6-83CD29.svg?style=flat-square&logo=Qt&logoColor=white">
-    <a href="https://www.sqlite.org/index.html"><img src="https://img.shields.io/badge/SQLite-003B57.svg?style=flat-square&logo=SQLite&logoColor=white">
+    <a href="https://www.qt.io/development/qt-framework/python-bindings/"><img src="https://img.shields.io/badge/PySide6-83CD29.svg?style=flat-square&logo=Qt&logoColor=white">
+    <a href="https://www.sqlite.org/"><img src="https://img.shields.io/badge/SQLite-003B57.svg?style=flat-square&logo=SQLite&logoColor=white">
     <a href="https://www.nltk.org/"><img src="https://img.shields.io/badge/NLTK-3776AB.svg?style=flat-square&logo=python&logoColor=white">
     <a href="https://github.com/yt-dlp/yt-dlp"><img src="https://img.shields.io/badge/yt--dlp-c4302b.svg?style=flat-square&logo=youtube&logoColor=white">
     <a href="https://github.com/dermasmid/scrapetube"><img src="https://img.shields.io/badge/scrapetube-FF0000.svg?style=flat-square&logo=youtube&logoColor=white">
