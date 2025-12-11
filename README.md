@@ -44,8 +44,8 @@
 
 ## ☀️ Table of Contents
 
-- [☀️ Table of Contents](#-table-of-contents)
 - [🌞 Overview](#-overview)
+- [📸 Screenshots](#-screenshots)
 - [🔥 Features](#-features)
 - [🌅 Project Structure](#-project-structure)
     - [🌄 Project Index](#-project-index)
@@ -66,6 +66,10 @@
 **StaTube** is a desktop GUI application built with **Python** and **PySide6**. It allows users to fetch, view, and analyze video transcriptions and comments from any YouTube channel without loggining in and not using any API keys. 
 
 The application utilizes a local architecture where data is scraped from YouTube and persisted into a local **SQLite database** (defined in `Data/schema.sql`). This allows for batch operations, offline viewing of fetched transcripts, and data storing capabilities.
+
+---
+
+## 📸 Screenshots
 
 ---
 
@@ -499,10 +503,37 @@ Build StaTube from the source and install dependencies:
     cd StaTube
     ```
 
-3. **Install the dependencies:**
+3. **Install UV package manager:**
 
 	```sh
-	pip install -r requirements.txt
+	pip install uv
+	```
+	
+4. **Create a virtual environment:**
+
+	```sh
+	uv venv
+	```
+	with specific python version
+	```sh
+	uv venv -python 3.11
+	```
+
+5. **Activate the virtual environment:**
+
+	Windows:
+	```sh
+	.venv/Scripts/activate 
+	```
+	Linux/macOS:
+	```sh
+	source venv/bin/activate
+	```
+
+6. **Install dependencies:**
+
+	```sh
+	uv pip install -r requirements.txt
 	```
 
 ### 🔆 Usage
@@ -532,6 +563,7 @@ To generate the installer locally, you must have Inno Setup installed and compil
 
 ## 🌻 Roadmap
 
+- [x] **Export analysis**: Export and save analysis result image to a file.
 - [ ] **Docker Version**: A Dockerized version of the application is planned.
 - [ ] **Proxy Settings**: Ability to configure network proxy settings.
 - [ ] **Theming**: Light/Dark theme support.
@@ -551,7 +583,7 @@ To generate the installer locally, you must have Inno Setup installed and compil
 1. **Fork the Repository**: Start by forking the project repository to your account.
 2. **Clone Locally**: Clone the forked repository to your local machine.
    ```sh
-   git clone [https://github.com/Sakth1/StaTube.git](https://github.com/Sakth1/StaTube.git)
+   git clone https://github.com/Sakth1/StaTube.git
    ```
 3. **Create a New Branch**: Always work on a new branch, giving it a descriptive name.
    ```sh
@@ -567,13 +599,14 @@ To generate the installer locally, you must have Inno Setup installed and compil
    git push origin new-feature-x
    ```
 7. **Submit a Pull Request**: Create a PR against the original project repository. Clearly describe the changes and their motivations.
+8. **HAVE FUN!** :rocket:
 </details>
 
 ---
 
 ## 📜 License
 
-StaTube is protected under the [MIT License](https://choosealicense.com/licenses/mit/). For more details, refer to the [LICENSE](./LICENSE) file.
+StaTube is protected under the [MIT License](https://choosealicense.com/licenses/mit/) because sharing is caring :heart:. For more details, refer to the [LICENSE](./LICENSE) file.
 
 ---
 
@@ -583,6 +616,11 @@ StaTube is protected under the [MIT License](https://choosealicense.com/licenses
 - YouTube data scraping powered by:
   - [yt-dlp](https://github.com/yt-dlp/yt-dlp)
   - [scrapetube](https://github.com/dermasmid/scrapetube)
+- Compiled into windows binary using:
+  - [Nuitka](https://nuitka.org/)
+  - [Inno Setup](https://www.jrsoftware.org/isinfo.php)
+
+**YOU ALL ARE OFFICIALLY GREAT!**
 
 ---
 
@@ -592,4 +630,4 @@ StaTube is protected under the [MIT License](https://choosealicense.com/licenses
 
 </div>
 
-[back-to-top]: https://img.shields.io/badge/-BACK_TO_TOP-151515?style=flat-square
+[back-to-top]: https://img.shields.io/badge/_BACK_TO_TOP_-151515?style=flat-square
