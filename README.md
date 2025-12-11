@@ -45,6 +45,7 @@
 ## ☀️ Table of Contents
 
 - [🌞 Overview](#-overview)
+- [📸 Screenshots](#-screenshots)
 - [🔥 Features](#-features)
 - [🌅 Project Structure](#-project-structure)
     - [🌄 Project Index](#-project-index)
@@ -65,6 +66,10 @@
 **StaTube** is a desktop GUI application built with **Python** and **PySide6**. It allows users to fetch, view, and analyze video transcriptions and comments from any YouTube channel without loggining in and not using any API keys. 
 
 The application utilizes a local architecture where data is scraped from YouTube and persisted into a local **SQLite database** (defined in `Data/schema.sql`). This allows for batch operations, offline viewing of fetched transcripts, and data storing capabilities.
+
+---
+
+## 📸 Screenshots
 
 ---
 
@@ -558,6 +563,7 @@ To generate the installer locally, you must have Inno Setup installed and compil
 
 ## 🌻 Roadmap
 
+- [x] **Export analysis**: Export and save analysis result image to a file.
 - [ ] **Docker Version**: A Dockerized version of the application is planned.
 - [ ] **Proxy Settings**: Ability to configure network proxy settings.
 - [ ] **Theming**: Light/Dark theme support.
@@ -610,6 +616,9 @@ StaTube is protected under the [MIT License](https://choosealicense.com/licenses
 - YouTube data scraping powered by:
   - [yt-dlp](https://github.com/yt-dlp/yt-dlp)
   - [scrapetube](https://github.com/dermasmid/scrapetube)
+- Compiled into windows binary using:
+  - [Nuitka](https://nuitka.org/)
+  - [Inno Setup](https://www.jrsoftware.org/isinfo.php)
 
 **YOU ALL ARE OFFICIALLY GREAT!**
 
