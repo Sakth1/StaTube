@@ -498,10 +498,37 @@ Build StaTube from the source and install dependencies:
     cd StaTube
     ```
 
-3. **Install the dependencies:**
+3. **Install UV package manager:**
 
 	```sh
-	pip install -r requirements.txt
+	pip install uv
+	```
+	
+4. **Create a virtual environment:**
+
+	```sh
+	uv venv
+	```
+	**with specific python version**
+	```sh
+	uv venv -python 3.11
+	```
+
+5. **Activate the virtual environment:**
+	
+	**Windows:**
+	```sh
+	.venv/Scripts/activate 
+	```
+	**Linux/macOS:**
+	```sh
+	source venv/bin/activate
+	```
+
+6. **Install dependencies:**
+
+	```sh
+	uv pip install -r requirements.txt
 	```
 
 ### 🔆 Usage
@@ -583,6 +610,8 @@ StaTube is protected under the [MIT License](https://choosealicense.com/licenses
 - YouTube data scraping powered by:
   - [yt-dlp](https://github.com/yt-dlp/yt-dlp)
   - [scrapetube](https://github.com/dermasmid/scrapetube)
+
+**YOU ALL ARE OFFICIALLY GREAT!**
 
 ---
 
