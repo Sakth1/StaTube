@@ -509,18 +509,18 @@ Build StaTube from the source and install dependencies:
 	```sh
 	uv venv
 	```
-	**with specific python version**
+	with specific python version
 	```sh
 	uv venv -python 3.11
 	```
 
 5. **Activate the virtual environment:**
-	
-	**Windows:**
+
+	Windows:
 	```sh
 	.venv/Scripts/activate 
 	```
-	**Linux/macOS:**
+	Linux/macOS:
 	```sh
 	source venv/bin/activate
 	```
