@@ -566,13 +566,14 @@ To generate the installer locally, you must have Inno Setup installed and compil
    git push origin new-feature-x
    ```
 7. **Submit a Pull Request**: Create a PR against the original project repository. Clearly describe the changes and their motivations.
+8. **HAVE FUN!** :rocket:
 </details>
 
 ---
 
 ## 📜 License
 
-StaTube is protected under the [MIT License](https://choosealicense.com/licenses/mit/). For more details, refer to the [LICENSE](./LICENSE) file.
+StaTube is protected under the [MIT License](https://choosealicense.com/licenses/mit/) because sharing is caring :heart:. For more details, refer to the [LICENSE](./LICENSE) file.
 
 ---
 
