@@ -525,6 +525,17 @@ class Video(QWidget):
         else:
             self.grid_btn.setChecked(True)
 
+    def _complete_splash(self):
+        """
+        Ensures splash + overlays are ALWAYS removed safely.
+        Called ONLY after QThread has fully exited.
+        """
+        self._clear_overlays()
+
+        if self.splash:
+            self.splash.fade_and_close(300)
+            self.splash = None
+
     # --- Scraping ---
     def scrape_videos(self, scrape_shorts: bool) -> None:
         """
@@ -573,14 +584,14 @@ class Video(QWidget):
             self.splash.close()
             self.splash = None
 
-        # ✅ IMPORTANT FIX: parent MUST be None
+        # IMPORTANT FIX: parent MUST be None
         self.splash = SplashScreen(parent=None, gif_path=gif_path)
 
         self.splash.set_title(title)
         self.splash.update_status("Starting...")
         self.splash.set_progress(0)
 
-        # ✅ Overlay still binds to mainwindow correctly
+        # Overlay still binds to mainwindow correctly
         self.splash.enable_runtime_mode(
             parent_window=self.mainwindow,
             cancel_callback=self.cancel_scraping
@@ -622,7 +633,7 @@ class Video(QWidget):
             self.comment_thread.quit()
             self.comment_thread.wait(500)
 
-        # ✅ Force-remove overlays
+        # Force-remove overlays
         self._clear_overlays()
 
         # Fade & cleanup splash safely
@@ -653,12 +664,6 @@ class Video(QWidget):
             self.splash.update_status(message)
 
     def update_splash_percentage(self, percentage: int) -> None:
-        """
-        Updates the progress bar of the SplashScreen dialog.
-
-        Args:
-            percentage (int): The progress percentage (0-100) to display.
-        """
         if self.splash:
             self.splash.set_progress(percentage)
 
@@ -683,26 +688,24 @@ class Video(QWidget):
 
     def on_transcript_worker_finished(self) -> None:
         """
-        Called when the TranscriptWorker thread has finished scraping transcripts.
-        Closes the SplashScreen dialog.
+        Worker has emitted 'finished', but QThread may still be running.
+        We wait for the thread to fully exit before closing splash.
         """
-        self._clear_overlays()
+        if self.transcript_thread:
+            self.transcript_thread.finished.connect(self._complete_splash)
 
-        if self.splash is not None:
-            self.splash.fade_and_close(400)
-            self.splash = None
+        # Notify rest of app that transcript scraping is done
         self.video_page_scrape_transcript_signal.emit()
     
     def on_comment_worker_finished(self) -> None:
         """
-        Called when the CommentWorker thread has finished scraping comments.
-        Closes the SplashScreen dialog.
+        Worker has finished. Wait for thread to close fully
+        before removing the splash + overlay.
         """
-        self._clear_overlays()
+        if self.comment_thread:
+            self.comment_thread.finished.connect(self._complete_splash)
 
-        if self.splash is not None:
-            self.splash.fade_and_close(400)
-            self.splash = None
+        # Notify rest of app that comment scraping is done
         self.video_page_scrape_comments_signal.emit()
 
     # --- Loading videos ---

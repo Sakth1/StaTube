@@ -31,30 +31,52 @@ class CommentWorker(QObject):
     def run(self) -> None:
         """
         Executes the comment fetching process.
+        Shows video title / channel name instead of raw IDs when available.
         """
         try:
             total_videos = sum(len(v_list) for v_list in self.video_details.values())
             processed_count = 0
-            
+
             self.progress_updated.emit("Starting comment scrape...")
             self.progress_percentage.emit(0)
 
+            # helper to get title from DB
+            def _get_title(vid, ch):
+                try:
+                    rows = self.fetcher.db.fetch("VIDEO", where="video_id=?", params=(vid,))
+                    if rows:
+                        return rows[0].get("title") or vid
+                except Exception:
+                    pass
+                return vid
+
+            def _get_channel_name(ch):
+                try:
+                    rows = self.fetcher.db.fetch("CHANNEL", where="channel_id=?", params=(ch,))
+                    if rows:
+                        return rows[0].get("channel_name") or str(ch)
+                except Exception:
+                    pass
+                return str(ch)
+
             for channel_id, video_id_list in self.video_details.items():
+                channel_name = _get_channel_name(channel_id)
                 for video_id in video_id_list:
-                    self.progress_updated.emit(f"Fetching comments for {video_id}...")
-                    
+                    video_title = _get_title(video_id, channel_id)
+                    self.progress_updated.emit(f"Fetching comments for: \"{video_title}\" (channel: {channel_name})")
+
                     # Perform fetch
                     result = self.fetcher._fetch(video_id, channel_id)
-                    
+
                     processed_count += 1
                     percentage = int((processed_count / total_videos) * 100)
                     self.progress_percentage.emit(percentage)
-                    
+
                     if result.get("filepath"):
                         count = result.get("comment_count", 0)
-                        self.progress_updated.emit(f"Saved {count} comments for {video_id}")
+                        self.progress_updated.emit(f"Saved {count} comments for \"{video_title}\"")
                     else:
-                        self.progress_updated.emit(f"Skipped: {video_id} ({result.get('remarks')})")
+                        self.progress_updated.emit(f"Skipped: \"{video_title}\" ({result.get('remarks')})")
 
             self.progress_updated.emit("Comment scraping completed!")
             self.progress_percentage.emit(100)
@@ -64,6 +86,7 @@ class CommentWorker(QObject):
             logger.exception("Error while fetching comments:")
             self.progress_updated.emit(f"Error: {str(e)}")
             self.finished.emit()
+
 
 
 class CommentFetcher:

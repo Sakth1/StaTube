@@ -1,4 +1,4 @@
-from PySide6.QtCore import Signal, QTimer
+from PySide6.QtCore import Signal, QTimer, QThread
 from PySide6.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QScrollArea, QSizePolicy
 )
@@ -8,8 +8,8 @@ import json
 import os
 
 from Backend.ScrapeComments import CommentFetcher
-from Analysis.SentimentAnalysis import run_sentiment_summary
-from Analysis.WordCloud import WordCloudAnalyzer
+from Backend.AnalysisWorker import AnalysisWorker
+from UI.SplashScreen import SplashScreen
 from utils.AppState import app_state
 from utils.Logger import logger
 
@@ -122,35 +122,78 @@ class Comment(QWidget):
             self.scroll_layout.addWidget(QLabel("No comments found."))
             return
 
-        # Fixed HD sizes (Option A)
+        # Sizes
         sent_w = 1600
         sent_h = int(sent_w * 0.33)
         wc_w = 2800
         wc_h = int(wc_w * 0.6)
 
-        logger.info(f"CommentPage: Generating sentiment {sent_w}x{sent_h}, wordcloud {wc_w}x{wc_h}")
+        logger.info(f"CommentPage: Queuing analysis sentiment {sent_w}x{sent_h}, wordcloud {wc_w}x{wc_h}")
 
-        try:
-            sentiment_img = run_sentiment_summary(self.comments, width=sent_w, height=sent_h)
-            wc_img = WordCloudAnalyzer(max_words=100).generate_wordcloud(self.comments, width=wc_w, height=wc_h)
-        except Exception:
-            logger.exception("CommentPage: Error generating images")
-            self.scroll_layout.addWidget(QLabel("Failed to generate analysis images."))
-            return
+        self.analysis_thread = QThread()
+        self.analysis_worker = AnalysisWorker(self.comments, sentiment_size=(sent_w, sent_h), wordcloud_size=(wc_w, wc_h), max_words=100)
+        self.analysis_worker.moveToThread(self.analysis_thread)
 
-        self.sentiment_image = sentiment_img
-        self.wordcloud_image = wc_img
+        # Create splash
+        parent_win = self.window() if hasattr(self, "window") else None
+        self.splash = SplashScreen(parent=parent_win)
+        self.splash.set_title("Analyzing comments...")
+        self.splash.update_status("Preparing analysis...")
+        self.splash.set_progress(0)
+        self.splash.enable_runtime_mode(parent_window=parent_win, cancel_callback=self._cancel_analysis)
+        self.splash.show_with_animation()
 
+        # Wire signals
+        self.analysis_thread.started.connect(self.analysis_worker.run)
+        self.analysis_worker.progress_updated.connect(lambda m: (self.splash.update_status(m) if self.splash else None))
+        self.analysis_worker.progress_percentage.connect(lambda p: (self.splash.set_progress(p) if self.splash else None))
+        self.analysis_worker.sentiment_ready.connect(self._on_sentiment_ready)
+        self.analysis_worker.wordcloud_ready.connect(self._on_wordcloud_ready)
+        self.analysis_worker.finished.connect(self.analysis_thread.quit)
+        self.analysis_worker.finished.connect(self.analysis_worker.deleteLater)
+        self.analysis_thread.finished.connect(self.analysis_thread.deleteLater)
+        # When thread fully finishes, fade splash
+        self.analysis_thread.finished.connect(lambda: (self.splash.fade_and_close(300) if self.splash else None))
+
+        self.analysis_thread.start()
+
+    # helper cancel method
+    def _cancel_analysis(self):
+        if hasattr(self, "analysis_worker") and self.analysis_worker:
+            try:
+                self.analysis_worker.cancel()
+            except Exception:
+                pass
+        # also attempt to stop thread gracefully
+        if hasattr(self, "analysis_thread") and self.analysis_thread.isRunning():
+            try:
+                self.analysis_thread.requestInterruption()
+                self.analysis_thread.quit()
+                self.analysis_thread.wait(200)
+            except Exception:
+                pass
+        # ensure UI shows canceled
+        for i in reversed(range(self.scroll_layout.count())):
+            w = self.scroll_layout.itemAt(i).widget()
+            if w:
+                w.deleteLater()
+        self.scroll_layout.addWidget(QLabel("Analysis cancelled."))
+
+    # slots to receive images
+    def _on_sentiment_ready(self, qimage):
+        self.sentiment_image = qimage
+        # show immediately (title)
         channel_name = next(iter(app_state.video_list.keys()), "unknown")
-
-        self.scroll_layout.addWidget(QLabel("<b>Sentimental Analysis</b>"))
-        sent_widget = DownloadableImage(sentiment_img, default_name=f"comment_sentiment_{channel_name}.png")
+        self.scroll_layout.addWidget(QLabel("<b>Sentiment Analysis</b>"))
+        sent_widget = DownloadableImage(qimage, default_name=f"comment_sentiment_{channel_name}.png")
         sent_widget.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.scroll_layout.addWidget(sent_widget)
 
+    def _on_wordcloud_ready(self, qimage):
+        self.wordcloud_image = qimage
         self.scroll_layout.addWidget(QLabel("<b>Word Cloud</b>"))
-        wc_widget = DownloadableImage(wc_img, default_name=f"comment_wordcloud_{channel_name}.png")
+        channel_name = next(iter(app_state.video_list.keys()), "unknown")
+        wc_widget = DownloadableImage(qimage, default_name=f"comment_wordcloud_{channel_name}.png")
         wc_widget.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.scroll_layout.addWidget(wc_widget)
-
         self.scroll_layout.addStretch(1)
