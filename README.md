@@ -564,10 +564,10 @@ To generate the installer locally, you must have Inno Setup installed and compil
 ## 🌻 Roadmap
 
 - [x] **Export analysis**: Export and save analysis result image to a file.
-- [ ] **Docker Version**: A Dockerized version of the application is planned.
-- [ ] **Proxy Settings**: Ability to configure network proxy settings.
 - [ ] **Theming**: Light/Dark theme support.
 - [ ] **In-App Help**: Built-in documentation and help guide.
+- [ ] **Proxy Settings**: Ability to configure network proxy settings.
+- [ ] **Docker Version**: A Dockerized version of the application is planned.
 
 ---
 
