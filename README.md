@@ -75,7 +75,7 @@ The application utilizes a local architecture where data is scraped from YouTube
 
 ## 🔥 Features
 
-- 🆓 **No Credentials Needed**: Use the application immediately—no registration, login, or API key is required.
+- 🔓 **No Credentials Needed**: Use the application immediately—no registration, login, or API key is required.
 - 🎯 **Channel Scraping**: Fetch the list of videos from any specific YouTube channel.
 - 📄 **Transcription Retrieval**: Retrieve and display video transcriptions (if available).
 - 💬 **Comment Analysis**: Fetch and display user comments for specific videos.
