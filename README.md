@@ -75,7 +75,7 @@ The application utilizes a local architecture where data is scraped from YouTube
 
 ## 🔥 Features
 
-- 🆓 **No Credentials Needed**: Use the application immediately—no registration, login, or API key is required.
+- 🔓 **No Credentials Needed**: Use the application immediately—no registration, login, or API key is required.
 - 🎯 **Channel Scraping**: Fetch the list of videos from any specific YouTube channel.
 - 📄 **Transcription Retrieval**: Retrieve and display video transcriptions (if available).
 - 💬 **Comment Analysis**: Fetch and display user comments for specific videos.
@@ -564,10 +564,10 @@ To generate the installer locally, you must have Inno Setup installed and compil
 ## 🌻 Roadmap
 
 - [x] **Export analysis**: Export and save analysis result image to a file.
-- [ ] **Docker Version**: A Dockerized version of the application is planned.
-- [ ] **Proxy Settings**: Ability to configure network proxy settings.
 - [ ] **Theming**: Light/Dark theme support.
 - [ ] **In-App Help**: Built-in documentation and help guide.
+- [ ] **Proxy Settings**: Ability to configure network proxy settings.
+- [ ] **Docker Version**: A Dockerized version of the application is planned.
 
 ---
 

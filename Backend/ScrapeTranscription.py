@@ -32,31 +32,49 @@ class TranscriptWorker(QObject):
     def run(self) -> None:
         """
         Executes the transcript fetching process.
+        Shows human-friendly names (video title) in progress messages when available.
         """
         try:
             total_videos = sum(len(v_list) for v_list in self.video_details.values())
             processed_count = 0
-            
+
             self.progress_updated.emit("Starting transcript scrape...")
             self.progress_percentage.emit(0)
 
             language_option = ["en"]
 
+            # helper to get title from DB
+            def _get_title(vid, ch):
+                try:
+                    rows = self.fetcher.db.fetch("VIDEO", where="video_id=?", params=(vid,))
+                    if rows:
+                        return rows[0].get("title") or vid
+                except Exception:
+                    pass
+                return vid
+
             for channel_id, video_id_list in self.video_details.items():
+                # try get channel name
+                try:
+                    ch_rows = self.fetcher.db.fetch("CHANNEL", where="channel_id=?", params=(channel_id,))
+                    channel_name = ch_rows[0].get("channel_name") if ch_rows else str(channel_id)
+                except Exception:
+                    channel_name = str(channel_id)
+
                 for video_id in video_id_list:
-                    self.progress_updated.emit(f"Fetching transcript for {video_id}...")
-                    
+                    video_title = _get_title(video_id, channel_id)
+                    self.progress_updated.emit(f"Fetching transcript for: \"{video_title}\"")
                     # Perform fetch
                     result = self.fetcher._fetch(video_id, channel_id, language_option)
-                    
+
                     processed_count += 1
                     percentage = int((processed_count / total_videos) * 100)
                     self.progress_percentage.emit(percentage)
-                    
+
                     if result.get("filepath"):
-                        self.progress_updated.emit(f"Saved: {video_id}")
+                        self.progress_updated.emit(f"Saved: \"{video_title}\"")
                     else:
-                        self.progress_updated.emit(f"Skipped: {video_id} ({result.get('remarks')})")
+                        self.progress_updated.emit(f"Skipped: \"{video_title}\" ({result.get('remarks')})")
 
             self.progress_updated.emit("Transcript scraping completed!")
             self.progress_percentage.emit(100)
