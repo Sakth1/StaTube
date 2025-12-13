@@ -1,16 +1,18 @@
 from PySide6.QtWidgets import (
     QDialog, QProgressBar, QLabel, QVBoxLayout,
-    QWidget, QPushButton
+    QWidget, QPushButton, QSizePolicy
 )
 from PySide6.QtCore import (
     Qt, QPropertyAnimation, QEasingCurve,
     Property, QEvent
 )
 from PySide6.QtGui import (
-    QFont, QPainter, QMovie, QColor,
+    QFont, QPainter, QMovie, QColor, QPixmap,
     QPen, QLinearGradient, QGuiApplication, QPalette
 )
 import time
+
+from utils.Logger import logger
 
 
 class BlurOverlay(QWidget):
@@ -51,7 +53,7 @@ class SplashScreen(QDialog):
     - Optional overlay dim & cancel button
     """
 
-    def __init__(self, parent: QWidget | None = None, gif_path: str | None = None):
+    def __init__(self, parent: QWidget | None = None, gif_path: str | None = None, img_path: str | None = None):
         super().__init__(parent)
 
         self.overlay: BlurOverlay | None = None
@@ -102,18 +104,32 @@ class SplashScreen(QDialog):
         # GIF
         self.movie_label = QLabel(self)
         self.movie_label.setAlignment(Qt.AlignCenter)
-        self.movie_label.setFixedSize(200, 200)
-        self.movie: QMovie | None = None
+        self.movie_label.setSizePolicy(
+            QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        )
+
+        self.movie = None
 
         if gif_path:
             self.movie = QMovie(gif_path)
             if self.movie.isValid():
                 self.movie_label.setMovie(self.movie)
                 self.movie.start()
+                logger.debug(f"Loaded GIF: {gif_path}")
+            else:
+                self._set_fallback_loader()
+
+        elif img_path:
+            pixmap = QPixmap(img_path)
+            if not pixmap.isNull():
+                self._logo_pixmap = pixmap  # store original
+                self._update_logo_pixmap()
+                logger.debug(f"Loaded image: {img_path}")
             else:
                 self._set_fallback_loader()
         else:
             self._set_fallback_loader()
+
 
         layout.addWidget(self.movie_label, alignment=Qt.AlignCenter)
 
@@ -154,8 +170,26 @@ class SplashScreen(QDialog):
         self._fade_animation: QPropertyAnimation | None = None
         self._fade_in_animation: QPropertyAnimation | None = None
 
-    # ---------- Event Filter (track parent window) ----------
+    def _update_logo_pixmap(self):
+        if not hasattr(self, "_logo_pixmap"):
+            return
 
+        # Logo takes ~65% of splash height
+        target_height = int(self.height() * 0.65)
+
+        scaled = self._logo_pixmap.scaled(
+            target_height,
+            target_height,
+            Qt.KeepAspectRatio,
+            Qt.SmoothTransformation
+        )
+        self.movie_label.setPixmap(scaled)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._update_logo_pixmap()
+
+# ---------- Event Filter (track parent window) ----------
     def eventFilter(self, obj, event):
         """
         Track the parent window so the splash:

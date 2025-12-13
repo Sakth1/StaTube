@@ -64,9 +64,12 @@ class AppStartup(QObject):
         base_dir = os.path.dirname(os.path.abspath(__file__))
         self.base_dir = os.path.dirname(base_dir)
         gif_path = os.path.join(self.base_dir, "assets", "splash", "loading.gif")
+        img_path = os.path.join(self.base_dir, "assets", "StaTube.png")
 
-        # parent=None to avoid QDialog parent type error
-        self.splash = SplashScreen(parent=None, gif_path=gif_path)
+        self.splash = SplashScreen(
+            parent=None,
+            img_path=img_path
+        )
         self.splash.set_title("StaTube - YouTube Data Analysis Tool")
         self.splash.update_status("Booting system...")
         self.splash.set_progress(5)

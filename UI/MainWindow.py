@@ -38,7 +38,8 @@ class MainWindow(QMainWindow):
         # Base dir and icon setup
         base_dir = os.path.dirname(os.path.abspath(__file__))
         self.base_dir = os.path.dirname(base_dir)
-        icon_path = os.path.join(self.base_dir, "icon", "StaTube.ico")
+        icon_path = os.path.join(self.base_dir, "assets", "icon", "StaTube.ico")
+        startup_img_path = os.path.join(self.base_dir, "assets", "StaTube.png")
         gif_path = os.path.join(self.base_dir, "assets", "splash", "loading.gif")
         logger.debug(f"Resolved application base directory: {self.base_dir}")
         logger.debug(f"Using icon path: {icon_path}")
@@ -54,7 +55,7 @@ class MainWindow(QMainWindow):
 
         # Create stacked widget (pages will be added later in setup_ui)
         self.stack = QStackedWidget()
-        self.splash = SplashScreen(parent=self, gif_path=gif_path)
+        self.splash = SplashScreen(parent=self, img_path=startup_img_path)
 
         # Sidebar button list
         self.sidebar_buttons = []
