@@ -5,7 +5,7 @@ from utils.Logger import logger
 from UI.AppStartup import AppStartup
 
 APP_NAME = "StaTube"
-APP_VERSION = "0.4.2"
+APP_VERSION = "0.4.3"
 APP_PUBLISHER = "StaTube"
 APP_DESCRIPTION = "A Python PySide6 GUI app for analyzing YouTube video transcripts and comments."
 
