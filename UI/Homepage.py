@@ -309,7 +309,18 @@ class Home(QWidget):
             return
 
         # Create a copy of channels to avoid iteration issues
-        channels_copy = self.channels.copy()
+        channels_copy = list(self.channels.items())
+
+        channels_copy.sort(
+            key=lambda item: int(
+                self.db.fetch(
+                    table="CHANNEL",
+                    where="channel_id=?",
+                    params=(item[0],)
+                )[0].get("sub_count", 0)
+            ),
+            reverse=True
+        )
         
         for channel_id, info in channels_copy.items():
             inf = self.db.fetch(table="CHANNEL", where="channel_id=?", params=(channel_id,))
