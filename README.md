@@ -613,6 +613,7 @@ StaTube is protected under the [MIT License](https://choosealicense.com/licenses
 ## ✨ Acknowledgments
 
 - Built using the [PySide6](https://pypi.org/project/PySide6/) framework.
+
 - YouTube data scraping powered by:
   - [yt-dlp](https://github.com/yt-dlp/yt-dlp)
   - [scrapetube](https://github.com/dermasmid/scrapetube)
