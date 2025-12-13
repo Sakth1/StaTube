@@ -616,6 +616,7 @@ StaTube is protected under the [MIT License](https://choosealicense.com/licenses
 - YouTube data scraping powered by:
   - [yt-dlp](https://github.com/yt-dlp/yt-dlp)
   - [scrapetube](https://github.com/dermasmid/scrapetube)
+  - [youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api)
 - Compiled into windows binary using:
   - [Nuitka](https://nuitka.org/)
   - [Inno Setup](https://www.jrsoftware.org/isinfo.php)
