@@ -6,13 +6,25 @@ from PySide6.QtCore import Qt, QStringListModel, QSize, Signal
 from PySide6.QtGui import QIcon
 import threading
 from typing import Optional, Dict, List, Any, Callable
+import os
 
 from Data.DatabaseManager import DatabaseManager
 from Backend.ScrapeChannel import Search
 from utils.AppState import app_state
 from utils.Logger import logger
+from utils.Formatters import parse_sub_count, format_sub_count
 from UI.SplashScreen import SplashScreen
-import os
+
+
+def get_channel_sub_count_safe(db, channel_id: str) -> int:
+    rows = db.fetch(
+        table="CHANNEL",
+        where="channel_id=?",
+        params=(channel_id,)
+    )
+    if not rows:
+        return 0
+    return parse_sub_count(rows[0].get("sub_count", 0))
 
 class Home(QWidget):
     """
@@ -312,39 +324,33 @@ class Home(QWidget):
         channels_copy = list(self.channels.items())
 
         channels_copy.sort(
-            key=lambda item: int(
-                self.db.fetch(
-                    table="CHANNEL",
-                    where="channel_id=?",
-                    params=(item[0],)
-                )[0].get("sub_count", 0)
-            ),
+            key=lambda item: get_channel_sub_count_safe(self.db, item[0]),
             reverse=True
         )
         
-        for channel_id, info in channels_copy.items():
+        for channel_id, info in channels_copy:
             inf = self.db.fetch(table="CHANNEL", where="channel_id=?", params=(channel_id,))
             if not inf:
-                # No DB row found — use sensible defaults and warn
+                logger.debug(f"Channel not yet in DB: {channel_id}")
                 channel_name = info.get("title", "Unknown")
-                logger.warning(f"No DB entry for channel_id={channel_id}")
-                sub_count = 0
+                sub_int = 0
                 profile_pic = None
             else:
                 row = inf[0]
-                sub_count = row.get("sub_count") or 0
                 channel_name = row.get("name") or info.get("title", "Unknown")
+                sub_int = parse_sub_count(row.get("sub_count"))
                 profile_pic = row.get("profile_pic")
 
+            sub_text = format_sub_count(sub_int)
             icon = QIcon(profile_pic) if profile_pic else QIcon()
-            text_label = f'{channel_name}\n{sub_count}'
+            text_label = f"{channel_name}\n{sub_text} subscribers"
             item = QListWidgetItem(icon, text_label)
             item.setData(Qt.UserRole, {
                 "channel_id": channel_id,
                 "channel_name": channel_name,
                 "channel_url": info.get('url'),
                 "profile_pic": profile_pic,
-                "sub_count": sub_count
+                "sub_count": sub_int   
             })
             self.channel_list.addItem(item)
 

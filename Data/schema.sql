@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS CHANNEL (
     channel_id TEXT PRIMARY KEY,
     name TEXT,
     url TEXT,
-    sub_count TEXT,
+    sub_count INTEGER,
     desc TEXT,
     profile_pic TEXT
 );
