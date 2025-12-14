@@ -134,6 +134,7 @@ async def fetch_shorts_metadata_async(video_id: str, session: aiohttp.ClientSess
                     return ydl.extract_info(f"https://www.youtube.com/shorts/{video_id}", download=False)
 
             info = await loop.run_in_executor(None, extract_info)
+            title = str(info.get('title', '') or 'Untitled')
 
             return {
                 'video_id': str(video_id),
@@ -141,7 +142,7 @@ async def fetch_shorts_metadata_async(video_id: str, session: aiohttp.ClientSess
                 'upload_date': info.get('upload_date'),  # YYYYMMDD or None
                 'description': str(info.get('description', '') or ''),
                 'view_count': int(info.get('view_count', 0) or 0),
-                'title': str(info.get('title', '') or 'Untitled'),
+                'title': str(title),
             }
         except Exception:
             logger.error(f"Failed to fetch metadata for short video: {video_id}")
@@ -168,26 +169,24 @@ async def fetch_shorts_batch_async(
 
         async def fetch_with_progress(video_id: str):
             nonlocal completed
-            result = await fetch_shorts_metadata_async(str(video_id), session, semaphore)
+            result = await fetch_shorts_metadata_async(video_id, session, semaphore)
             completed += 1
 
             if progress_callback:
                 try:
                     QMetaObject.invokeMethod(
                         progress_callback,
-                        "update_from_async",
+                        "update_short_progress",
                         Qt.QueuedConnection,
                         Q_ARG(int, completed),
-                        Q_ARG(int, total)
+                        Q_ARG(int, total),
+                        Q_ARG(str, result.get("title", "Untitled"))
                     )
                 except Exception:
-                    # fallback: call directly (shouldn't happen in Qt main thread)
-                    try:
-                        progress_callback.update_from_async(completed, total)
-                    except Exception:
-                        pass
+                    pass
 
             return result
+
 
         tasks = [fetch_with_progress(vid) for vid in video_ids]
         all_results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -247,19 +246,12 @@ class VideoWorker(QObject):
     @Slot()
     def run(self):
         """
-        Entry point callable by a QThread. Uses asyncio.run for the coroutine root.
-        Guarantees finished signal in finally block of _fetch_video_urls_async.
+        Entry point callable by a QThread.
         """
         try:
             asyncio.run(self._fetch_video_urls_async())
         except Exception:
             logger.exception("VideoWorker crashed in run():")
-        finally:
-            # ensure finished if not already emitted
-            try:
-                self.finished.emit()
-            except Exception:
-                pass
 
     @Slot(int, int)
     def update_from_async(self, completed: int, total: int):
@@ -281,6 +273,23 @@ class VideoWorker(QObject):
             return QThread.currentThread().isInterruptionRequested()
         except Exception:
             return False
+        
+    @Slot(int, int, str)
+    def update_short_progress(self, completed: int, total: int, title: str):
+        """
+        Receives per-short progress updates from async yt-dlp fetch.
+        """
+        self.progress_updated.emit(
+            f"[Shorts] {completed}/{total}\n{title}"
+        )
+
+        try:
+            base = (self.current_type_counter - 1) * 33
+            pct = base + int((completed / total) * 20)
+        except Exception:
+            pct = base
+
+        self.progress_percentage.emit(min(pct, 95))
 
     async def _fetch_video_urls_async(self):
         """
@@ -518,10 +527,16 @@ class VideoWorker(QObject):
                     self.progress_percentage.emit(min(i * 33, 95))
 
             self.progress_updated.emit(f"Completed scraping! Total {total_processed} videos saved.")
-            self.progress_percentage.emit(100)
+            self.progress_percentage.emit(99)
 
         except Exception:
             logger.exception("Async scrape failure")
             self.progress_updated.emit("Scraping failed — check logs.")
             self.progress_percentage.emit(0)
             # Do not swallow the exception silently — finalizer will emit finished
+
+        finally:
+            try:
+                self.finished.emit()
+            except Exception:
+                pass

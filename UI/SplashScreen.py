@@ -342,7 +342,19 @@ class SplashScreen(QDialog):
         self.status_label.setText(message)
 
     def set_progress(self, value: int):
-        self.progress_bar.setValue(int(value))
+        value = max(0, min(100, int(value)))
+
+        if not hasattr(self, "_progress_anim"):
+            self._progress_anim = QPropertyAnimation(
+                self.progress_bar, b"value", self
+            )
+            self._progress_anim.setEasingCurve(QEasingCurve.OutCubic)
+
+        self._progress_anim.stop()
+        self._progress_anim.setDuration(300)
+        self._progress_anim.setStartValue(self.progress_bar.value())
+        self._progress_anim.setEndValue(value)
+        self._progress_anim.start()
 
     def update_eta(self, progress: int):
         if self.start_time is None or progress <= 0:

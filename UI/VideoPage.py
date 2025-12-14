@@ -386,7 +386,7 @@ class Video(QWidget):
         self.comment_thread: Optional[QThread] = None
         self.comment_worker: Optional[CommentWorker] = None
 
-        self.video_page_scrape_video_signal.connect(self.scrape_videos)
+        self.video_page_scrape_video_signal.connect(lambda: self.scrape_videos(self.scrape_shorts_checkbox.isChecked()))
 
         # === Main layout ===
         self.main_layout: QGridLayout = QGridLayout(self)
@@ -570,7 +570,8 @@ class Video(QWidget):
         self.worker_thread.started.connect(self.worker.run)
         self.worker.progress_updated.connect(self.update_splash_progress)
         self.worker.progress_percentage.connect(self.update_splash_percentage)
-        self.worker.finished.connect(self.on_worker_finished)
+        self.worker.finished.connect(self.worker_thread.quit)
+        self.worker_thread.finished.connect(self.on_worker_finished)
         self.worker.finished.connect(self.worker_thread.quit)
         self.worker.finished.connect(self.worker.deleteLater)
         self.worker_thread.finished.connect(self.worker_thread.deleteLater)
@@ -680,6 +681,7 @@ class Video(QWidget):
         self._clear_overlays()
 
         if self.splash:
+            self.splash.set_progress(100)
             self.splash.fade_and_close(400)
             self.splash = None
 
