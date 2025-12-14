@@ -3,36 +3,64 @@ import requests
 import threading
 import os
 from typing import Callable, Optional
+import hashlib
+import time
 
 from utils.AppState import app_state
 from utils.Logger import logger
 
-def download_img(url: str, save_path: str) -> bool:
+
+def file_md5(path: str) -> str:
+    h = hashlib.md5()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def download_img(url: str, save_path: str, retries: int = 3) -> bool:
     """
-    Downloads an image from a given URL and saves it to the given save path.
-
-    Args:
-        url (str): URL of the image to download
-        save_path (str): Path where the image should be saved
-
-    Returns:
-        bool: True if the image was downloaded and saved successfully, False otherwise
+    Downloads an image with retry + checksum validation.
+    Safe drop-in replacement.
     """
-    try:
-        # Fix malformed URLs
-        if url.startswith("https:https://"):
-            url = url.replace("https:https://", "https://", 1)
-
-        response = requests.get(str(url), timeout=15.0, stream=True)
-        response.raise_for_status()
-        with open(str(save_path), "wb") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
-        return True
-    except Exception as e:
-        logger.error(f"Failed to download image: {url}")
-        logger.exception("Download image error:")
+    if not url:
         return False
+
+    # Fix malformed URLs
+    if url.startswith("https:https://"):
+        url = url.replace("https:https://", "https://", 1)
+
+    for attempt in range(1, retries + 1):
+        try:
+            response = requests.get(url, timeout=15, stream=True)
+            response.raise_for_status()
+
+            tmp_path = save_path + ".tmp"
+            with open(tmp_path, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            # Validate image size
+            if os.path.getsize(tmp_path) < 1024:
+                raise ValueError("Downloaded image too small")
+
+            # If file already exists and checksum matches → skip replace
+            if os.path.exists(save_path):
+                if file_md5(tmp_path) == file_md5(save_path):
+                    os.remove(tmp_path)
+                    return True
+
+            os.replace(tmp_path, save_path)
+            return True
+
+        except Exception as e:
+            logger.warning(f"Image download failed (attempt {attempt}/{retries}): {url}")
+            if attempt < retries:
+                time.sleep(0.5 * attempt)
+
+    logger.error(f"Failed to download image after retries: {url}")
+    return False
+
 
 class Search:
     """
@@ -67,42 +95,70 @@ class Search:
         Returns:
             bool: True if the channel was updated successfully, False otherwise
         """
-        try:
-            profile_save_path = os.path.join(self.db.profile_pic_dir, f"{channel_id}.png")
+        profile_save_path = os.path.join(self.db.profile_pic_dir, f"{channel_id}.png")
+
+        # Download only if missing or corrupted
+        needs_download = not os.path.exists(profile_save_path)
+
+        success = False
+        if needs_download:
             success = download_img(profile_url, profile_save_path)
-            
+
             if progress_callback and success:
                 progress_callback(f"Downloaded profile for: {title}")
-        except Exception as e:
-            logger.error(f"Failed to save profile picture for {channel_id}: {e}")
-            logger.exception("Error saving profile picture:")
-            success = False
 
-        if channel_id:
-            url = f"https://www.youtube.com/channel/{channel_id}"
-            
-            # Use lock to safely update channels dictionary
-            with self.download_lock:
-                self.channels[channel_id] = {"title": title, "url": url, "sub_count": sub_count}
+        url = f"https://www.youtube.com/channel/{channel_id}"
 
-            # Check if channel already exists
-            existing_channels = self.db.fetch(table="CHANNEL", where="channel_id = ?", params=(channel_id,))
-            
-            if not existing_channels:
-                # Channel doesn't exist, insert new one
-                self.db.insert(
-                    "CHANNEL",
-                    {
-                        "channel_id": channel_id,
-                        "name": title,
-                        "url": url,
-                        "sub_count": str(sub_count),
-                        "desc": desc,
-                        "profile_pic": profile_save_path,
-                    },
-                )
-                logger.info(f"Added new channel: {title}")
+        with self.download_lock:
+            self.channels[channel_id] = {
+                "title": title,
+                "url": url,
+                "sub_count": sub_count,
+            }
 
+        existing = self.db.fetch(
+            table="CHANNEL",
+            where="channel_id=?",
+            params=(channel_id,)
+        )
+
+        if not existing:
+            self.db.insert(
+                "CHANNEL",
+                {
+                    "channel_id": channel_id,
+                    "name": title,
+                    "url": url,
+                    "sub_count": str(sub_count),
+                    "desc": desc,
+                    "profile_pic": profile_save_path if success else None,
+                },
+            )
+        else:
+            update_fields = {
+                "name": title,
+                "sub_count": str(sub_count),
+                "desc": desc,
+            }
+            if success:
+                update_fields["profile_pic"] = profile_save_path
+
+            self.db.update(
+                "CHANNEL",
+                update_fields,
+                where="channel_id=?",
+                params=(channel_id,)
+            )
+
+        with self.download_lock:
+            self.completed_downloads += 1
+
+            if progress_callback:
+                progress = (self.completed_downloads / self.total_downloads) * 100
+                progress_callback(progress, f"Processed {self.completed_downloads}/{self.total_downloads}")
+
+            if self.completed_downloads >= self.total_downloads:
+                self.all_threads_complete.set()
         # Update completion counter
         with self.download_lock:
             self.completed_downloads += 1
@@ -152,7 +208,9 @@ class Search:
             sub_count = ch.get("videoCountText", {}).get("accessibility", {}).get("accessibilityData", {}).get("label")
             desc = ch.get("descriptionSnippet", {}).get("runs")[0].get("text") if ch.get("descriptionSnippet") else None
             channel_id = ch.get("channelId")
-            profile_url = "https:" + ch.get("thumbnail", {}).get("thumbnails")[0].get("url")
+            thumbs = ch.get("thumbnail", {}).get("thumbnails", [])
+            raw_url = thumbs[0].get("url") if thumbs else None
+            profile_url = raw_url if raw_url and raw_url.startswith("http") else f"https:{raw_url}" if raw_url else None
 
             if channel_id:
                 url = f"https://www.youtube.com/channel/{channel_id}"

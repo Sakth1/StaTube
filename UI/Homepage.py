@@ -287,6 +287,10 @@ class Home(QWidget):
         if channels:
             self.model.setStringList(channels)
             self.completer.complete()
+
+    def _set_item_icon_lazy(self, item: QListWidgetItem, path: str):
+        if path and os.path.exists(path):
+            item.setIcon(QIcon(path))
     
     @QtCore.Slot()
     def on_search_complete(self) -> None:
@@ -342,9 +346,15 @@ class Home(QWidget):
                 profile_pic = row.get("profile_pic")
 
             sub_text = format_sub_count(sub_int)
-            icon = QIcon(profile_pic) if profile_pic else QIcon()
             text_label = f"{channel_name}\n{sub_text} subscribers"
-            item = QListWidgetItem(icon, text_label)
+            placeholder = QIcon("assets/default_avatar.png")
+            item = QListWidgetItem(placeholder, text_label)
+
+            if profile_pic:
+                QtCore.QTimer.singleShot(
+                    0, lambda p=profile_pic, i=item: self._set_item_icon_lazy(i, p)
+                )
+
             item.setData(Qt.UserRole, {
                 "channel_id": channel_id,
                 "channel_name": channel_name,
