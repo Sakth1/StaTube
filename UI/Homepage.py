@@ -347,7 +347,9 @@ class Home(QWidget):
 
             sub_text = format_sub_count(sub_int)
             text_label = f"{channel_name}\n{sub_text} subscribers"
-            placeholder = QIcon("assets/default_avatar.png")
+            cwd = os.getcwd()
+            default_avatar = os.path.join(cwd, "assets", "icon", "default_avatar.png")
+            placeholder = QIcon(default_avatar)
             item = QListWidgetItem(placeholder, text_label)
 
             if profile_pic:

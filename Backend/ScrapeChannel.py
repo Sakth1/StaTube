@@ -55,6 +55,7 @@ def download_img(url: str, save_path: str, retries: int = 3) -> bool:
 
         except Exception as e:
             logger.warning(f"Image download failed (attempt {attempt}/{retries}): {url}")
+            logger.exception("Image download error:")
             if attempt < retries:
                 time.sleep(0.5 * attempt)
 
