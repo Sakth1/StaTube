@@ -80,7 +80,6 @@ class MainWindow(QMainWindow):
 
 
     # ---------- Stylesheet ----------
-
     def load_stylesheet(self):
         """
         Load and apply QSS stylesheet.
@@ -109,7 +108,6 @@ class MainWindow(QMainWindow):
             logger.exception("Error loading stylesheet:")
 
     # ---------- UI Setup ----------
-
     def setup_ui(self):
         """
         Setup the main UI once all startup tasks are done.
@@ -143,7 +141,6 @@ class MainWindow(QMainWindow):
             (self.video_btn, "light_video.ico", "Videos"),
             (self.transcript_btn, "light_transcript.ico", "Transcription Analysis"),
             (self.comment_btn, "light_comment.ico", "Comment Analysis"),
-            (self.settings_btn, "light_settings.ico", "Settings"),
         ]
 
         self.sidebar_buttons = []
@@ -172,7 +169,6 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.video_page)
         self.stack.addWidget(self.transcript_page)
         self.stack.addWidget(self.comment_page)
-        self.stack.addWidget(self.settings_page)
         logger.debug("All pages instantiated and added to QStackedWidget.")
 
         # Default page
@@ -189,7 +185,6 @@ class MainWindow(QMainWindow):
 
 
     # ---------- Sidebar navigation ----------
-
     def switch_page(self, index: int):
         """
         Switches to the specified page index.
@@ -229,7 +224,6 @@ class MainWindow(QMainWindow):
         self.comment_page.comment_page_scrape_comments_signal.emit()
 
     # ---------- Close Event ----------
-
     def closeEvent(self, event):
         """
         Handle window close event (cleanup if needed).
