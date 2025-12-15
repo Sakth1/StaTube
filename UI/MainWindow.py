@@ -4,10 +4,12 @@ import time
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QStackedWidget, QFrame, QWidget,
-    QVBoxLayout, QHBoxLayout, QToolButton
+    QVBoxLayout, QHBoxLayout, QToolButton,
+    QMenuBar, QMenu, QToolBar,
+    QMessageBox, QDialog, QLabel, QPushButton
 )
-from PySide6.QtGui import QIcon
-from PySide6.QtCore import Qt, QSize, QTimer
+from PySide6.QtGui import QIcon, QDesktopServices, QAction
+from PySide6.QtCore import Qt, QSize, QTimer, QUrl
 
 # ---- Import Pages ----
 from .Homepage import Home
@@ -29,9 +31,6 @@ class MainWindow(QMainWindow):
     Main window of the application.
     """
     def __init__(self):
-        """
-        Initializes the main window.
-        """
         logger.info("MainWindow initialization started.")
         super().__init__()
 
@@ -40,26 +39,26 @@ class MainWindow(QMainWindow):
         self.base_dir = os.path.dirname(base_dir)
         icon_path = os.path.join(self.base_dir, "assets", "icon", "StaTube.ico")
         startup_img_path = os.path.join(self.base_dir, "assets", "StaTube.png")
-        gif_path = os.path.join(self.base_dir, "assets", "splash", "loading.gif")
-        logger.debug(f"Resolved application base directory: {self.base_dir}")
-        logger.debug(f"Using icon path: {icon_path}")
 
         self.setWindowTitle("StaTube - YouTube Data Analysis Tool")
         self.setWindowIcon(QIcon(icon_path))
-        # Initial geometry (window can be resized later)
         self.setGeometry(500, 200, 1000, 700)
 
-        # Placeholder central widget until UI is fully ready
+        # Central widget placeholder
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
 
-        # Create stacked widget (pages will be added later in setup_ui)
+        # Stack & splash
         self.stack = QStackedWidget()
         self.splash = SplashScreen(parent=self, img_path=startup_img_path)
 
-        # Sidebar button list
+        # Sidebar buttons
         self.sidebar_buttons = []
 
+        # Menu + toolbar
+        self.setup_menu_and_toolbar()
+
+    # ---------- Final init ----------
     def finish_initialization(self):
         logger.info("Starting final initialization sequence.")
 
@@ -68,8 +67,7 @@ class MainWindow(QMainWindow):
         self.splash.set_progress(40)
 
         self.splash.update_status("Connecting database...")
-        db = DatabaseManager()
-        app_state.db = db
+        app_state.db = DatabaseManager()
         self.splash.set_progress(70)
 
         self.splash.update_status("Building UI layout...")
@@ -78,47 +76,67 @@ class MainWindow(QMainWindow):
 
         self.splash.update_status("Startup complete")
 
-
     # ---------- Stylesheet ----------
     def load_stylesheet(self):
-        """
-        Load and apply QSS stylesheet.
-        """
         try:
-            # For Nuitka onefile builds, use sys.argv[0]
             if getattr(sys, 'frozen', False):
-                # Running as compiled executable
                 base_dir = os.path.dirname(sys.argv[0])
             else:
-                # Running as script
                 base_dir = os.path.dirname(os.path.abspath(__file__))
-                base_dir = os.path.dirname(base_dir)  # Go up to project root
+                base_dir = os.path.dirname(base_dir)
 
             qss_path = os.path.join(base_dir, "UI", "Style.qss")
-            logger.debug(f"Attempting to load QSS stylesheet from: {qss_path}")
-
             with open(qss_path, "r", encoding="utf-8") as f:
                 self.setStyleSheet(f.read())
 
-            logger.info("Stylesheet loaded successfully.")
+        except Exception:
+            logger.exception("Error loading stylesheet")
 
-        except FileNotFoundError:
-            logger.warning(f"Stylesheet not found at {qss_path}")
-        except Exception as e:
-            logger.exception("Error loading stylesheet:")
+    # ---------- Menu & Toolbar ----------
+    def setup_menu_and_toolbar(self):
+        menubar = self.menuBar()
+
+        # File
+        file_menu = menubar.addMenu("File")
+        exit_action = QAction("Exit", self)
+        exit_action.triggered.connect(self.close)
+        file_menu.addAction(exit_action)
+
+        # Settings
+        settings_menu = menubar.addMenu("Settings")
+        settings_action = QAction("Open Settings", self)
+        settings_action.triggered.connect(self.open_settings_page)
+        settings_menu.addAction(settings_action)
+
+        # Help
+        help_menu = menubar.addMenu("Help")
+        docs_action = QAction("Documentation", self)
+        docs_action.triggered.connect(self.open_docs)
+        help_menu.addAction(docs_action)
+
+        # About
+        about_menu = menubar.addMenu("About")
+        about_action = QAction("About StaTube", self)
+        about_action.triggered.connect(self.show_about_dialog)
+        about_menu.addAction(about_action)
+
+        # Toolbar (text-only)
+        toolbar = QToolBar("Main Toolbar", self)
+        toolbar.setMovable(False)
+        self.addToolBar(Qt.TopToolBarArea, toolbar)
+
+        toolbar.addAction(settings_action)
+        toolbar.addSeparator()
+        toolbar.addAction(docs_action)
+        toolbar.addSeparator()
+        toolbar.addAction(about_action)
 
     # ---------- UI Setup ----------
     def setup_ui(self):
-        """
-        Setup the main UI once all startup tasks are done.
-        """
-        logger.info("Setting up main UI components...")
-        # Root layout for central widget
         main_layout = QHBoxLayout(self.central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Sidebar frame
-        logger.debug("Sidebar navigation buttons initialized.")
+        # Sidebar
         self.sidebar = QFrame()
         self.sidebar.setFixedWidth(80)
         side_layout = QVBoxLayout(self.sidebar)
@@ -126,15 +144,12 @@ class MainWindow(QMainWindow):
         side_layout.setContentsMargins(20, 0, 0, 0)
         side_layout.setSpacing(25)
 
-        # Icons path
         icon_path = os.path.join(self.base_dir, "assets", "icon", "light")
 
-        # Create buttons
         self.home_btn = QToolButton()
         self.video_btn = QToolButton()
         self.transcript_btn = QToolButton()
         self.comment_btn = QToolButton()
-        self.settings_btn = QToolButton()
 
         buttons_config = [
             (self.home_btn, "light_home.ico", "Home"),
@@ -143,22 +158,21 @@ class MainWindow(QMainWindow):
             (self.comment_btn, "light_comment.ico", "Comment Analysis"),
         ]
 
-        self.sidebar_buttons = []
-        for i, (btn, filename, tooltip) in enumerate(buttons_config):
-            btn.setIcon(QIcon(os.path.join(icon_path, filename)))
+        self.sidebar_buttons.clear()
+        for i, (btn, icon, tooltip) in enumerate(buttons_config):
+            btn.setIcon(QIcon(os.path.join(icon_path, icon)))
             btn.setIconSize(QSize(28, 28))
             btn.setToolTip(tooltip)
             btn.setCheckable(True)
             btn.setAutoExclusive(True)
-            btn.clicked.connect(lambda checked, idx=i: self.switch_page(idx))
+            btn.clicked.connect(lambda _, idx=i: self.switch_page(idx))
             side_layout.addWidget(btn)
             self.sidebar_buttons.append(btn)
 
-        # Add sidebar + stack
         main_layout.addWidget(self.sidebar)
         main_layout.addWidget(self.stack, stretch=1)
 
-        # Add pages
+        # Pages
         self.homepage = Home(self)
         self.video_page = Video(self)
         self.transcript_page = Transcript(self)
@@ -169,72 +183,79 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.video_page)
         self.stack.addWidget(self.transcript_page)
         self.stack.addWidget(self.comment_page)
-        logger.debug("All pages instantiated and added to QStackedWidget.")
 
-        # Default page
         self.switch_page(0)
-        if self.sidebar_buttons:
-            self.sidebar_buttons[0].setChecked(True)
+        self.sidebar_buttons[0].setChecked(True)
 
-        # Cross-page signals
+        # Signals
         self.homepage.home_page_scrape_video_signal.connect(self.switch_and_scrape_video)
         self.video_page.video_page_scrape_transcript_signal.connect(self.switch_and_scrape_transcripts)
         self.video_page.video_page_scrape_comments_signal.connect(self.switch_and_scrape_comments)
-        logger.debug("Cross-page signals connected.")
-        logger.info("Main UI fully constructed.")
 
-
-    # ---------- Sidebar navigation ----------
+    # ---------- Navigation ----------
     def switch_page(self, index: int):
-        """
-        Switches to the specified page index.
-        """
-        logger.debug(f"Switching to page index: {index}")
-        self.stack.setCurrentIndex(max(0, index))
+        self.stack.setCurrentIndex(index)
 
-    def switch_and_scrape_video(self, scrape_shorts: bool = False):
-        """
-        Switches to the video page and scrapes videos.
-        """
-        if len(self.sidebar_buttons) >= 2:
-            self.sidebar_buttons[0].setChecked(False)
-            self.sidebar_buttons[1].setChecked(True)
+    def open_settings_page(self):
+        if self.stack.indexOf(self.settings_page) == -1:
+            self.stack.addWidget(self.settings_page)
+        self.stack.setCurrentWidget(self.settings_page)
+
+    def open_docs(self):
+        QDesktopServices.openUrl(QUrl("https://github.com/your-username/StaTube"))
+
+    def show_about_dialog(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("About StaTube")
+        dialog.setFixedSize(420, 260)
+
+        layout = QVBoxLayout(dialog)
+        layout.setAlignment(Qt.AlignCenter)
+
+        logo = QLabel()
+        logo_path = os.path.join(self.base_dir, "assets", "StaTube.png")
+        logo.setPixmap(QIcon(logo_path).pixmap(96, 96))
+        logo.setAlignment(Qt.AlignCenter)
+
+        title = QLabel("<b>StaTube</b>")
+        title.setAlignment(Qt.AlignCenter)
+
+        version = QLabel("Version 1.0.0")
+        version.setAlignment(Qt.AlignCenter)
+
+        desc = QLabel(
+            "Desktop application for YouTube\n"
+            "analytics, transcripts, and comments."
+        )
+        desc.setAlignment(Qt.AlignCenter)
+
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dialog.accept)
+
+        layout.addWidget(logo)
+        layout.addWidget(title)
+        layout.addWidget(version)
+        layout.addWidget(desc)
+        layout.addSpacing(10)
+        layout.addWidget(close_btn)
+
+        dialog.exec()
+
+    # ---------- Cross-page helpers ----------
+    def switch_and_scrape_video(self, scrape_shorts=False):
+        self.sidebar_buttons[1].setChecked(True)
         self.switch_page(1)
-        # Add a small delay to ensure page switch completes before showing splash
-        QTimer.singleShot(50, lambda: self.video_page.video_page_scrape_video_signal.emit(scrape_shorts))
+        QTimer.singleShot(
+            50,
+            lambda: self.video_page.video_page_scrape_video_signal.emit(scrape_shorts)
+        )
 
     def switch_and_scrape_transcripts(self):
-        """
-        Switches to the transcript page and scrapes transcripts.
-        """
-        if len(self.sidebar_buttons) >= 3:
-            self.sidebar_buttons[1].setChecked(False)
-            self.sidebar_buttons[2].setChecked(True)
+        self.sidebar_buttons[2].setChecked(True)
         self.switch_page(2)
         self.transcript_page.transcript_page_scrape_transcripts_signal.emit()
 
     def switch_and_scrape_comments(self):
-        """
-        Switches to the comment page and scrapes comments.
-        """
-        if len(self.sidebar_buttons) >= 4:
-            self.sidebar_buttons[2].setChecked(False)
-            self.sidebar_buttons[3].setChecked(True)
+        self.sidebar_buttons[3].setChecked(True)
         self.switch_page(3)
         self.comment_page.comment_page_scrape_comments_signal.emit()
-
-    # ---------- Close Event ----------
-    def closeEvent(self, event):
-        """
-        Handle window close event (cleanup if needed).
-        """
-        # If you need to close DB connections or save state, do it here.
-        super().closeEvent(event)
-
-
-# Entry Point
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
-    sys.exit(app.exec())
