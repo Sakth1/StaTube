@@ -12,7 +12,7 @@ env:
   RELEASE_DIR: releases
 
 jobs:
-  build:
+  build-portable:
     runs-on: windows-latest
 
     steps:
@@ -23,23 +23,19 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      - name: Install dependencies
+      - name: Install deps
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller cx_Freeze
+          pip install pyinstaller
 
-      # ---------- Extract metadata ----------
       - name: Extract metadata
         shell: bash
         run: |
           python build/installer/extract_metadata.py main.py > meta.out
-          while IFS= read -r line; do
-            echo "$line" >> $GITHUB_ENV
-          done < meta.out
+          while IFS= read -r line; do echo "$line" >> $GITHUB_ENV; done < meta.out
 
-      # ---------- Portable EXE ----------
-      - name: Build portable EXE (PyInstaller)
+      - name: Build portable EXE
         run: |
           pyinstaller build/pyinstaller/StaTube.spec
 
@@ -47,33 +43,61 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force $env:RELEASE_DIR | Out-Null
-          Move-Item dist/StaTube.exe "$env:RELEASE_DIR/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-portable.exe"
+          Move-Item dist/StaTube.exe `
+            "$env:RELEASE_DIR/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-portable.exe"
 
-      # ---------- MSI Installer ----------
-      - name: Build MSI installer (cx_Freeze)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portable
+          path: releases/*.exe
+
+  build-installer:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install cx_Freeze
+
+      - name: Extract metadata
+        shell: bash
+        run: |
+          python build/installer/extract_metadata.py main.py > meta.out
+          while IFS= read -r line; do echo "$line" >> $GITHUB_ENV; done < meta.out
+
+      - name: Build MSI
         run: |
           python build/cxfreeze/setup.py bdist_msi
 
       - name: Collect MSI
         shell: pwsh
         run: |
-          Move-Item dist/*.msi "$env:RELEASE_DIR/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-setup.msi"
+          New-Item -ItemType Directory -Force $env:RELEASE_DIR | Out-Null
+          Move-Item dist/*.msi `
+            "$env:RELEASE_DIR/${{ env.APP_NAME }}-${{ env.APP_VERSION }}-setup.msi"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: artifacts
-          path: releases/*
+          name: installer
+          path: releases/*.msi
 
   release:
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build-portable, build-installer]
 
     steps:
       - uses: actions/download-artifact@v4
-        with:
-          name: artifacts
 
-      - name: Publish release assets (append notes)
+      - name: Publish release (append notes)
         uses: softprops/action-gh-release@v1
         with:
           append_body: true
@@ -83,7 +107,7 @@ jobs:
             - Portable single-file EXE
             - MSI installer (supports upgrade & uninstall)
           files: |
-            *.exe
-            *.msi
+            **/*.exe
+            **/*.msi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
