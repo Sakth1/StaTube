@@ -1,13 +1,10 @@
-# PyInstaller spec for StaTube (PySide6, single-file EXE)
-
 from PyInstaller.utils.hooks import collect_all
 from pathlib import Path
 
 block_cipher = None
 
-# ---- Resolve project root safely ----
-SPEC_FILE = Path(globals()["__specfile__"]).resolve()
-ROOT_DIR = SPEC_FILE.parents[2]
+# PyInstaller always runs with CWD = repo root
+ROOT_DIR = Path.cwd()
 
 # ---- Collect PySide6 ----
 pyside6_datas, pyside6_binaries, pyside6_hiddenimports = collect_all("PySide6")
@@ -39,8 +36,6 @@ a = Analysis(
         *wordcloud_hiddenimports,
         "scrapetube",
     ],
-    hookspath=[],
-    runtime_hooks=[],
     excludes=[],
     cipher=block_cipher,
 )
@@ -55,9 +50,6 @@ exe = EXE(
     a.datas,
     [],
     name="StaTube",
-    debug=False,
-    strip=False,
-    upx=True,
     console=False,
     icon=str(ROOT_DIR / "assets" / "icon" / "StaTube.ico"),
 )
