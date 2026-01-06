@@ -1,19 +1,44 @@
 from cx_Freeze import setup, Executable
 import os
 import sys
+import re
 from pathlib import Path
 
+# --------------------------------------------------
+# Resolve project root (run from repo root)
+# --------------------------------------------------
 ROOT_DIR = Path.cwd()
 sys.path.insert(0, str(ROOT_DIR))
 
-# ---- Metadata from extract_metadata.py ----
-APP_NAME = os.environ["APP_NAME"]
-APP_VERSION = os.environ["APP_VERSION"]
-APP_PUBLISHER = os.environ["APP_PUBLISHER"]
-APP_DESCRIPTION = os.environ["APP_DESCRIPTION"]
+# --------------------------------------------------
+# Metadata injected by extract_metadata.py
+# --------------------------------------------------
+APP_NAME = os.environ.get("APP_NAME", "StaTube")
+APP_VERSION = os.environ.get("APP_VERSION", "0.0.0")
+APP_PUBLISHER = os.environ.get("APP_PUBLISHER", "Unknown")
+APP_DESCRIPTION = os.environ.get("APP_DESCRIPTION", "Unknown")
 
-# ---- Read locked UpgradeCode ----
-UPGRADE_CODE = (ROOT_DIR / "build" / "installer" / "upgrade_code.txt").read_text().strip()
+# --------------------------------------------------
+# READ UpgradeCode (THIS IS THE CRITICAL SECTION)
+# --------------------------------------------------
+upgrade_file = ROOT_DIR / "build" / "installer" / "upgrade_code.txt"
+
+raw = upgrade_file.read_text(encoding="utf-8")
+
+UPGRADE_CODE = raw.strip().lower()
+
+# ---------- DEBUG OUTPUT (TEMPORARY) ----------
+print("DEBUG UpgradeCode repr:", repr(UPGRADE_CODE))
+print("DEBUG UpgradeCode length:", len(UPGRADE_CODE))
+# ---------------------------------------------
+
+# ---------- HARD VALIDATION ----------
+if not re.fullmatch(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+    UPGRADE_CODE,
+):
+    raise RuntimeError(f"Invalid UpgradeCode: {repr(UPGRADE_CODE)}")
+# ---------------------------------------------
 
 base = "Win32GUI" if sys.platform == "win32" else None
 
