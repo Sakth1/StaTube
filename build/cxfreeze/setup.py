@@ -3,20 +3,21 @@ import os
 import sys
 from pathlib import Path
 
-# ---- Ensure project root is importable ----
-ROOT_DIR = Path(__file__).resolve().parents[2]
+ROOT_DIR = Path.cwd()
 sys.path.insert(0, str(ROOT_DIR))
 
-# ---- Metadata injected by CI ----
+# ---- Metadata from extract_metadata.py ----
 APP_NAME = os.environ["APP_NAME"]
 APP_VERSION = os.environ["APP_VERSION"]
 APP_PUBLISHER = os.environ["APP_PUBLISHER"]
 APP_DESCRIPTION = os.environ["APP_DESCRIPTION"]
 
+# ---- Read locked UpgradeCode ----
+UPGRADE_CODE = (ROOT_DIR / "build" / "installer" / "upgrade_code.txt").read_text().strip()
+
 base = "Win32GUI" if sys.platform == "win32" else None
 
 build_exe_options = {
-    # ONLY real pip packages here
     "packages": [
         "PySide6",
         "yt_dlp",
@@ -24,7 +25,7 @@ build_exe_options = {
         "wordcloud",
         "scrapetube",
     ],
-    # Local source + data
+    "excludes": ["tkinter", "tk", "tcl"],
     "include_files": [
         (ROOT_DIR / "utils", "utils"),
         (ROOT_DIR / "UI", "UI"),
@@ -36,8 +37,7 @@ build_exe_options = {
 }
 
 bdist_msi_options = {
-    # DO NOT change once released
-    "upgrade_code": "{A6F3E7B2-5E0F-4B58-9D9C-STATUBE000001}",
+    "upgrade_code": UPGRADE_CODE,
     "initial_target_dir": r"[ProgramFilesFolder]\StaTube",
     "summary_data": {
         "author": APP_PUBLISHER,
