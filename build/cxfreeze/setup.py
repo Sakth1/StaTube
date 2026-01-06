@@ -5,13 +5,13 @@ import re
 from pathlib import Path
 
 # --------------------------------------------------
-# Resolve project root (run from repo root)
+# Resolve project root
 # --------------------------------------------------
 ROOT_DIR = Path.cwd()
 sys.path.insert(0, str(ROOT_DIR))
 
 # --------------------------------------------------
-# Metadata injected by extract_metadata.py
+# Metadata from extract_metadata.py
 # --------------------------------------------------
 APP_NAME = os.environ.get("APP_NAME", "StaTube")
 APP_VERSION = os.environ.get("APP_VERSION", "0.0.0")
@@ -19,27 +19,26 @@ APP_PUBLISHER = os.environ.get("APP_PUBLISHER", "Unknown")
 APP_DESCRIPTION = os.environ.get("APP_DESCRIPTION", "Unknown")
 
 # --------------------------------------------------
-# READ UpgradeCode (THIS IS THE CRITICAL SECTION)
+# Read UpgradeCode (stored WITHOUT braces)
 # --------------------------------------------------
 upgrade_file = ROOT_DIR / "build" / "installer" / "upgrade_code.txt"
-
 raw = upgrade_file.read_text(encoding="utf-8")
 
-UPGRADE_CODE = raw.strip().lower()
+UPGRADE_CODE_RAW = raw.strip().lower()
 
-# ---------- DEBUG OUTPUT (TEMPORARY) ----------
-print("DEBUG UpgradeCode repr:", repr(UPGRADE_CODE))
-print("DEBUG UpgradeCode length:", len(UPGRADE_CODE))
-# ---------------------------------------------
-
-# ---------- HARD VALIDATION ----------
+# Validate UUID (no braces)
 if not re.fullmatch(
     r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
-    UPGRADE_CODE,
+    UPGRADE_CODE_RAW,
 ):
-    raise RuntimeError(f"Invalid UpgradeCode: {repr(UPGRADE_CODE)}")
-# ---------------------------------------------
+    raise RuntimeError(f"Invalid UpgradeCode in file: {repr(UPGRADE_CODE_RAW)}")
 
+# cx_Freeze / msilib REQUIRES braces
+UPGRADE_CODE = f"{{{UPGRADE_CODE_RAW}}}"
+
+# --------------------------------------------------
+# cx_Freeze configuration
+# --------------------------------------------------
 base = "Win32GUI" if sys.platform == "win32" else None
 
 build_exe_options = {
