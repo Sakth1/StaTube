@@ -11,6 +11,9 @@ UI/__pycache__/
 Backend/__pycache__/
 Data/__pycache__/
 utils/__pycache__/
+build/bdist.win-amd64
+build/exe.win-amd64-3.11
+dist
 
 # Temporary or generated files
 output/
@@ -18,6 +21,7 @@ output/
 ai_env
 readme-ai.md
 experiments/
+.output.txt
 
 # Notes and documentation drafts
 notes.excalidraw

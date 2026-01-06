@@ -7,6 +7,8 @@ import os
 import sys
 import threading
 
+from utils.Root_path import get_app_root
+
 class DatabaseManager:
     """
     A class to manage SQLite database for YTAnalysis.
@@ -23,6 +25,7 @@ class DatabaseManager:
 
         # Determine OS and set appropriate AppData directory
         system = platform.system()
+        app_root = get_app_root()
         
         if system == "Windows":
             app_data_dir = Path(os.environ.get('APPDATA', Path.home() / "AppData" / "Roaming"))
@@ -55,14 +58,12 @@ class DatabaseManager:
         self.db_path = self.db_dir / db_name
 
         # Load schema file
-        # For Nuitka onefile builds, use __file__ to get the correct path
-        if getattr(sys, 'frozen', False):
-            # Running as compiled executable
-            base_dir = os.path.dirname(sys.argv[0])
-        else:
-            # Running as script
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-        self.schema_path = Path(os.path.join(base_dir, schema_path))
+        self.schema_path = app_root / "Data" / "schema.sql"
+
+        if not self.schema_path.exists():
+            raise FileNotFoundError(
+                f"Schema file not found: {self.schema_path}"
+            )
 
         # Create tables using schema.sql
         self._create_tables()
